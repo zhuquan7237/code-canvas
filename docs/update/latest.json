@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "versionName": "0.1.4",
   "versionCode": 5,
-  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.1.4.apk",
-  "sha256": "4029e65d817dd9d9b019275b14010e80ee34b2dcd2216c4719c373879f3a0f3f",
-  "size": 83351,
-  "notes": "应用内更新改为自建源优先（国内可直连，GitHub 兜底，带备用下载地址）；修复夜间代码页正文几乎不可读；修复长 SVG/大文档被误判为纯文本；读文件失败不再静默新建空文档，保存改为修订号校验；分享/导出文件名转义；XML 预览不再改写正文语义；预览渲染进程崩溃不再拖垮应用；空白抓帧不再盖掉类型封面；主页更新入口移至「我的文件」标题行，方格卡片不再裁切时间行。",
+  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.1.4.apk?v=a2ee2993ecbb",
+  "sha256": "a2ee2993ecbbee2c5b6181a08270e42fcd21bc8ec6df28b2196eda5a89f480fe",
+  "size": 83487,
+  "notes": "应用内更新改为自建源优先（国内可直连，GitHub 兜底，带备用下载地址与内容寻址 URL）；修复夜间代码页正文几乎不可读；修复长 SVG/大文档被误判为纯文本；读文件失败不再静默新建空文档，保存改为修订号校验；分享/导出文件名转义；XML 预览不再改写正文语义；预览渲染进程崩溃不再拖垮应用；空白抓帧不再盖掉类型封面；主页更新入口移至「我的文件」标题行，方格卡片不再裁切时间行。",
   "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.4/code-canvas-0.1.4.apk"
 }

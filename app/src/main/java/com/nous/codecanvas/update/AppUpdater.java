@@ -279,8 +279,13 @@ public final class AppUpdater {
                 }
                 if (lastError != null) throw lastError;
                 if (cancelled) throw new IOException("已取消");
-                if (gotHash == null || part.length() != m.size || !gotHash.equalsIgnoreCase(m.sha256)) {
-                    throw new IOException("安装包 SHA-256 校验失败");
+                // Say which check failed: "校验失败" sent every mismatch (truncated transfer, stale
+                // CDN copy, wrong manifest) down the same opaque path.
+                if (gotHash == null || part.length() != m.size) {
+                    throw new IOException("安装包大小与清单不符（收到 " + part.length() + " 字节，清单 " + m.size + " 字节）");
+                }
+                if (!gotHash.equalsIgnoreCase(m.sha256)) {
+                    throw new IOException("安装包 SHA-256 校验失败（收到 " + gotHash.substring(0, 12) + "…，清单 " + m.sha256.substring(0, 12) + "…）");
                 }
 
                 File target = new File(part.getParentFile(), "update.apk");
