@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "versionName": "0.1.2",
+  "versionCode": 3,
+  "apkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.2/code-canvas-0.1.2.apk",
+  "sha256": "b4325c0491ac59ce4d27655b4449ba9e2405f5de15ec2df236b7071b99e61634",
+  "size": 70787,
+  "notes": "颜色对比度重做（正文≥4.5:1、图标描边≥3:1）；主页紧凑列表/两列方格可切换；代码预览切换不再白屏闪；编辑器加入查找替换与常用符号条；新增应用内检查更新。已装文件会保留。"
+}
