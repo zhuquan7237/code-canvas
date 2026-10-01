@@ -135,6 +135,13 @@ public class MainActivity extends Activity {
         String action = intent.getAction();
         Uri data = intent.getData();
         if (Intent.ACTION_VIEW.equals(action) && data != null) {
+            // Hold on to the grant: the Uri is handed to us once, but the import finishes later and
+            // survives a recreation. Without this the read can fail for no visible reason.
+            try {
+                getContentResolver().takePersistableUriPermission(data, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } catch (Exception ignored) {
+                // Most providers do not offer a persistable grant; the transient one still works.
+            }
             String key = data.toString();
             if (key.equals(handledIncomingUri)) return;   // a recreation must not import twice
             handledIncomingUri = key;
@@ -318,6 +325,23 @@ public class MainActivity extends Activity {
                     .setNegativeButton("取消", null)
                     .show();
         } else {
+            // No fence was used. If the paste is prose wrapped around markup, the extracted region
+            // is a guess — let the user pick instead of silently saving the whole reply.
+            String region = blocks.isEmpty() ? com.nous.codecanvas.util.AiCodeExtractor.markupRegion(rawString) : null;
+            if (region != null) {
+                final String markup = region;
+                java.util.List<String> labels = new java.util.ArrayList<>();
+                labels.add("只保存识别到的代码（推荐）");
+                labels.add("保存全文（" + rawString.length() + " 字符）");
+                activeDialog = new AlertDialog.Builder(this)
+                        .setTitle("这段内容里既有说明文字也有代码")
+                        .setMessage("没有找到代码围栏，我按“第一个尖括号到最后一行”截了一段。选错了可以直接重来。")
+                        .setItems(labels.toArray(new String[0]), (dialog, which) ->
+                                createAndLaunchQuickPaste(which == 0 ? markup : rawString, ""))
+                        .setNegativeButton("取消", null)
+                        .show();
+                return;
+            }
             String code = blocks.isEmpty() ? rawString : blocks.get(0).code;
             String lang = blocks.isEmpty() ? "" : blocks.get(0).language;
             createAndLaunchQuickPaste(code, lang);

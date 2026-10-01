@@ -28,6 +28,43 @@ def sha256_of(path: pathlib.Path) -> str:
     return digest.hexdigest()
 
 
+def resolve_notes(notes_arg: str, notes_file: str | None):
+    """Notes may be given inline or as a path. A path-shaped value that does not exist is an
+    error: silently shipping the path as the user-visible release note is how a dialog ends up
+    showing 'C:\\...\\notes.md'."""
+    def read(path: str):
+        p = pathlib.Path(path)
+        if p.is_file():
+            text = p.read_text(encoding="utf-8").strip()
+            if not text:
+                print(f"notes file is empty: {p}", file=sys.stderr)
+                return None
+            print(f"notes read from {p} ({len(text)} chars)")
+            return text
+        return None
+
+    if not notes_arg and not notes_file:
+        print("pass --notes (text or path) or --notes-file", file=sys.stderr)
+        return None
+
+    if notes_file:
+        text = read(notes_file)
+        if text is None:
+            print(f"notes file not found or empty: {notes_file}", file=sys.stderr)
+        return text
+
+    from_file = read(notes_arg)
+    if from_file is not None:
+        return from_file
+    looks_like_path = any(sep in notes_arg for sep in ("/", "\\")) or \
+        notes_arg.strip().lower().endswith((".md", ".txt"))
+    if looks_like_path:
+        print(f"--notes looks like a path but no such file: {notes_arg}\n"
+              f"Pass the text itself, or create the file first.", file=sys.stderr)
+        return None
+    return notes_arg.strip()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--apk", required=True)
@@ -35,7 +72,10 @@ def main() -> int:
     parser.add_argument("--version-code", type=int, required=True)
     parser.add_argument("--tag", required=True, help="git tag, e.g. v0.1.2")
     parser.add_argument("--asset-name", default="app-release.apk")
-    parser.add_argument("--notes", required=True)
+    parser.add_argument("--notes", default=None,
+                        help="release notes text, or a path to a file containing them")
+    parser.add_argument("--notes-file", default=None,
+                        help="read the release notes from this file (same as passing its path to --notes)")
     parser.add_argument("--apk-url", default=None,
                         help="primary download address; defaults to the GitHub release asset")
     parser.add_argument("--fallback-apk-url", default=None,
@@ -44,6 +84,10 @@ def main() -> int:
     parser.add_argument("--also-out", default=None,
                         help="write the same manifest to a second path (e.g. the copy for the mirror host)")
     args = parser.parse_args()
+
+    notes = resolve_notes(args.notes, args.notes_file)
+    if notes is None:
+        return 5
 
     apk = pathlib.Path(args.apk)
     if not apk.is_file():
@@ -64,7 +108,7 @@ def main() -> int:
         "apkUrl": args.apk_url or f"https://github.com/{REPO}/releases/download/{args.tag}/{args.asset_name}",
         "sha256": sha256_of(apk),
         "size": size,
-        "notes": args.notes,
+        "notes": notes,
     }
     if args.fallback_apk_url:
         manifest["fallbackApkUrl"] = args.fallback_apk_url

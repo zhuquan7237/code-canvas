@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "versionName": "0.1.4",
-  "versionCode": 5,
-  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.1.4.apk?v=a2ee2993ecbb",
-  "sha256": "a2ee2993ecbbee2c5b6181a08270e42fcd21bc8ec6df28b2196eda5a89f480fe",
-  "size": 83487,
-  "notes": "应用内更新改为自建源优先（国内可直连，GitHub 兜底，带备用下载地址与内容寻址 URL）；修复夜间代码页正文几乎不可读；修复长 SVG/大文档被误判为纯文本；读文件失败不再静默新建空文档，保存改为修订号校验；分享/导出文件名转义；XML 预览不再改写正文语义；预览渲染进程崩溃不再拖垮应用；空白抓帧不再盖掉类型封面；主页更新入口移至「我的文件」标题行，方格卡片不再裁切时间行。",
-  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.4/code-canvas-0.1.4.apk"
+  "versionName": "0.1.5",
+  "versionCode": 6,
+  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.1.5.apk?v=fddc184ea204",
+  "sha256": "fddc184ea2045d68b403f184d0580bfdb2d7ce799ac24b5cca8ce5211194624e",
+  "size": 84183,
+  "notes": "应用内更新更稳了：下载失败时多一个「手动下载」按钮，直接给你安装包地址。\n\n粘贴 AI 回复时，如果里面既有说明文字又有代码，现在会让你选「只保存代码」还是「保存全文」，不会再默默把整段说明存成文档。\n\n系统「打开方式」导入修了权限保持，导入过程被系统重建也不会读不到文件。",
+  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.5/code-canvas-0.1.5.apk"
 }

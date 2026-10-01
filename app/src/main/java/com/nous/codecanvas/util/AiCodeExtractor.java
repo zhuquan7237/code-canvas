@@ -23,6 +23,54 @@ public class AiCodeExtractor {
             Pattern.DOTALL
     );
 
+    /**
+     * When a reply is prose with markup in the middle and no code fence, extracting "the code" is a
+     * guess — so make it a guess the user can reject. Returns the markup region when the text
+     * clearly has prose around it, or null when the whole text already is the markup.
+     */
+    public static String markupRegion(String text) {
+        if (text == null) {
+            return null;
+        }
+        String trimmed = text.trim();
+        if (trimmed.startsWith("<")) {
+            return null;   // already markup; nothing to guess
+        }
+        String[] lines = text.split("\r?\n", -1);
+        int first = -1;
+        int last = -1;
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i].trim();
+            if (line.startsWith("<") && line.length() > 1) {
+                if (first < 0) {
+                    first = i;
+                }
+                last = i;
+            }
+        }
+        if (first < 0 || last <= first) {
+            return null;
+        }
+        // Only offer the region when it is most of the interesting content: a lone "<br>" in a
+        // paragraph is not a code block.
+        int regionLines = last - first + 1;
+        if (regionLines < 2) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = first; i <= last; i++) {
+            sb.append(lines[i]);
+            if (i < last) {
+                sb.append('\n');
+            }
+        }
+        String region = sb.toString();
+        if (region.length() < 16 || region.length() > text.length()) {
+            return null;
+        }
+        return region;
+    }
+
     public static List<CodeBlock> extract(String input) {
         if (input == null) {
             return Collections.emptyList();

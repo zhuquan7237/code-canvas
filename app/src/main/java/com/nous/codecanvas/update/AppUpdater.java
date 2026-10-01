@@ -311,8 +311,9 @@ public final class AppUpdater {
                     if (!cancelled) {
                         new AlertDialog.Builder(activity)
                                 .setTitle("更新下载失败")
-                                .setMessage(describe(e))
+                                .setMessage(describe(e) + "\n\n两个地址都没成时，可以自己去下载页拿安装包。")
                                 .setPositiveButton("重试", (d, w) -> download(m))
+                                .setNeutralButton("手动下载", (d, w) -> openInBrowser(m.apkUrl))
                                 .setNegativeButton("关闭", null)
                                 .show();
                     }
@@ -326,6 +327,18 @@ public final class AppUpdater {
         HttpURLConnection c = activeConnection;
         if (c != null) c.disconnect();
         downloading = null;
+    }
+
+    /** Escape hatch for the failure dialog: hand the user the same download the app would use. */
+    private void openInBrowser(String url) {
+        if (url == null || url.trim().isEmpty()) return;
+        try {
+            Intent view = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            view.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(view);
+        } catch (Exception e) {
+            Toast.makeText(activity, "没有可用的浏览器，地址：" + url, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void dismissDialog() {

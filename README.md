@@ -2,7 +2,7 @@
 
 把 AI 给出的代码，变成看得见的作品。轻量原生 Android 应用，使用系统 WebView，不打包浏览器内核。
 
-[下载最新 APK](https://relay.zhuquan.xyz/dl/code-canvas-0.1.4.apk)（自建源，国内可直连）· [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
+[下载最新 APK](https://relay.zhuquan.xyz/dl/code-canvas-0.1.5.apk)（自建源，国内可直连）· [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
 
 ## 怎么用
 
@@ -22,6 +22,13 @@
 - 预览支持刷新；长按「代码」标签复制全部源码。
 - 对 CDN、缺失本地资源、需要编译的代码给出持续可读的说明。
 - 保存使用不可变快照与原子替换，多页面并发不丢其他作品；清空作品后不再自动出现示例。
+
+## v0.1.5 本次更新（评审第二轮补齐 + 手动下载兜底）
+
+- **粘贴 AI 回复时不再默默吃掉说明文字**：回复里既有说明又有代码、又没有代码围栏时，会问一句「只保存识别到的代码（推荐）/ 保存全文 / 取消」，截取规则也写在对话框里，选错可以直接重来。整段本来就是代码时不多问。
+- **更新下载失败多了「手动下载」**：两个源都不通时，直接给你应用用的那个安装包地址，不再只能反复点重试。
+- 系统「打开方式」导入会额外申请**可持久化读取权限**，导入过程被系统重建也不会读不到文件。
+- 验收：单元测试 **62**、模拟器仪器测试 **26**，并实测**连续第二次**应用内升级（0.1.4 → 0.1.5）。细节与未做项见 [docs/RELEASE-v0.1.5.md](docs/RELEASE-v0.1.5.md)。
 
 ## v0.1.4 本次更新（应用内更新 + 外部评审修复）
 
@@ -106,10 +113,11 @@ keyPassword=your_password
 5. 生成清单（写两份：仓库里的兜底清单 + 上传到自建源的那份）并提交推送：
    ```sh
    python scripts/release.py --apk app/build/outputs/apk/release/app-release.apk \
-     --version-name 0.1.4 --version-code 5 --tag v0.1.4 \
-     --asset-name code-canvas-0.1.4.apk \
-     --apk-url https://relay.zhuquan.xyz/dl/code-canvas-0.1.4.apk \
-     --fallback-apk-url https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.4/code-canvas-0.1.4.apk \
+     --version-name 0.1.5 --version-code 6 --tag v0.1.5 \
+     --asset-name code-canvas-0.1.5.apk \
+     --notes-file ../notes.md \
+     --apk-url "https://relay.zhuquan.xyz/dl/code-canvas-0.1.5.apk?v=<sha 前 12 位>" \
+     --fallback-apk-url https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.5/code-canvas-0.1.5.apk \
      --also-out <自建源用清单路径> --notes "本次更新内容…"
    ```
    脚本从文件本身算 SHA-256 与字节数，不接受手填；`latest.json` 只有正向递增的 `versionCode` 才会被应用接受。
