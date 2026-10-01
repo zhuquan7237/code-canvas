@@ -204,6 +204,10 @@ public class CodeCanvasActivityE2ETest extends android.test.InstrumentationTestC
         CanvasDocument doc = new CanvasDocument(htmlDocId, "test.html", htmlContent, System.currentTimeMillis());
         repo.saveDocument(doc);
 
+        // Set the app-wide script preference before the editor reads it, so this test asserts the
+        // default path rather than whatever a previous run left behind.
+        com.nous.codecanvas.util.CanvasPrefs.setScriptsAllowed(mainActivity, true);
+
         Intent intent = new Intent(mainActivity, EditorActivity.class);
         intent.putExtra(EditorActivity.EXTRA_DOC_ID, doc.getId());
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -220,16 +224,34 @@ public class CodeCanvasActivityE2ETest extends android.test.InstrumentationTestC
         final WebView webView = editorActivity.findViewById(R.id.web_preview);
         final Switch switchJs = editorActivity.findViewById(R.id.switch_allow_js);
 
-        // Switch to preview tab with JS disabled (default)
+        // Scripts ship ON by default: code that needs JS (charts, animation, calculators) must
+        // render without the user first hunting for a toggle. Assert both the default and the
+        // switch's default position.
         runTestOnUiThread(() -> {
             tabPreview.performClick();
         });
         instrumentation.waitForIdleSync();
         Thread.sleep(1500); // Allow webview to render
 
-        // Check DOM: with JS disabled, evaluateJavascript cannot run if JavaScript is fully disabled on WebView!
-        // In Android WebView, evaluateJavascript requires javascript enabled, OR when JS is disabled it returns null.
-        // Let's verify that when JS is disabled, evaluateJavascript returns null (or script didn't execute).
+        final AtomicReference<String> resultJsByDefault = new AtomicReference<>();
+        final CountDownLatch latchDefault = new CountDownLatch(1);
+        runTestOnUiThread(() -> {
+            webView.evaluateJavascript("document.getElementById('headline') ? document.getElementById('headline').innerText : 'NO_ELEMENT'", value -> {
+                resultJsByDefault.set(value);
+                latchDefault.countDown();
+            });
+        });
+        assertTrue(latchDefault.await(3, TimeUnit.SECONDS));
+        runTestOnUiThread(() -> assertTrue("the switch shows the default (on)", switchJs.isChecked()));
+        assertEquals("scripts run without being asked", "\"JS Executed\"", resultJsByDefault.get());
+
+        // Turning it off must still cut the page's script off. Which way the default points is a
+        // product decision; that the switch still works is the safety property, so it stays tested.
+        runTestOnUiThread(() -> {
+            switchJs.setChecked(false);
+        });
+        instrumentation.waitForIdleSync();
+        Thread.sleep(800);
         final AtomicReference<String> resultJsDisabled = new AtomicReference<>();
         final CountDownLatch latch1 = new CountDownLatch(1);
         runTestOnUiThread(() -> {
@@ -239,11 +261,9 @@ public class CodeCanvasActivityE2ETest extends android.test.InstrumentationTestC
             });
         });
         assertTrue(latch1.await(3, TimeUnit.SECONDS));
-        String jsVal = resultJsDisabled.get();
-        android.util.Log.i("CodeCanvasTest", "jsVal is " + (jsVal == null ? "NULL_OBJ" : ("LEN_" + jsVal.length() + "_VAL_" + jsVal)));
-        assertEquals("null", jsVal);
+        assertEquals("with the switch off the page cannot run script", "null", resultJsDisabled.get());
 
-        // Enable JS switch and re-render
+        // Switch it back on and re-render; the choice is remembered app-wide
         runTestOnUiThread(() -> {
             switchJs.setChecked(true);
         });

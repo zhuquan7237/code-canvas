@@ -1,3 +1,15 @@
+# v0.1.6 验收记录（主页预览图 · 渲染尺寸 · 脚本默认 · 外部打开）
+
+- 正式签名版 versionCode 7 / versionName 0.1.6；签名证书与 0.1.0–0.1.5 一致（可原地升级）。
+- 单元测试 **69 项 0 失败**；模拟器仪器测试 **28 项 0 失败**。
+- 关键实测（emulator-5556，非预览）：
+  - 主页为**未打开过**的作品生成真实缩略图（`ThumbnailBackfillTest`：480 宽、非空白、含页面实际绘制的背景色，且页面脚本确实执行过）。
+  - 浅色页面背景 `#F8FAFC` **不再**被判为空帧（`ThumbnailBlankTest.testLightPageBackgroundIsNotBlank`）；纯白仍判空。
+  - 脚本默认开启且**关掉后确实拦得住**（`CodeCanvasActivityE2ETest`：开关开=页面脚本执行，关=`evaluateJavascript` 返回 null）。
+  - 外部唤起：`file://…/demo.html` + `application/octet-stream` 的候选列表里**只有**代码画布；`content://…` + `text/html` 与 Chrome/HTMLViewer 并列；`ACTION_SEND` 对 `image/svg+xml`、`text/html`、`application/octet-stream` 均出现代码画布。
+  - 上一版发布的应用内升级在模拟器上确认落地：0.1.4 → 0.1.5，重开显示「已是最新 · 0.1.5」。
+- 截图证据：`docs/evidence/v0.1.6/`。
+
 # v0.1.5 验收记录（评审第二轮补齐 + 手动下载兜底）
 
 - 正式签名版：**84183 字节（约 82.2 KiB）**，Android 8.0+（minSdk 26），versionCode 6，versionName 0.1.5。

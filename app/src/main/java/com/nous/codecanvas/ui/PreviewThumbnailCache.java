@@ -14,11 +14,19 @@ import java.util.Comparator;
 public final class PreviewThumbnailCache {
  private PreviewThumbnailCache(){}
  public static File file(Context c,String key){ return new File(new File(c.getCacheDir(),"previews"),key+".png"); }
+ /**
+  * Capture at the preview's own aspect ratio. A fixed 16:9 frame left white bands under short
+  * pages and cut tall ones off, and the list then centre-cropped that twice over - which is how
+  * the same app showed thumbnails that looked either empty or oddly zoomed in.
+  */
  public static Bitmap capture(View view){
-  if(view.getWidth()<=0||view.getHeight()<=0) return null;
-  Bitmap b=Bitmap.createBitmap(320,180,Bitmap.Config.ARGB_8888);
+  int w=view.getWidth(),h=view.getHeight();
+  if(w<=0||h<=0) return null;
+  int outW=480;
+  int outH=Math.max(1,Math.round(outW*(float)h/w));
+  Bitmap b=Bitmap.createBitmap(outW,outH,Bitmap.Config.ARGB_8888);
   Canvas canvas=new Canvas(b); canvas.drawColor(Color.WHITE);
-  float scale=320f/view.getWidth(); canvas.scale(scale,scale); view.draw(canvas);
+  float scale=(float)outW/w; canvas.scale(scale,scale); view.draw(canvas);
   return b;
  }
  public static void store(Context c,String key,Bitmap bitmap){
@@ -52,6 +60,9 @@ public final class PreviewThumbnailCache {
   if(small!=b) small.recycle();
   // "Nothing painted" is precisely "still the white base coat". A flat *colour* is real content:
   // a page that paints only a background must keep its thumbnail, not fall back to the cover.
-  return min>=248&&(max-min)<=8;
+  // Tightened: >=248 also swallowed the light page background (#F8FAFC is exactly 248,250,252),
+  // so an ordinary light HTML page was judged "nothing painted" and the home list fell back to
+  // type covers. Only near-pure white now counts as the untouched base coat.
+  return min>=252&&(max-min)<=4;
  }
 }

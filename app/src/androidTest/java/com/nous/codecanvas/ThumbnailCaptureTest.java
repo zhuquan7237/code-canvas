@@ -20,7 +20,11 @@ public class ThumbnailCaptureTest extends InstrumentationTestCase {
    assertTrue("实际预览必须生成封面缓存",f.exists());
    android.graphics.Bitmap b=android.graphics.BitmapFactory.decodeFile(f.getAbsolutePath());
    assertNotNull("封面必须是真实可解码图片",b);
-   assertEquals(320,b.getWidth());
+   // The capture follows the preview's own aspect ratio now: a fixed 16:9 frame used to cut tall
+   // pages off and leave white bands under short ones, and the list then centre-cropped that.
+   assertEquals(480,b.getWidth());
+   assertTrue("capture keeps the preview's aspect, not a fixed 16:9: " + b.getWidth() + "x" + b.getHeight(),
+           Math.abs((double) b.getHeight() / b.getWidth() - 180.0 / 320.0) > 0.02);
    // Check color of rendered thumbnail: verify it rendered the teal/colored body (#0f766e) instead of pure white/blank
    boolean foundRenderedColor = false;
    int nonWhitePixelCount = 0;

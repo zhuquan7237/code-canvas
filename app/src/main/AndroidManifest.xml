@@ -19,14 +19,18 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Opening files from other apps. Narrowed to what this app actually renders:
-                 the old */* filter advertised the app for every file on the device, and the
-                 activity never consumed the intent, so "open with 代码画布" only reached the
-                 home screen. -->
+            <!-- Opening files from other apps. Narrowed to what this app actually renders: the
+                 old */* filter advertised the app for every file on the device, and the activity
+                 never consumed the intent, so "open with 代码画布" only reached the home screen.
+                 The intent is consumed now, and the file cases matter in practice: chat and file
+                 apps hand code over as */* or octet-stream as often as they name the type, so the
+                 extension patterns below are what make the app show up for a real .html/.svg. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="content" />
+                <data android:scheme="file" />
                 <data android:mimeType="text/html" />
                 <data android:mimeType="application/xhtml+xml" />
                 <data android:mimeType="image/svg+xml" />
@@ -37,11 +41,23 @@
                 <data android:mimeType="text/css" />
                 <data android:mimeType="text/javascript" />
                 <data android:mimeType="application/javascript" />
+                <data android:mimeType="*/*" android:host="*" android:pathPattern=".*\\.html" />
+                <data android:mimeType="*/*" android:host="*" android:pathPattern=".*\\.htm" />
+                <data android:mimeType="*/*" android:host="*" android:pathPattern=".*\\.svg" />
+                <data android:mimeType="*/*" android:host="*" android:pathPattern=".*\\.xml" />
+                <data android:mimeType="*/*" android:host="*" android:pathPattern=".*\\.txt" />
             </intent-filter>
+            <!-- Sharing a generated file straight from a chat app ("分享" -> 代码画布). -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
+                <data android:mimeType="text/html" />
+                <data android:mimeType="application/xhtml+xml" />
+                <data android:mimeType="image/svg+xml" />
+                <data android:mimeType="text/xml" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="application/octet-stream" />
             </intent-filter>
         </activity>
 

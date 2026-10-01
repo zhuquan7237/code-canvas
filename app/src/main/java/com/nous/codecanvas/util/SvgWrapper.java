@@ -33,6 +33,10 @@ public class SvgWrapper {
                 "      overflow: auto;\n" +
                 "    }\n" +
                 "    .svg-wrapper svg {\n" +
+                "      /* max-width alone only ever shrinks: a 100px drawing stayed a speck while a\n" +
+                "         responsive one filled the screen. Fill the width so every drawing reads at\n" +
+                "         the same size, with the aspect ratio coming from the viewBox/width/height. */\n" +
+                "      width: 100%;\n" +
                 "      max-width: 100%;\n" +
                 "      height: auto;\n" +
                 "      display: block;\n" +

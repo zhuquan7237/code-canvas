@@ -96,7 +96,13 @@ public class EditorActivity extends Activity {
     private boolean documentIsNew = false;
     private boolean isProgrammaticChange = false;
     private boolean isUndoRedoAction = false;
-    private boolean isAllowJs = false;
+    /**
+     * Scripts are on by default now. Almost every piece of code this app is pointed at (charts,
+     * animation, calculators) simply does not work without them, and the preview is a sandboxed
+     * WebView with no file or content access, no network unless the user asks for it, and no way
+     * back into the app. The choice is remembered across documents instead of resetting.
+     */
+    private boolean isAllowJs = true;
     private boolean isAllowNetwork = false;
     private final com.nous.codecanvas.editor.PreviewState previewState = new com.nous.codecanvas.editor.PreviewState();
     private int previewLoadCount;
@@ -186,11 +192,12 @@ public class EditorActivity extends Activity {
             switchToTab(1);
         }
 
-        // Restore if savedInstanceState
+        // The remembered preference is the baseline; a per-visit toggle in this instance wins.
+        isAllowJs = com.nous.codecanvas.util.CanvasPrefs.scriptsAllowed(this);
         if (savedInstanceState != null) {
-            isAllowJs = savedInstanceState.getBoolean("key_allow_js", false);
-            switchAllowJs.setChecked(isAllowJs);
+            isAllowJs = savedInstanceState.getBoolean("key_allow_js", isAllowJs);
         }
+        switchAllowJs.setChecked(isAllowJs);
     }
 
     @Override
@@ -244,7 +251,7 @@ public class EditorActivity extends Activity {
         settings.setAllowFileAccessFromFileURLs(false);
         settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
-        settings.setJavaScriptEnabled(false);
+        settings.setJavaScriptEnabled(isAllowJs);
         settings.setBlockNetworkLoads(true);
         settings.setDomStorageEnabled(false);
         settings.setDatabaseEnabled(false);
@@ -405,7 +412,7 @@ public class EditorActivity extends Activity {
         findViewById(R.id.btn_preview_network).setOnClickListener(v -> {
             if (isAllowNetwork) { setNetworkAllowed(false); return; }
             activeDialog = new AlertDialog.Builder(this).setTitle("允许此页面联网？")
-                    .setMessage("用于加载 HTTPS 图片、字体和外部脚本。页面可能向第三方网站发送请求；启用交互后，脚本也可联网。仅对当前打开的页面生效，离开后恢复离线。只开启你信任的代码。")
+                    .setMessage("用于加载 HTTPS 图片、字体和外部脚本。页面可能向第三方网站发送请求；页面脚本默认是开的，联网之后脚本也能发请求。只对当前这一页生效，离开就恢复离线。只开启你信任的代码。")
                     .setPositiveButton("允许本页联网", (d,w) -> setNetworkAllowed(true))
                     .setNegativeButton("保持离线",null).show();
         });
@@ -425,6 +432,7 @@ public class EditorActivity extends Activity {
 
         switchAllowJs.setOnCheckedChangeListener((buttonView, isChecked) -> {
             isAllowJs = isChecked;
+            com.nous.codecanvas.util.CanvasPrefs.setScriptsAllowed(this, isChecked);
             if (webPreview != null) webPreview.getSettings().setJavaScriptEnabled(isAllowJs);
             if (isAllowJs) {
                 Toast.makeText(this, "已启用页面按钮与动态效果；仅运行你信任的代码", Toast.LENGTH_SHORT).show();
@@ -736,20 +744,9 @@ public class EditorActivity extends Activity {
                 advice.setVisibility(View.VISIBLE);
             }
 
-            if (kind == RenderKind.SVG) {
-                txtRenderModeBadge.setText("SVG 矢量图");
-                String html = SvgWrapper.wrapSvgInResponsiveHtml(content, isDark);
-                loadPreview(html,fingerprint);
-            } else if (kind == RenderKind.HTML) {
-                txtRenderModeBadge.setText("HTML5 渲染");
-                loadPreview(content,fingerprint);
-            } else {
-                txtRenderModeBadge.setText("纯文本视图");
-                String escaped = content.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-                String plainHtml = "<html><body style=\"font-family:monospace;padding:16px;white-space:pre-wrap;background:" +
-                        (isDark ? "#121417;color:#F8FAFC;" : "#F8FAFC;color:#0F172A;") + "\">" + escaped + "</body></html>";
-                loadPreview(plainHtml,fingerprint);
-            }
+            txtRenderModeBadge.setText(kind == RenderKind.SVG ? "SVG 矢量图"
+                    : kind == RenderKind.HTML ? "HTML5 渲染" : "纯文本视图");
+            loadPreview(com.nous.codecanvas.util.PreviewHtml.forDocument(content, kind, isDark), fingerprint);
         }
     }
 

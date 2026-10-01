@@ -64,6 +64,8 @@ public class MainActivity extends Activity {
     private final List<CanvasDocument> allDocuments = new ArrayList<>();
     private final List<CanvasDocument> filteredDocuments = new ArrayList<>();
     private DocumentAdapter adapter;
+    private DocumentAdapter gridAdapter;
+    private ThumbnailBackfiller backfiller;
     private final java.util.Map<String, DocumentPresentation> presentations = new java.util.HashMap<>();
 
     /** Derived metadata is prepared off-main once per reload, not on every scroll bind. */
@@ -147,6 +149,22 @@ public class MainActivity extends Activity {
             handledIncomingUri = key;
             importFromUri(data);
         } else if (Intent.ACTION_SEND.equals(action)) {
+            // A shared file ("分享" -> 代码画布) arrives as EXTRA_STREAM, not as text. Chat apps do
+            // this for generated .html/.svg attachments, which is the whole point of being in the
+            // share sheet — reading only EXTRA_TEXT dropped those on the floor.
+            Uri stream = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+            if (stream != null) {
+                try {
+                    getContentResolver().takePersistableUriPermission(stream, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                } catch (Exception ignored) {
+                }
+                String key = stream.toString();
+                if (!key.equals(handledIncomingUri)) {
+                    handledIncomingUri = key;
+                    importFromUri(stream);
+                }
+                return;
+            }
             String shared = intent.getStringExtra(Intent.EXTRA_TEXT);
             if (shared != null && !shared.trim().isEmpty()) {
                 pendingSharedText = shared;
@@ -188,11 +206,19 @@ public class MainActivity extends Activity {
 
         adapter = new DocumentAdapter();
         listDocuments.setAdapter(adapter);
-        gridDocuments.setAdapter(new DocumentAdapter());
+        gridAdapter = new DocumentAdapter();
+        gridDocuments.setAdapter(gridAdapter);
         setGrid(getPreferences(0).getBoolean("grid",false));
         findViewById(R.id.btn_layout_list).setOnClickListener(v -> setGrid(false));
         findViewById(R.id.btn_layout_grid).setOnClickListener(v -> setGrid(true));
         updater = new com.nous.codecanvas.update.AppUpdater(this,(Button)findViewById(R.id.btn_check_update));
+
+        // Documents the user has never opened have no thumbnail, which is why a fresh list showed
+        // only type covers. Fill those in quietly, after the list is already on screen.
+        backfiller = new ThumbnailBackfiller(this, () -> {
+            if (adapter != null) adapter.notifyDataSetChanged();
+            if (gridAdapter != null) gridAdapter.notifyDataSetChanged();
+        });
 
         listDocuments.setOnItemClickListener((parent, view, position, id) -> {
             CanvasDocument doc = filteredDocuments.get(position);
@@ -241,6 +267,7 @@ public class MainActivity extends Activity {
                     allDocuments.clear();
                     allDocuments.addAll(docs);
                     filterDocuments(editSearch.getText().toString());
+                    backfiller.enqueue(ThumbnailBackfiller.missingThumbnails(MainActivity.this, docs));
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "加载文档失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
@@ -540,7 +567,7 @@ public class MainActivity extends Activity {
             cover.setScaleType(android.widget.ImageView.ScaleType.CENTER);
             RenderKind coverKind = presentation.kind;
             cover.setImageResource(coverKind==RenderKind.HTML ? R.drawable.cover_web : coverKind==RenderKind.SVG ? R.drawable.cover_vector : R.drawable.cover_document);
-            cover.setContentDescription("类型封面；打开预览后显示作品缩略图");
+            cover.setContentDescription("作品缩略图；还没生成好时显示文件类型封面");
             thumbnailExecutor.execute(() -> {
                 android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(PreviewThumbnailCache.file(getApplicationContext(),key).getAbsolutePath());
                 // A stored capture that painted nothing is discarded rather than shown; the cover
@@ -629,7 +656,14 @@ public class MainActivity extends Activity {
 
     public AlertDialog getActiveDialogForTest() { return activeDialog; }
 
+    @Override protected void onStop() {
+        // Rendering every document is not worth doing while the user is elsewhere.
+        if (backfiller != null) backfiller.stop();
+        super.onStop();
+    }
+
     @Override protected void onDestroy() {
+        if (backfiller != null) backfiller.stop();
         if(activeDialog!=null && activeDialog.isShowing()) activeDialog.dismiss();
         super.onDestroy();
         thumbnailExecutor.shutdown();

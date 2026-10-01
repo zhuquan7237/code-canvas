@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "versionName": "0.1.5",
-  "versionCode": 6,
-  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.1.5.apk?v=fddc184ea204",
-  "sha256": "fddc184ea2045d68b403f184d0580bfdb2d7ce799ac24b5cca8ce5211194624e",
-  "size": 84183,
-  "notes": "应用内更新更稳了：下载失败时多一个「手动下载」按钮，直接给你安装包地址。\n\n粘贴 AI 回复时，如果里面既有说明文字又有代码，现在会让你选「只保存代码」还是「保存全文」，不会再默默把整段说明存成文档。\n\n系统「打开方式」导入修了权限保持，导入过程被系统重建也不会读不到文件。",
-  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.5/code-canvas-0.1.5.apk"
+  "versionName": "0.1.6",
+  "versionCode": 7,
+  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.1.6.apk?v=41cb73a1a463",
+  "sha256": "41cb73a1a46301e41b3402cc4c975cf09cbd8edf5a35ab07dc575f514d2d1d68",
+  "size": 86231,
+  "notes": "主页的预览图：以前只有你打开过预览的作品才有缩略图，所以主页看着像没有预览。现在没打开过的也会自动渲染一张。\n\n预览大小统一：给没有 viewport 的 HTML 自动补上，SVG 会按屏幕宽度缩放，不再有的渲染得特别小、有的特别大。\n\n页面脚本默认开启（会记住你的选择，随时能关）。联网仍然按页面单独询问。\n\n「在其他应用里打开」：文件管理器和聊天应用里打开或分享 .html / .svg / .xml 时，列表里会出现「代码画布」，点了直接进预览。",
+  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.6/code-canvas-0.1.6.apk"
 }

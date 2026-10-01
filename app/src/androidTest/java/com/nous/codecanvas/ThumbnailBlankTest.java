@@ -45,6 +45,19 @@ public class ThumbnailBlankTest extends InstrumentationTestCase {
         b.recycle();
     }
 
+    /**
+     * The regression that made the home list look like it had no previews at all: the light page
+     * background is #F8FAFC, and the old threshold (min >= 248) swallowed it, so an ordinary light
+     * HTML page was judged unpainted and replaced by the type cover.
+     */
+    public void testLightPageBackgroundIsNotBlank() {
+        Bitmap b = blank();
+        new Canvas(b).drawColor(Color.rgb(0xF8, 0xFA, 0xFC));
+        assertFalse("a light page background is content, not an untouched frame",
+                PreviewThumbnailCache.looksBlank(b));
+        b.recycle();
+    }
+
     public void testFlatColourFrameIsNotBlank() {
         Bitmap b = blank();
         new Canvas(b).drawColor(Color.rgb(15, 118, 110));
