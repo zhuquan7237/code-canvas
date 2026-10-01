@@ -26,6 +26,7 @@ public class CanvasFileProvider extends ContentProvider {
         if (file == null || !file.exists()) {
             throw new FileNotFoundException("File not found: " + uri);
         }
+        if (!"r".equals(mode)) throw new FileNotFoundException("Read-only provider");
         int fileMode = ParcelFileDescriptor.MODE_READ_ONLY;
         if ("w".equals(mode) || "wt".equals(mode)) {
             fileMode = ParcelFileDescriptor.MODE_WRITE_ONLY;
@@ -36,19 +37,12 @@ public class CanvasFileProvider extends ContentProvider {
     }
 
     private File getFileForUri(Uri uri) {
-        if (getContext() == null) return null;
-        String path = uri.getPath();
-        if (path == null) return null;
-        if (path.startsWith("/")) {
-            path = path.substring(1);
-        }
-        // Protect directory traversal
-        if (path.contains("..")) {
-            return null;
-        }
-        // Allowed dirs: cacheDir/shares
-        File baseDir = new File(getContext().getCacheDir(), "shares");
-        return new File(baseDir, path);
+        if(getContext()==null)return null;
+        String path=uri.getPath();if(path==null)return null;
+        if(path.startsWith("/"))path=path.substring(1);
+        File base=new File(getContext().getCacheDir(),"shares");
+        if(path.startsWith("updates/")){if(!path.equals("updates/update.apk"))return null;base=new File(getContext().getCacheDir(),"updates");path="update.apk";}
+        try{File file=new File(base,path).getCanonicalFile();if(!file.getPath().startsWith(base.getCanonicalPath()+File.separator))return null;return file;}catch(java.io.IOException e){return null;}
     }
 
     @Override
@@ -97,6 +91,7 @@ public class CanvasFileProvider extends ContentProvider {
 
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {
+        if(uri.getPath()!=null && uri.getPath().startsWith("/updates/")) return 0;
         File file = getFileForUri(uri);
         if (file != null && file.exists()) {
             return file.delete() ? 1 : 0;

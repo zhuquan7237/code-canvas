@@ -49,6 +49,8 @@ public class MainActivity extends Activity {
     private DocumentRepository repository;
     private AlertDialog activeDialog;
     private ListView listDocuments;
+    private android.widget.GridView gridDocuments;
+    private com.nous.codecanvas.update.AppUpdater updater;
     private View viewEmpty;
     private EditText editSearch;
     private Button btnQuickPaste;
@@ -116,10 +118,12 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         loadDocuments();
+        if(updater!=null) updater.onResume();
     }
 
     private void initViews() {
         listDocuments = findViewById(R.id.list_documents);
+        gridDocuments = findViewById(R.id.grid_documents);
         viewEmpty = findViewById(R.id.view_empty);
         editSearch = findViewById(R.id.edit_search);
         btnQuickPaste = findViewById(R.id.btn_quick_paste_preview);
@@ -128,11 +132,23 @@ public class MainActivity extends Activity {
 
         adapter = new DocumentAdapter();
         listDocuments.setAdapter(adapter);
+        gridDocuments.setAdapter(new DocumentAdapter());
+        setGrid(getPreferences(0).getBoolean("grid",false));
+        findViewById(R.id.btn_layout_list).setOnClickListener(v -> setGrid(false));
+        findViewById(R.id.btn_layout_grid).setOnClickListener(v -> setGrid(true));
+        updater = new com.nous.codecanvas.update.AppUpdater(this,(Button)findViewById(R.id.btn_check_update));
 
         listDocuments.setOnItemClickListener((parent, view, position, id) -> {
             CanvasDocument doc = filteredDocuments.get(position);
             openEditor(doc.getId(), true);
         });
+    }
+
+    private void setGrid(boolean grid) {
+        getPreferences(0).edit().putBoolean("grid",grid).apply();
+        listDocuments.setVisibility(grid?View.GONE:View.VISIBLE);gridDocuments.setVisibility(grid?View.VISIBLE:View.GONE);
+        findViewById(R.id.btn_layout_list).setBackgroundResource(grid?R.drawable.bg_button_subtle:R.drawable.bg_tag);
+        findViewById(R.id.btn_layout_grid).setBackgroundResource(grid?R.drawable.bg_tag:R.drawable.bg_button_subtle);
     }
 
     private void setupListeners() {
@@ -188,6 +204,8 @@ public class MainActivity extends Activity {
             }
         }
         adapter.notifyDataSetChanged();
+        ((BaseAdapter)gridDocuments.getAdapter()).notifyDataSetChanged();
+        ((TextView)findViewById(R.id.txt_file_count)).setText("我的文件 · "+filteredDocuments.size());
         viewEmpty.setVisibility(filteredDocuments.isEmpty() ? View.VISIBLE : View.GONE);
     }
 
@@ -421,7 +439,7 @@ public class MainActivity extends Activity {
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
             if (convertView == null) {
-                convertView = LayoutInflater.from(MainActivity.this).inflate(R.layout.item_document_card, parent, false);
+                convertView = LayoutInflater.from(MainActivity.this).inflate(parent==gridDocuments ? R.layout.item_document_card : R.layout.item_document_list, parent, false);
             }
 
             CanvasDocument doc = getItem(position);
@@ -450,13 +468,13 @@ public class MainActivity extends Activity {
                     else if(bitmap!=null) bitmap.recycle();
                 });
             });
-            txtTitle.setText(doc.getTitle());
-            txtTime.setText(dateFormat.format(new Date(doc.getUpdatedAt())));
+            if(txtTitle!=null) txtTitle.setText(doc.getTitle());
+            if(txtTime!=null) txtTime.setText(dateFormat.format(new Date(doc.getUpdatedAt())));
 
             // Type summary instead of raw code snippets
             TextView txtSummary = convertView.findViewById(R.id.txt_doc_summary);
             RenderKind kind = presentation.kind;
-            txtTag.setText(kind.name());
+            if(txtTag!=null) txtTag.setText(kind.name());
 
             if (txtSummary != null) {
                 if (kind == RenderKind.HTML) {
@@ -470,15 +488,21 @@ public class MainActivity extends Activity {
                 }
             }
 
-            txtSize.setText(presentation.sizeText);
+            if(txtSize!=null) txtSize.setText(presentation.sizeText);
 
             convertView.setOnClickListener(v -> openEditor(doc.getId(), true));
             if (contentContainer != null) {
                 contentContainer.setOnClickListener(v -> openEditor(doc.getId(), true));
             }
 
-            btnShare.setOnClickListener(v -> shareDocument(doc));
-            btnDelete.setOnClickListener(v -> confirmDeleteDocument(doc));
+            if(btnShare!=null)btnShare.setOnClickListener(v -> shareDocument(doc));
+            if(btnDelete!=null)btnDelete.setOnClickListener(v -> confirmDeleteDocument(doc));
+            View btnMore=convertView.findViewById(R.id.btn_card_more);
+            if(btnMore!=null) btnMore.setOnClickListener(v -> {
+                android.widget.PopupMenu menu=new android.widget.PopupMenu(MainActivity.this,v);
+                menu.getMenu().add("编辑代码");menu.getMenu().add("分享");menu.getMenu().add("删除文件");
+                menu.setOnMenuItemClickListener(item -> {String a=item.getTitle().toString();if(a.equals("分享"))shareDocument(doc);else if(a.equals("删除文件"))confirmDeleteDocument(doc);else openEditor(doc.getId(),false);return true;});menu.show();
+            });
 
             return convertView;
         }
@@ -536,6 +560,7 @@ public class MainActivity extends Activity {
         if(activeDialog!=null && activeDialog.isShowing()) activeDialog.dismiss();
         super.onDestroy();
         thumbnailExecutor.shutdown();
+        if(updater!=null)updater.close();
     }
 
     public void loadDocumentsForTest() {

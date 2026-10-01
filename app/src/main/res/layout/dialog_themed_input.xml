@@ -72,7 +72,7 @@
             android:layout_height="36dp"
             android:background="@drawable/bg_button_primary"
             android:text="确定"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_on_primary_button"
             android:textSize="13sp"
             android:paddingHorizontal="16dp" />
     </LinearLayout>

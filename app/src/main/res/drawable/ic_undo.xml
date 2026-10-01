@@ -6,14 +6,14 @@
     android:viewportHeight="24">
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#0F172A"
+        android:strokeColor="@color/canvas_icon_on_subtle"
         android:strokeWidth="1.8"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:pathData="M3,7 L10,7 M3,7 L7,3 M3,7 L7,11" />
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#0F172A"
+        android:strokeColor="@color/canvas_icon_on_subtle"
         android:strokeWidth="1.8"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"

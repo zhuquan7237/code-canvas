@@ -1,4 +1,47 @@
-# v0.1.1 验收记录
+# v0.1.2 验收记录
+
+- 正式签名版：**70787 字节（约 69.1 KiB）**，Android 8.0+（minSdk 26），versionCode 3，versionName 0.1.2。
+- APK SHA-256：`b4325c0491ac59ce4d27655b4449ba9e2405f5de15ec2df236b7071b99e61634`。
+- `apksigner verify --print-certs`：APK Signature Scheme v2 通过；证书 SHA-256 `a6f25e1a490efbf985d753d216ffdbaeea360a9ab4b57ad2c156eabf553d19b6`，与 v0.1.0 / v0.1.1 相同（老版本可覆盖安装、保留作品）。
+- `testDebugUnitTest --rerun-tasks`：**47 项、0 失败、0 错误、0 跳过**。
+- 全量 Android 仪器测试：**OK (20 tests)**，独立 QA 模拟器 emulator-5556（Android 17），用 `adb shell am instrument` 直接执行并核对总数与每项结果。
+- 截图：[docs/evidence/v0.1.2](evidence/v0.1.2/)（日夜主页列表 / 方格、编辑器工具栏、预览、命名弹窗，均来自实际签名正式版）。
+
+## 本版修掉的真实缺陷
+
+1. **方格模式必崩**：`item_document_card.xml` 没有 `txt_doc_time`，`MainActivity$DocumentAdapter.getView` 无条件 `txtTime.setText(...)` → 切到方格就 `NullPointerException` 崩溃（logcat 实测栈已留存）。修法：补齐控件 + 对卡片所有字段加空值保护，并新增密度/方格仪器测试防回归。
+2. **禁用态主按钮文字几乎看不见**：白天填色 `#9AA8BC` 配 `canvas_on_primary` 白字只有 2.41:1。修法：禁用态改 `canvas_disabled_fill` + 新增 `text_on_primary_button` 颜色选择器（禁用时用 `canvas_disabled_ink`），深浅色实测 5.07:1 / 7.50:1。
+3. **功能描边不足 3:1**：白天 `border_strong` 压底色 2.41:1、夜间压 `surface_subtle` 2.67:1，且旧测试把这几条断言删掉了。修法：白天改 `#74849B`、夜间改 `#63768F`，并把断言补回（`functionalBoundariesStayVisibleInBothThemes`）。
+4. **测试被削弱 / 过期**：`PaletteLogicTest` 的交叉校验下限从 10 被改成 5（实际每个主题能校验 39 个真实色值），已恢复为 ≥30；`NamingDialogThemeContrastTest` 硬编码了 v0.1.1 的旧色值导致假失败，改为断言真实意图（日夜必须解析出不同表面 + 不透明 + 文字/提示 ≥4.5:1）。
+
+## 覆盖的真实操作
+
+- 真实渲染视图的文字对比度：遍历主页所有可见 TextView，按最近的不透明背景用 WCAG 公式测量，任一 <4.5:1 即失败；按需跳过自带 shape 背景的按钮/标签（那类配对由专门的按钮用例测量）。
+- 主页紧凑列表 / 两列方格：默认视图、一屏完整可见的条目数、两列列数、切换后跨 Activity 重启记忆、切回列表。
+- 代码 ↔ 预览：首次渲染计数、内容未变反复切换 20 次不得重载、改内容必须重载、加载遮罩必须消失、WebView 必须真的装载了内容。
+- 编辑器工具栏：真实点击「查找/替换」→ 对话框内输入 → 全部替换生效 → 撤销回原文；真实点击 `{}` 并确认插入位置与光标位置。
+- XML 结构视图：不占用 WebView、不显示加载遮罩、立即给出结构化内容与校验结论。
+- 粘贴与多段代码选择、保留原文、剪贴板、缩略图缓存、命名框日夜对比度、状态栏图标。
+
+## 更新链路验收
+
+- `scripts/release.py` 只从**磁盘上真实存在的 APK** 计算字节数与 SHA-256，不接受手填。
+- `docs/update/latest.json` 在 Release 资产上传后生成并推送；回读原始地址确认真实可达且内容与 APK 一致。
+- 应用侧只接受正向递增的 `versionCode`，下载主机限定本仓库 Release / GitHub 资源域名，校验字节数、SHA-256、包名、versionCode、versionName 与签名证书后才调用系统安装器。
+
+## 功能边界（本版不变）
+
+- 普通 XML 只提供结构/文本与语法校验，**不是** XSLT、Android XML 布局或任意 XML 的可视化运行器。
+- 默认离线，JS 独立关闭；用户确认后只允许当前页面联网。禁止本地 file/content 访问与 HTTP 明文资源。
+- 任意文件后缀可保存；不代表能执行 Python、Node.js、Vue/React 等需要编译/运行环境的项目。
+- 需要相对图片、外部样式等资源的代码不能靠粘贴自动补齐；建议让 AI 输出单个自包含 HTML。
+- 导入与剪贴板粘贴上限 2MB；大文件性能不作为本版保证。
+- **仍未在小米 Turbo 3 / HyperOS 实机验证**；输入法、手势、高刷动画与更新安装需要实机试用。
+- 模拟器短滑动掉帧采样仍不足以定量评价流畅度；本版只声明「不重载、不白屏、有过渡」，未声明帧率。
+
+---
+
+# v0.1.1 历史验收记录
 
 - 签名正式版：**57513 字节（56.2 KiB）**，Android 8.0+（minSdk 26），versionCode 2。
 - APK SHA-256：`3f84ea83c22c1f59b727083b4080795a728d7543b59fb689898edb81f20797eb`。

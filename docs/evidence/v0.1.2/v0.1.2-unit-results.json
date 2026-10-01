@@ -1,0 +1,82 @@
+{
+  "versionName": "0.1.2",
+  "versionCode": 3,
+  "classes": [
+    {
+      "name": "com.nous.codecanvas.UpgradeFeaturesTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": "0.01"
+    },
+    {
+      "name": "com.nous.codecanvas.data.DocumentRepositoryTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": "0.193"
+    },
+    {
+      "name": "com.nous.codecanvas.editor.UndoRedoManagerTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": "0.002"
+    },
+    {
+      "name": "com.nous.codecanvas.ui.ColorContrastTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": "0.023"
+    },
+    {
+      "name": "com.nous.codecanvas.ui.PaletteLogicTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": "0.004"
+    },
+    {
+      "name": "com.nous.codecanvas.util.AiCodeExtractorTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": "0.004"
+    },
+    {
+      "name": "com.nous.codecanvas.util.CoreLogicTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": "0.076"
+    },
+    {
+      "name": "com.nous.codecanvas.util.PreviewKeyTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": "0.002"
+    },
+    {
+      "name": "com.nous.codecanvas.util.RenderingAdvisorTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time": "0.014"
+    }
+  ],
+  "total": 47,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0
+}

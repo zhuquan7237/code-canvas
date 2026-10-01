@@ -1,16 +1,120 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Dark Palette -->
-    <color name="canvas_bg">#0F172A</color>
-    <color name="canvas_surface">#1E293B</color>
-    <color name="canvas_surface_subtle">#334155</color>
-    <color name="canvas_border">#334155</color>
-    <color name="canvas_ink_primary">#F8FAFC</color>
-    <color name="canvas_ink_secondary">#CBD5E1</color>
-    <color name="canvas_ink_tertiary">#CBD5E1</color>
-    <color name="canvas_teal_primary">#0F766E</color>
-    <color name="canvas_teal_light">#134E4A</color>
-    <color name="canvas_teal_dark">#5EEAD4</color>
-    <color name="canvas_danger">#F87171</color>
-    <color name="canvas_card_shadow">#40000000</color>
+
+    <!--
+      A. Night (dark) semantic palette.
+      Same token names as the day palette. No value here is inherited from the
+      light theme, so no icon keeps a hardcoded dark stroke in dark mode.
+      Ordinary text >= 4.5:1, functional icons, strokes and indicators >= 3:1.
+      The numeric table at the bottom is parsed by ColorContrastTest and mirrors
+      the values above exactly.
+    -->
+
+    <!-- Surfaces -->
+    <color name="canvas_bg">#101722</color>
+    <color name="canvas_surface">#171F2B</color>
+    <color name="canvas_surface_subtle">#212B3A</color>
+    <color name="canvas_border">#37455A</color>
+    <color name="canvas_border_strong">#63768F</color>
+    <color name="canvas_card_shadow">#66000000</color>
+
+    <!-- Neutral ink -->
+    <color name="canvas_ink_primary">#F2F5FA</color>
+    <color name="canvas_ink_secondary">#B5C2D5</color>
+
+    <!-- Functional / interactive ink used for thin-line icons and controls -->
+    <color name="canvas_icon">#C4D0E2</color>
+    <color name="canvas_icon_on_surface">#C4D0E2</color>
+    <color name="canvas_icon_on_subtle">#CCD7E6</color>
+
+    <!-- Primary action (blue) -->
+    <color name="canvas_primary">#8EB4FF</color>
+    <color name="canvas_primary_pressed">#6E9BF0</color>
+    <color name="canvas_on_primary">#0B1220</color>
+
+    <!-- Success / save (jade) -->
+    <color name="canvas_success">#72DFC0</color>
+    <color name="canvas_on_success">#06221B</color>
+    <color name="canvas_success_surface">#14312A</color>
+    <color name="canvas_success_border">#2E6B57</color>
+
+    <!-- Preview (violet) -->
+    <color name="canvas_preview">#CAA8FF</color>
+    <color name="canvas_on_preview">#1B1030</color>
+    <color name="canvas_preview_surface">#2A2140</color>
+    <color name="canvas_preview_border">#5C4A88</color>
+
+    <!-- Network / warning (amber) -->
+    <color name="canvas_warning">#FFC277</color>
+    <color name="canvas_warning_surface">#33260F</color>
+    <color name="canvas_warning_border">#7A5A28</color>
+
+    <!-- Destructive (red) -->
+    <color name="canvas_danger">#FF9E9E</color>
+    <color name="canvas_on_danger">#3A0F10</color>
+
+    <!-- Disabled state: muted fill, still-readable muted ink on top. -->
+    <color name="canvas_disabled_fill">#2C394C</color>
+    <color name="canvas_disabled_ink">#C4D0E2</color>
+
+    <!-- XML/plain code surface (kept neutral so syntax colors stay legible) -->
+    <color name="canvas_code_surface">#101722</color>
+    <color name="canvas_code_bg_light">#F8FAFC</color>
+    <color name="canvas_code_bg_dark">#121417</color>
+    <color name="canvas_code_ink">#0F172A</color>
+
+    <!-- Segment / tab chrome + selected chip ink -->
+    <color name="canvas_segment_track">#212B3A</color>
+    <color name="canvas_on_segment_selected">#0B1220</color>
+
+    <!-- Backward-compatible aliases -->
+    <color name="canvas_ink_tertiary">@color/canvas_ink_secondary</color>
+    <color name="canvas_teal_primary">@color/canvas_primary</color>
+    <color name="canvas_teal_light">@color/canvas_surface_subtle</color>
+    <color name="canvas_teal_dark">@color/canvas_success</color>
+
+    <!-- Syntax highlighting (night) - measured against canvas_code_surface -->
+    <color name="syntax_tag">#5FD3C0</color>
+    <color name="syntax_attr">#9CC2FF</color>
+    <color name="syntax_string">#7EE0A0</color>
+    <color name="syntax_comment">#9AA9C0</color>
+
+    <!--
+      B. Machine-readable palette table (night).
+      drumroll:p1:palette-night
+        bg                       #101722
+        surface                  #171F2B
+        surface_subtle           #212B3A
+        border                   #37455A
+        border_strong            #63768F
+        ink_primary              #F2F5FA
+        ink_secondary            #B5C2D5
+        icon_on_surface          #C4D0E2
+        icon_on_subtle           #CCD7E6
+        primary                  #8EB4FF
+        on_primary               #0B1220
+        success                  #72DFC0
+        on_success               #06221B
+        success_surface          #14312A
+        preview                  #CAA8FF
+        on_preview               #1B1030
+        preview_surface          #2A2140
+        warning                  #FFC277
+        warning_surface          #33260F
+        danger                   #FF9E9E
+        on_danger                #3A0F10
+        disabled_fill            #2C394C
+        disabled_ink             #C4D0E2
+        segment_track            #212B3A
+        on_segment_selected      #0B1220
+        code_surface             #101722
+        code_bg_light            #F8FAFC
+        code_bg_dark             #121417
+        code_ink                 #0F172A
+        syntax_tag               #5FD3C0
+        syntax_attr              #9CC2FF
+        syntax_string            #7EE0A0
+        syntax_comment           #9AA9C0
+      drumroll:p1:end
+    -->
 </resources>

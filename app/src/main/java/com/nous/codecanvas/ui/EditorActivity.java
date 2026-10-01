@@ -90,6 +90,9 @@ public class EditorActivity extends Activity {
     private boolean isUndoRedoAction = false;
     private boolean isAllowJs = false;
     private boolean isAllowNetwork = false;
+    private final com.nous.codecanvas.editor.PreviewState previewState = new com.nous.codecanvas.editor.PreviewState();
+    private int previewLoadCount;
+    public int getPreviewLoadCountForTest(){return previewLoadCount;}
 
     // Debounce Runnables
     private final Runnable autoSaveRunnable = new Runnable() {
@@ -184,8 +187,8 @@ public class EditorActivity extends Activity {
         switchAllowJs = findViewById(R.id.switch_allow_js);
 
         viewFlipper = findViewById(R.id.view_flipper);
-        viewFlipper.setInAnimation(AnimationUtils.loadAnimation(this, R.anim.tab_in));
-        viewFlipper.setOutAnimation(AnimationUtils.loadAnimation(this, R.anim.tab_out));
+        viewFlipper.setInAnimation(null);
+        viewFlipper.setOutAnimation(null);
 
         editCode = findViewById(R.id.edit_code);
         webPreview = findViewById(R.id.web_preview);
@@ -207,6 +210,7 @@ public class EditorActivity extends Activity {
         settings.setDomStorageEnabled(false);
         settings.setDatabaseEnabled(false);
         settings.setGeolocationEnabled(false);
+        webPreview.setBackgroundColor(getResources().getColor(R.color.canvas_surface));
 
         // Responsive Zoom
         settings.setSupportZoom(true);
@@ -233,25 +237,31 @@ public class EditorActivity extends Activity {
             }
         });
 
-        webPreview.setWebViewClient(new WebViewClient() {
-            @Override public void onPageFinished(WebView view, String url) {
-                final String renderedContent = editCode.getText().toString();
-                final boolean dark = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
-                final String key = com.nous.codecanvas.util.PreviewKey.forDocument(currentDocument.getId(), renderedContent, dark);
-                view.postVisualStateCallback(System.nanoTime(), new WebView.VisualStateCallback() {
-                    @Override public void onComplete(long requestId) {
-                        if (isDestroyed() || isFinishing() || viewFlipper.getDisplayedChild()!=1 || !renderedContent.equals(editCode.getText().toString())) return;
-                        android.graphics.Bitmap image = PreviewThumbnailCache.capture(view);
-                        if(image!=null && !saveExecutor.isShutdown()) saveExecutor.execute(() -> PreviewThumbnailCache.store(getApplicationContext(),key,image));
-                    }
-                });
-            }
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                // Prevent navigation escaping sandbox
-                return true;
+        webPreview.setWebViewClient(new WebViewClient(){@Override public boolean shouldOverrideUrlLoading(WebView v,String url){return true;}});
+    }
+
+    private void loadPreview(String html,String fingerprint) {
+        if(!previewState.request(fingerprint,false))return;
+        final long ticket=previewState.generation;
+        final String rendered=editCode.getText().toString();
+        final String base="https://codecanvas.invalid/preview/"+ticket;
+        final View loading=findViewById(R.id.preview_loading);loading.setVisibility(View.VISIBLE);
+        previewLoadCount++;
+        webPreview.setWebViewClient(new WebViewClient(){
+            @Override public boolean shouldOverrideUrlLoading(WebView v,String url){return true;}
+            @Override public void onPageFinished(WebView view,String url){
+                if(!base.equals(url)||ticket!=previewState.generation)return;
+                view.postVisualStateCallback(ticket,new WebView.VisualStateCallback(){@Override public void onComplete(long id){
+                    if(isDestroyed()||isFinishing()||!previewState.ready(ticket))return;
+                    loading.setVisibility(View.GONE);
+                    boolean dark=(getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)==Configuration.UI_MODE_NIGHT_YES;
+                    String key=com.nous.codecanvas.util.PreviewKey.forDocument(currentDocument.getId(),rendered,dark);
+                    if(viewFlipper.getDisplayedChild()==1){android.graphics.Bitmap image=PreviewThumbnailCache.capture(view);if(image!=null&&!saveExecutor.isShutdown())saveExecutor.execute(()->PreviewThumbnailCache.store(getApplicationContext(),key,image));}
+                }});
             }
         });
+        handler.postDelayed(()->{if(!isDestroyed()&&ticket==previewState.generation&&previewState.pending&&viewFlipper.getDisplayedChild()==1){loading.setVisibility(View.GONE);previewState.invalidate();Toast.makeText(this,"预览加载较慢，可点击刷新重试",Toast.LENGTH_LONG).show();}},15000);
+        webPreview.loadDataWithBaseURL(base,html,"text/html","UTF-8",null);
     }
 
     private void setupListeners() {
@@ -261,7 +271,8 @@ public class EditorActivity extends Activity {
 
         tabCode.setOnClickListener(v -> switchToTab(0));
         tabPreview.setOnClickListener(v -> switchToTab(1));
-        findViewById(R.id.btn_preview_refresh).setOnClickListener(v -> renderPreview());
+        findViewById(R.id.btn_preview_refresh).setOnClickListener(v -> {previewState.invalidate();renderPreview();});
+        setupEditorHelpers();
         findViewById(R.id.btn_preview_network).setOnClickListener(v -> {
             if (isAllowNetwork) { setNetworkAllowed(false); return; }
             activeDialog = new AlertDialog.Builder(this).setTitle("允许此页面联网？")
@@ -324,6 +335,28 @@ public class EditorActivity extends Activity {
         });
     }
 
+    private void setupEditorHelpers() {
+        android.widget.LinearLayout row=findViewById(R.id.layout_editor_helpers);
+        for(String label:new String[]{"查找/替换","更多","Tab","<",">","/","=","\"\"","{}","()","[]"}) {
+            Button b=new Button(this);b.setText(label);b.setTextSize(12);b.setTextColor(getResources().getColor(label.equals("查找/替换")?R.color.canvas_primary:R.color.canvas_ink_primary));b.setBackgroundResource(R.drawable.bg_button_subtle);
+            b.setMinWidth(0);b.setMinimumWidth(0);b.setPadding(10,0,10,0);
+            row.addView(b,new android.widget.LinearLayout.LayoutParams((int)((label.length()>4?96:label.equals("更多")?64:48)*getResources().getDisplayMetrics().density),-1));
+            b.setOnClickListener(v->{if(label.equals("查找/替换"))showFind();else if(label.equals("更多"))showMore();else {
+                try{com.nous.codecanvas.editor.EditorCommands.Result r=com.nous.codecanvas.editor.EditorCommands.insert(editCode.getText().toString(),editCode.getSelectionStart(),editCode.getSelectionEnd(),label);editCode.setText(r.text);editCode.setSelection(r.cursor);}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_SHORT).show();}
+            }});
+        }
+    }
+    private EditText field(String hint) {EditText e=new EditText(this);e.setSingleLine(true);e.setHint(hint);e.setTextColor(getResources().getColor(R.color.canvas_ink_primary));e.setHintTextColor(getResources().getColor(R.color.canvas_ink_secondary));return e;}
+    private void showMore(){activeDialog=new AlertDialog.Builder(this).setTitle("编辑工具").setItems(new String[]{"全选","复制全部代码","跳转到行"},(d,w)->{
+        if(w==0){editCode.requestFocus();editCode.selectAll();}else if(w==1){((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("代码",editCode.getText().toString()));Toast.makeText(this,"已复制",Toast.LENGTH_SHORT).show();}else{EditText e=field("输入行号");e.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);activeDialog=new AlertDialog.Builder(this).setTitle("跳转到行").setView(e).setPositiveButton("跳转",(x,y)->{try{editCode.setSelection(com.nous.codecanvas.editor.EditorCommands.lineOffset(editCode.getText().toString(),Integer.parseInt(e.getText().toString())));editCode.requestFocus();}catch(Exception ex){Toast.makeText(this,"请输入有效行号",Toast.LENGTH_SHORT).show();}}).setNegativeButton("取消",null).show();}
+    }).setNegativeButton("关闭",null).show();}
+    private void showFind(){android.widget.LinearLayout box=new android.widget.LinearLayout(this);box.setOrientation(1);int pad=(int)(20*getResources().getDisplayMetrics().density);box.setPadding(pad,0,pad,0);EditText query=field("查找内容（按原文匹配）"),replacement=field("替换为");query.setContentDescription("查找内容");replacement.setContentDescription("替换为");TextView status=new TextView(this);status.setTextColor(getResources().getColor(R.color.canvas_ink_secondary));box.addView(query);box.addView(replacement);box.addView(status);
+        android.widget.LinearLayout actions=new android.widget.LinearLayout(this);box.addView(actions);
+        for(String label:new String[]{"上一处","下一处","替换"}){Button b=new Button(this);b.setText(label);b.setTextSize(12);b.setTextColor(getResources().getColor(R.color.canvas_primary));actions.addView(b,new android.widget.LinearLayout.LayoutParams(0,48* (int)Math.ceil(getResources().getDisplayMetrics().density),1));b.setOnClickListener(v->{String t=editCode.getText().toString(),q=query.getText().toString();if(q.isEmpty()){status.setText("请输入查找内容");return;}if(label.equals("替换")){int x=editCode.getSelectionStart(),y=editCode.getSelectionEnd();if(x>=0&&y>=x&&t.substring(x,y).equals(q)){String r=replacement.getText().toString();if(t.length()-q.length()+r.length()>com.nous.codecanvas.editor.EditorCommands.MAX){status.setText("替换后代码过大");return;}editCode.getText().replace(x,y,r);editCode.setSelection(x+r.length());t=editCode.getText().toString();}}
+            int at=label.equals("上一处")?t.lastIndexOf(q,Math.max(-1,editCode.getSelectionStart()-1)):t.indexOf(q,Math.max(0,editCode.getSelectionEnd()));if(at<0)at=label.equals("上一处")?t.lastIndexOf(q):t.indexOf(q);if(at>=0){editCode.setSelection(at,at+q.length());status.setText("已定位到第 "+(at+1)+" 个字符");}else status.setText("没有匹配内容");});}
+        activeDialog=new AlertDialog.Builder(this).setTitle("查找与替换").setView(box).setPositiveButton("全部替换",null).setNegativeButton("关闭",null).show();activeDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{String q=query.getText().toString(),r=replacement.getText().toString(),t=editCode.getText().toString();try{String result=com.nous.codecanvas.editor.EditorCommands.replaceAll(t,q,r);editCode.setText(result);editCode.setSelection(0);status.setText(result.equals(t)?"没有匹配内容":"已全部替换，可撤销");}catch(Exception ex){status.setText(ex.getMessage());}});
+    }
+
     private void bindDocumentData() {
         txtEditorTitle.setText(currentDocument.getTitle());
         isProgrammaticChange = true;
@@ -344,10 +377,10 @@ public class EditorActivity extends Activity {
 
     private void updateUndoRedoButtons() {
         btnUndo.setEnabled(undoRedoManager.canUndo());
-        btnUndo.setAlpha(undoRedoManager.canUndo() ? 1.0f : 0.35f);
+        btnUndo.setAlpha(undoRedoManager.canUndo() ? 1.0f : 0.60f);
 
         btnRedo.setEnabled(undoRedoManager.canRedo());
-        btnRedo.setAlpha(undoRedoManager.canRedo() ? 1.0f : 0.35f);
+        btnRedo.setAlpha(undoRedoManager.canRedo() ? 1.0f : 0.60f);
     }
 
     private void performUndo() {
@@ -488,13 +521,14 @@ public class EditorActivity extends Activity {
 
         if (tabIndex == 0) {
             // Switch to Code Editor
-            tabCode.setTextColor(0xFFFFFFFF);
+            tabCode.setTextColor(getResources().getColor(R.color.canvas_on_primary));
             tabCode.setBackgroundResource(R.color.canvas_teal_primary);
             tabPreview.setTextColor(getResources().getColor(R.color.canvas_ink_secondary));
             tabPreview.setBackgroundColor(0x00000000);
 
             findViewById(R.id.txt_preview_advice).setVisibility(View.GONE);
             toolbarEditorActions.setVisibility(View.VISIBLE);
+            findViewById(R.id.editor_helpers).setVisibility(View.VISIBLE);
             toolbarPreviewControls.setVisibility(View.GONE);
             viewFlipper.setDisplayedChild(0);
         } else {
@@ -504,16 +538,19 @@ public class EditorActivity extends Activity {
                 imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
             }
 
-            tabPreview.setTextColor(0xFFFFFFFF);
+            tabPreview.setTextColor(getResources().getColor(R.color.canvas_on_primary));
             tabPreview.setBackgroundResource(R.color.canvas_teal_primary);
             tabCode.setTextColor(getResources().getColor(R.color.canvas_ink_secondary));
             tabCode.setBackgroundColor(0x00000000);
 
             toolbarEditorActions.setVisibility(View.GONE);
+            findViewById(R.id.editor_helpers).setVisibility(View.GONE);
             toolbarPreviewControls.setVisibility(View.VISIBLE);
-            viewFlipper.setDisplayedChild(1);
             renderPreview();
+            viewFlipper.setDisplayedChild(1);
         }
+        View page=viewFlipper.getCurrentView();page.animate().cancel();page.setAlpha(1f);
+        if(android.animation.ValueAnimator.areAnimatorsEnabled()){page.setTranslationX(6*getResources().getDisplayMetrics().density);page.animate().translationX(0).setDuration(160).start();}else page.setTranslationX(0);
     }
 
     private void setNetworkAllowed(boolean allowed) {
@@ -527,12 +564,15 @@ public class EditorActivity extends Activity {
         String content = editCode.getText().toString();
         ((TextView)findViewById(R.id.txt_preview_advice)).setVisibility(View.GONE);
         String title = currentDocument.getTitle();
+        String fingerprint=com.nous.codecanvas.util.PreviewKey.forDocument(title,content,(getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)==Configuration.UI_MODE_NIGHT_YES)+isAllowJs+isAllowNetwork;
         RenderKind kind = RenderKindDetector.detect(title, content);
 
         boolean isDark = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
 
         if (kind == RenderKind.XML) {
             webPreview.setVisibility(View.GONE);
+            findViewById(R.id.preview_loading).setVisibility(View.GONE);
+            previewState.invalidate();
             layoutXmlView.setVisibility(View.VISIBLE);
             txtRenderModeBadge.setText("XML 结构视图");
 
@@ -564,16 +604,16 @@ public class EditorActivity extends Activity {
             if (kind == RenderKind.SVG) {
                 txtRenderModeBadge.setText("SVG 矢量图");
                 String html = SvgWrapper.wrapSvgInResponsiveHtml(content, isDark);
-                webPreview.loadDataWithBaseURL("about:blank", html, "text/html", "UTF-8", null);
+                loadPreview(html,fingerprint);
             } else if (kind == RenderKind.HTML) {
                 txtRenderModeBadge.setText("HTML5 渲染");
-                webPreview.loadDataWithBaseURL("about:blank", content, "text/html", "UTF-8", null);
+                loadPreview(content,fingerprint);
             } else {
                 txtRenderModeBadge.setText("纯文本视图");
                 String escaped = content.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
                 String plainHtml = "<html><body style=\"font-family:monospace;padding:16px;white-space:pre-wrap;background:" +
                         (isDark ? "#121417;color:#F8FAFC;" : "#F8FAFC;color:#0F172A;") + "\">" + escaped + "</body></html>";
-                webPreview.loadDataWithBaseURL("about:blank", plainHtml, "text/html", "UTF-8", null);
+                loadPreview(plainHtml,fingerprint);
             }
         }
     }
@@ -703,6 +743,7 @@ public class EditorActivity extends Activity {
         if(activeDialog!=null && activeDialog.isShowing()) activeDialog.dismiss();
         handler.removeCallbacks(autoSaveRunnable);
         handler.removeCallbacks(highlightRunnable);
+        previewState.invalidate();
         if (webPreview != null) {
             webPreview.setWebViewClient(null);
             webPreview.loadDataWithBaseURL("about:blank", "", "text/html", "utf-8", null);

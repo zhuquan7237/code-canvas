@@ -1,0 +1,7 @@
+file: app-release.apk
+bytes: 70787
+sha256: b4325c0491ac59ce4d27655b4449ba9e2405f5de15ec2df236b7071b99e61634
+versionName: 0.1.2
+versionCode: 3
+signing: APK Signature Scheme v2 verified
+cert-sha256: a6f25e1a490efbf985d753d216ffdbaeea360a9ab4b57ad2c156eabf553d19b6

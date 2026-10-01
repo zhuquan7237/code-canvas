@@ -16,6 +16,8 @@ app/build/
 *.aab
 # Local exploratory screenshots (published evidence lives under docs/)
 /*.png
+# Internal working plans (user-facing docs live in README/docs/RELEASE-*.md)
+/docs/plans/
 /docs/evidence/v0.1.1-device-tests.txt
 /docs/evidence/v0.1.1-all-tests-final.txt
 /docs/evidence/v0.1.1/exported-welcome*.html

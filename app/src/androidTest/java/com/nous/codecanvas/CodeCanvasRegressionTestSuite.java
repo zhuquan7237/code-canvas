@@ -59,7 +59,7 @@ public class CodeCanvasRegressionTestSuite extends InstrumentationTestCase {
  public void testRealCardTapAndRealNewNamingDefaultTabs() throws Throwable {
   CanvasDocument d=new CanvasDocument("actual-card-"+System.nanoTime(),"实际卡片_"+System.nanoTime()+".html","<h1>card</h1>",System.currentTimeMillis());new DocumentRepository(main).saveDocument(d);
   ui(() -> {main.loadDocumentsForTest();((EditText)main.findViewById(R.id.edit_search)).setText(d.getTitle());});
-  watch();ui(() -> {ListView l=main.findViewById(R.id.list_documents);assertEquals(1,l.getAdapter().getCount());View row=l.getChildAt(0);assertNotNull(row);assertEquals(View.GONE,row.findViewById(R.id.txt_doc_snippet).getVisibility());row.performClick();});
+  watch();ui(() -> {ListView l=main.findViewById(R.id.list_documents);assertEquals(1,l.getAdapter().getCount());View row=l.getChildAt(0);assertNotNull(row);assertNull("主页行不得展示源码片段",row.findViewById(R.id.txt_doc_snippet));assertNotNull(row.findViewById(R.id.txt_doc_title));row.performClick();});
   EditorActivity e=await();ui(() -> {assertEquals(1,((ViewFlipper)e.findViewById(R.id.view_flipper)).getDisplayedChild());e.findViewById(R.id.tab_code).performClick();assertEquals(0,((ViewFlipper)e.findViewById(R.id.view_flipper)).getDisplayedChild());e.finish();});
   watch();ui(() -> {main.findViewById(R.id.btn_new).performClick();AlertDialog dialog=main.getActiveDialogForTest();((EditText)dialog.findViewById(R.id.dialog_edit_input)).setText("任意后缀.shader.custom");dialog.findViewById(R.id.dialog_btn_positive).performClick();});
   EditorActivity blank=await();ui(() -> {assertEquals(0,((ViewFlipper)blank.findViewById(R.id.view_flipper)).getDisplayedChild());assertEquals("任意后缀.shader.custom",blank.getCurrentDocumentForTest().getTitle());});

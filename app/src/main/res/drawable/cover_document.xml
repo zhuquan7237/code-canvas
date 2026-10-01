@@ -1,3 +1,6 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="160dp" android:height="90dp" android:viewportWidth="128" android:viewportHeight="72"><path android:fillColor="@color/canvas_surface" android:pathData="M46,10 L76,10 L89,23 L89,59 Q89,62 86,62 L46,62 Q42,62 42,58 L42,14 Q42,10 46,10Z"/>
-<path android:fillColor="@color/canvas_teal_light" android:pathData="M76,10 L76,23 L89,23Z"/>
-<path android:fillColor="@color/canvas_teal_dark" android:pathData="M51,30 L77,30 L77,33 L51,33Z M51,39 L72,39 L72,42 L51,42Z M51,48 L77,48 L77,51 L51,51Z"/></vector>
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="160dp" android:height="90dp" android:viewportWidth="128" android:viewportHeight="72">
+    <path android:fillColor="@color/canvas_surface" android:pathData="M46,10 L76,10 L89,23 L89,59 Q89,62 86,62 L46,62 Q42,62 42,58 L42,14 Q42,10 46,10Z" />
+    <path android:fillColor="@color/canvas_preview_surface" android:pathData="M76,10 L76,23 L89,23Z" />
+    <path android:fillColor="@color/canvas_preview" android:pathData="M51,30 L77,30 L77,33 L51,33Z M51,39 L72,39 L72,42 L51,42Z M51,48 L77,48 L77,51 L51,51Z" />
+</vector>

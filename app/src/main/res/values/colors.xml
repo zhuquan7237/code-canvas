@@ -1,16 +1,121 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Offwhite / Ink / Teal Design Palette -->
-    <color name="canvas_bg">#F8FAFC</color>
+
+    <!--
+      A. Day (light) semantic palette.
+      These are the values the app actually renders. The commented numeric table at
+      the bottom mirrors every value and is parsed by ColorContrastTest on the JVM,
+      so the contrast audit can never drift into asserting a separately invented
+      palette. Rendered views are verified by ThemeContrastInstrumentedTest.
+    -->
+
+    <!-- Surfaces -->
+    <color name="canvas_bg">#F6F7FB</color>
     <color name="canvas_surface">#FFFFFF</color>
-    <color name="canvas_surface_subtle">#F1F5F9</color>
-    <color name="canvas_border">#E2E8F0</color>
-    <color name="canvas_ink_primary">#0F172A</color>
-    <color name="canvas_ink_secondary">#475569</color>
-    <color name="canvas_ink_tertiary">#475569</color>
-    <color name="canvas_teal_primary">#0F766E</color>
-    <color name="canvas_teal_light">#CCFBF1</color>
-    <color name="canvas_teal_dark">#0F766E</color>
-    <color name="canvas_danger">#EF4444</color>
-    <color name="canvas_card_shadow">#1A000000</color>
+    <color name="canvas_surface_subtle">#EEF1F7</color>
+    <color name="canvas_border">#D2DAE6</color>
+    <color name="canvas_border_strong">#74849B</color>
+    <color name="canvas_card_shadow">#14000000</color>
+
+    <!-- Neutral ink -->
+    <color name="canvas_ink_primary">#172033</color>
+    <color name="canvas_ink_secondary">#526078</color>
+
+    <!-- Functional / interactive ink used for thin-line icons and controls -->
+    <color name="canvas_icon">#4A586E</color>
+    <color name="canvas_icon_on_surface">#435268</color>
+    <color name="canvas_icon_on_subtle">#3E4C62</color>
+
+    <!-- Primary action (blue) -->
+    <color name="canvas_primary">#2456C6</color>
+    <color name="canvas_primary_pressed">#1C43A0</color>
+    <color name="canvas_on_primary">#FFFFFF</color>
+
+    <!-- Success / save (jade) -->
+    <color name="canvas_success">#187449</color>
+    <color name="canvas_on_success">#FFFFFF</color>
+    <color name="canvas_success_surface">#DCF2E6</color>
+    <color name="canvas_success_border">#1E7D4E</color>
+
+    <!-- Preview (violet) -->
+    <color name="canvas_preview">#6D3FC0</color>
+    <color name="canvas_on_preview">#FFFFFF</color>
+    <color name="canvas_preview_surface">#EDE6FA</color>
+    <color name="canvas_preview_border">#6D3FC0</color>
+
+    <!-- Network / warning (amber) -->
+    <color name="canvas_warning">#8A4A08</color>
+    <color name="canvas_warning_surface">#FBEBD6</color>
+    <color name="canvas_warning_border">#8A4A08</color>
+
+    <!-- Destructive (red) -->
+    <color name="canvas_danger">#B42318</color>
+    <color name="canvas_on_danger">#FFFFFF</color>
+
+    <!-- Disabled state: the pattern is a muted FILL with normal ink on top, so the
+         control is visibly inactive yet the label stays >= 4.5:1 readable. It is a
+         flat fill (no stroke) so it never depends on a low-contrast border. -->
+    <color name="canvas_disabled_fill">#CBD5E1</color>
+    <color name="canvas_disabled_ink">#4A5568</color>
+
+    <!-- XML/plain code surface (kept neutral so syntax colors stay legible) -->
+    <color name="canvas_code_surface">#FFFFFF</color>
+    <color name="canvas_code_bg_light">#F8FAFC</color>
+    <color name="canvas_code_bg_dark">#121417</color>
+    <color name="canvas_code_ink">#0F172A</color>
+
+    <!-- Segment / tab chrome + selected chip ink -->
+    <color name="canvas_segment_track">#E4E9F2</color>
+    <color name="canvas_on_segment_selected">#FFFFFF</color>
+
+    <!-- Backward-compatible aliases (existing call sites keep working) -->
+    <color name="canvas_ink_tertiary">@color/canvas_ink_secondary</color>
+    <color name="canvas_teal_primary">@color/canvas_primary</color>
+    <color name="canvas_teal_light">@color/canvas_surface_subtle</color>
+    <color name="canvas_teal_dark">@color/canvas_primary</color>
+
+    <!-- Syntax highlighting (day) - measured against canvas_code_surface -->
+    <color name="syntax_tag">#0F6B5C</color>
+    <color name="syntax_attr">#1D4FB8</color>
+    <color name="syntax_string">#156B32</color>
+    <color name="syntax_comment">#55637A</color>
+
+    <!--
+      B. Machine-readable palette table (day).
+      drumroll:p1:palette-day
+        bg                       #F6F7FB
+        surface                  #FFFFFF
+        surface_subtle           #EEF1F7
+        border                   #D2DAE6
+        border_strong            #74849B
+        ink_primary              #172033
+        ink_secondary            #526078
+        icon_on_surface          #435268
+        icon_on_subtle           #3E4C62
+        primary                  #2456C6
+        on_primary               #FFFFFF
+        success                  #187449
+        on_success               #FFFFFF
+        success_surface          #DCF2E6
+        preview                  #6D3FC0
+        on_preview               #FFFFFF
+        preview_surface          #EDE6FA
+        warning                  #8A4A08
+        warning_surface          #FBEBD6
+        danger                   #B42318
+        on_danger                #FFFFFF
+        disabled_fill            #CBD5E1
+        disabled_ink             #4A5568
+        segment_track            #E4E9F2
+        on_segment_selected      #FFFFFF
+        code_surface             #FFFFFF
+        code_bg_light            #F8FAFC
+        code_bg_dark             #121417
+        code_ink                 #0F172A
+        syntax_tag               #0F6B5C
+        syntax_attr              #1D4FB8
+        syntax_string            #156B32
+        syntax_comment           #55637A
+      drumroll:p1:end
+    -->
 </resources>

@@ -6,12 +6,25 @@ import android.text.style.ForegroundColorSpan;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Token-driven syntax highlighting. The four palette values below are the canonical
+ * day/night pairs asserted by {@code ColorContrastTest}; they mirror
+ * {@code R.color.syntax_*} so spans always contrast against the code surface.
+ * No hardcoded dark-mode stroke: the night set is genuinely lighter.
+ */
 public class SyntaxHighlighter {
 
-    private static final int COLOR_TAG = 0xFF0D9488; // Teal
-    private static final int COLOR_ATTR = 0xFF2563EB; // Blue
-    private static final int COLOR_STRING = 0xFF16A34A; // Green
-    private static final int COLOR_COMMENT = 0xFF64748B; // Muted slate
+    // Day
+    public static final int DAY_TAG = 0xFF0F6B5C;
+    public static final int DAY_ATTR = 0xFF1D4FB8;
+    public static final int DAY_STRING = 0xFF156B32;
+    public static final int DAY_COMMENT = 0xFF55637A;
+
+    // Night
+    public static final int NIGHT_TAG = 0xFF5FD3C0;
+    public static final int NIGHT_ATTR = 0xFF9CC2FF;
+    public static final int NIGHT_STRING = 0xFF7EE0A0;
+    public static final int NIGHT_COMMENT = 0xFF9AA9C0;
 
     private static final Pattern XML_TAG_PATTERN = Pattern.compile("</?[a-zA-Z0-9_:-]+(\\s|/?>)");
     private static final Pattern XML_ATTR_PATTERN = Pattern.compile("\\s([a-zA-Z0-9_:-]+)=");
@@ -27,10 +40,10 @@ public class SyntaxHighlighter {
             editable.removeSpan(span);
         }
 
-        int tagColor = isDark ? 0xFF2DD4BF : 0xFF0D9488;
-        int attrColor = isDark ? 0xFF60A5FA : 0xFF2563EB;
-        int strColor = isDark ? 0xFF4ADE80 : 0xFF16A34A;
-        int commentColor = isDark ? 0xFF94A3B8 : 0xFF64748B;
+        int tagColor = isDark ? NIGHT_TAG : DAY_TAG;
+        int attrColor = isDark ? NIGHT_ATTR : DAY_ATTR;
+        int strColor = isDark ? NIGHT_STRING : DAY_STRING;
+        int commentColor = isDark ? NIGHT_COMMENT : DAY_COMMENT;
 
         // Apply Tag regex
         Matcher tagMatcher = XML_TAG_PATTERN.matcher(editable);
