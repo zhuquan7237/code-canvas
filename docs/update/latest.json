@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "versionName": "0.1.2",
-  "versionCode": 3,
-  "apkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.2/code-canvas-0.1.2.apk",
-  "sha256": "b4325c0491ac59ce4d27655b4449ba9e2405f5de15ec2df236b7071b99e61634",
-  "size": 70787,
-  "notes": "颜色对比度重做（正文≥4.5:1、图标描边≥3:1）；主页紧凑列表/两列方格可切换；代码预览切换不再白屏闪；编辑器加入查找替换与常用符号条；新增应用内检查更新。已装文件会保留。"
+  "versionName": "0.1.3",
+  "versionCode": 4,
+  "apkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.3/code-canvas-0.1.3.apk",
+  "sha256": "fef30aeca0fbedc5051b8992f7741b615b9a7268c386a3f2fa97af313963afc9",
+  "size": 75823,
+  "notes": "界面重做：修掉预览画布与工具栏的生硬硬切、示例内容挤顶留大片死空、图标外的灰方框、多个高饱和色抢焦点、常驻的蓝色版本号；预览改圆角卡片，图标统一细线条，编辑器符号条移到底部。功能与上一版一致，已装文件全部保留。"
 }
