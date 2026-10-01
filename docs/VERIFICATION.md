@@ -25,7 +25,7 @@
 - 检查浅色主页、命名、HTML/SVG/XML 页面和深色命名弹窗；修复浅色状态栏白底白字。[本版截图](evidence/v0.1.1/)。
 - HTML/SVG 内容实际显示，不以仅有页面加载回调证明渲染；主页加载已看过作品的真实缩略图。
 - 真实系统 SAF 导出到 Downloads，再由 adb pull 读取：welcome.html **1145 字节**，包含完整 HTML。[导出原文件](evidence/v0.1.1/release-export-welcome.html)。
-- 原生 ListView 复用卡片、后台准备哈希/大小/行数；主页不为每张卡启动 WebView；代码/预览保留轻量过渡动画。未宣称真实手机上的帧率指标。
+- 原生 ListView 复用卡片、后台准备哈希/大小/行数；主页不为每张卡启动 WebView；代码/预览保留轻量过渡动画。未宣称真实手机上的帧率指标。模拟器短滑动采样掉帧较多，系统 Launcher 对照同样严重，因此**流畅性未通过定量验收**，须真机验证；见 [滚动探测记录](evidence/v0.1.1-scroll-probe.md)。
 
 ## 功能边界
 
