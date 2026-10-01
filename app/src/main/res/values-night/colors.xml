@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark Palette -->
+    <color name="canvas_bg">#0F172A</color>
+    <color name="canvas_surface">#1E293B</color>
+    <color name="canvas_surface_subtle">#334155</color>
+    <color name="canvas_border">#334155</color>
+    <color name="canvas_ink_primary">#F8FAFC</color>
+    <color name="canvas_ink_secondary">#CBD5E1</color>
+    <color name="canvas_ink_tertiary">#64748B</color>
+    <color name="canvas_teal_primary">#14B8A6</color>
+    <color name="canvas_teal_light">#134E4A</color>
+    <color name="canvas_teal_dark">#0D9488</color>
+    <color name="canvas_danger">#F87171</color>
+    <color name="canvas_card_shadow">#40000000</color>
+</resources>

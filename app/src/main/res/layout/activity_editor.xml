@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_editor"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/canvas_bg">
+
+    <!-- Top Action Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:background="@color/canvas_surface">
+
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="@drawable/bg_button_subtle"
+            android:src="@drawable/ic_back"
+            android:contentDescription="返回"
+            android:layout_marginEnd="8dp" />
+
+        <LinearLayout
+            android:id="@+id/layout_title_clickable"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:id="@+id/txt_editor_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="untitled.html"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/canvas_ink_primary"
+                android:singleLine="true"
+                android:ellipsize="middle" />
+
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginStart="6dp"
+                android:src="@drawable/ic_edit"
+                android:contentDescription="重命名" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btn_export_saf"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="@drawable/bg_button_subtle"
+            android:src="@drawable/ic_export"
+            android:contentDescription="导出"
+            android:layout_marginEnd="6dp" />
+
+        <ImageButton
+            android:id="@+id/btn_share"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="@drawable/bg_button_subtle"
+            android:src="@drawable/ic_share"
+            android:contentDescription="分享" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/canvas_border" />
+
+    <!-- Dedicated Tab Row: Segmented Tab full width container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="4dp"
+        android:background="@color/canvas_surface">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:orientation="horizontal"
+            android:background="@drawable/bg_search"
+            android:padding="2dp">
+
+            <TextView
+                android:id="@+id/tab_code"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="代码"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
+                android:background="@color/canvas_teal_primary" />
+
+            <TextView
+                android:id="@+id/tab_preview"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="画布渲染"
+                android:textSize="13sp"
+                android:textColor="@color/canvas_ink_secondary"
+                android:background="@android:color/transparent" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/canvas_border" />
+
+    <!-- Secondary Toolbar: Undo / Redo / Paste / Save / Status -->
+    <LinearLayout
+        android:id="@+id/toolbar_editor_actions"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:background="@color/canvas_surface_subtle">
+
+        <ImageButton
+            android:id="@+id/btn_undo"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_undo"
+            android:contentDescription="撤销" />
+
+        <ImageButton
+            android:id="@+id/btn_redo"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_redo"
+            android:contentDescription="重做"
+            android:layout_marginStart="4dp" />
+
+        <Button
+            android:id="@+id/btn_paste"
+            android:layout_width="wrap_content"
+            android:layout_height="28dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_button_subtle"
+            android:text="直接粘贴"
+            android:textSize="11sp"
+            android:textColor="@color/canvas_teal_dark"
+            android:paddingHorizontal="8dp" />
+
+        <TextView
+            android:id="@+id/txt_editor_stats"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:text="1 行 · 0 字符"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:textColor="@color/canvas_ink_tertiary"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/txt_save_indicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="已自动保存"
+            android:textSize="10sp"
+            android:textColor="@color/canvas_teal_primary" />
+    </LinearLayout>
+
+    <!-- Preview Controls Bar (Visible only on Preview tab) -->
+    <LinearLayout
+        android:id="@+id/toolbar_preview_controls"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:background="@color/canvas_surface_subtle"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/txt_render_mode_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="HTML 渲染"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="@color/canvas_teal_dark"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:background="@drawable/bg_tag" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <Switch
+            android:id="@+id/switch_allow_js"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="JS脚本执行"
+            android:textSize="12sp"
+            android:textColor="@color/canvas_ink_secondary" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/canvas_border" />
+
+    <!-- Content Container: ViewFlipper for animated transition -->
+    <ViewFlipper
+        android:id="@+id/view_flipper"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- Editor View (Child 0) -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <ScrollView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:fillViewport="true">
+
+                <EditText
+                    android:id="@+id/edit_code"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="360dp"
+                    android:gravity="top|start"
+                    android:background="@null"
+                    android:padding="16dp"
+                    android:fontFamily="monospace"
+                    android:textSize="13sp"
+                    android:lineSpacingMultiplier="1.2"
+                    android:textColor="@color/canvas_ink_primary"
+                    android:hint="输入或粘贴 HTML / SVG / XML 代码..."
+                    android:textColorHint="@color/canvas_ink_tertiary"
+                    android:inputType="textMultiLine|textNoSuggestions"
+                    android:importantForAutofill="no" />
+            </ScrollView>
+        </HorizontalScrollView>
+
+        <!-- Preview View (Child 1) -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <WebView
+                android:id="@+id/web_preview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <!-- XML Structure & Error Panel -->
+            <ScrollView
+                android:id="@+id/layout_xml_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="16dp"
+                android:background="@color/canvas_bg"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/txt_xml_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="10dp"
+                        android:background="@drawable/bg_card"
+                        android:text="XML 语法安全校验：合格"
+                        android:textColor="@color/canvas_teal_dark"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="12dp" />
+
+                    <TextView
+                        android:id="@+id/txt_xml_content"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:textSize="12sp"
+                        android:lineSpacingMultiplier="1.2"
+                        android:textColor="@color/canvas_ink_primary"
+                        android:textIsSelectable="true" />
+                </LinearLayout>
+            </ScrollView>
+        </FrameLayout>
+    </ViewFlipper>
+
+</LinearLayout>

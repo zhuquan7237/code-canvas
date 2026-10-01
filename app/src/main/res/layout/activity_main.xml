@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/canvas_bg">
+
+    <!-- Top Navigation Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="16dp"
+        android:background="@color/canvas_surface">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="代码画布"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/canvas_ink_primary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CodeCanvas · 任意后缀原生代码画布"
+                android:textSize="11sp"
+                android:textColor="@color/canvas_ink_tertiary" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btn_import"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_button_subtle"
+            android:src="@drawable/ic_import"
+            android:contentDescription="导入文件"
+            android:layout_marginEnd="10dp" />
+
+        <ImageButton
+            android:id="@+id/btn_new"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_button_subtle"
+            android:src="@drawable/ic_add"
+            android:contentDescription="新建画布" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/canvas_border" />
+
+    <!-- Search Box -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="12dp"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="10dp"
+        android:background="@drawable/bg_search">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_search"
+            android:contentDescription="搜索" />
+
+        <EditText
+            android:id="@+id/edit_search"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:background="@null"
+            android:hint="搜索画布文件名或内容..."
+            android:textColor="@color/canvas_ink_primary"
+            android:textColorHint="@color/canvas_ink_tertiary"
+            android:textSize="14sp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <!-- Empty State View -->
+    <LinearLayout
+        android:id="@+id/view_empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="暂无画布文件"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/canvas_ink_secondary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="点击右上角「+」创建新文件，或导入外部代码"
+            android:textSize="13sp"
+            android:textColor="@color/canvas_ink_tertiary" />
+    </LinearLayout>
+
+    <!-- Document List -->
+    <ListView
+        android:id="@+id/list_documents"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@null"
+        android:dividerHeight="0dp"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="16dp"
+        android:clipToPadding="false"
+        android:scrollbars="vertical" />
+
+</LinearLayout>

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:layout_marginBottom="12dp"
+    android:background="@drawable/bg_card">
+
+    <LinearLayout
+        android:id="@+id/card_content_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/txt_doc_tag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="HTML"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="@color/canvas_teal_dark"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:background="@drawable/bg_tag"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/txt_doc_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="example.html"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/canvas_ink_primary"
+                android:ellipsize="middle"
+                android:singleLine="true" />
+
+            <TextView
+                android:id="@+id/txt_doc_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="刚刚"
+                android:textSize="12sp"
+                android:textColor="@color/canvas_ink_tertiary" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/txt_doc_snippet"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="12dp"
+            android:text="&lt;!DOCTYPE html&gt;&lt;html&gt;&lt;body&gt;&lt;h1&gt;预览...&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:fontFamily="monospace"
+            android:textSize="12sp"
+            android:textColor="@color/canvas_ink_secondary" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/txt_doc_size"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="1.2 KB · 45 行"
+            android:textSize="11sp"
+            android:textColor="@color/canvas_ink_tertiary" />
+
+        <ImageButton
+            android:id="@+id/btn_card_share"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/bg_button_subtle"
+            android:src="@drawable/ic_share"
+            android:contentDescription="分享"
+            android:layout_marginEnd="6dp" />
+
+        <ImageButton
+            android:id="@+id/btn_card_delete"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/bg_button_subtle"
+            android:src="@drawable/ic_delete"
+            android:contentDescription="删除" />
+    </LinearLayout>
+
+</LinearLayout>
