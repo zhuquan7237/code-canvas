@@ -7,8 +7,8 @@
     <color name="canvas_border">#E2E8F0</color>
     <color name="canvas_ink_primary">#0F172A</color>
     <color name="canvas_ink_secondary">#475569</color>
-    <color name="canvas_ink_tertiary">#94A3B8</color>
-    <color name="canvas_teal_primary">#0D9488</color>
+    <color name="canvas_ink_tertiary">#475569</color>
+    <color name="canvas_teal_primary">#0F766E</color>
     <color name="canvas_teal_light">#CCFBF1</color>
     <color name="canvas_teal_dark">#0F766E</color>
     <color name="canvas_danger">#EF4444</color>

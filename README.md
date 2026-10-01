@@ -1,94 +1,62 @@
-# CodeCanvas (代码画布)
+# 代码画布 · CodeCanvas
 
-> 纯原生、极简、高能效的 Android 代码画布与本地即时渲染器。零第三方臃肿框架依赖，单手自适应布局，专注 HTML5 / SVG / XML 源码调试与可视化呈现。
+把 AI 给出的代码，变成看得见的作品。轻量原生 Android 应用，使用系统 WebView，不打包浏览器内核。
 
-[![Android CI](https://github.com/zhuquan7237/code-canvas/actions/workflows/ci.yml/badge.svg)](https://github.com/zhuquan7237/code-canvas/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg)](LICENSE)
-[![Target SDK: 35](https://img.shields.io/badge/TargetSDK-35-blue.svg)](app/build.gradle.kts)
-[![Min SDK: 26](https://img.shields.io/badge/MinSDK-26-orange.svg)](app/build.gradle.kts)
+[下载最新 APK](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
 
----
+## 怎么用
 
-## 🌟 核心特性与设计哲学
+1. 在 AI 聊天里复制 HTML、SVG 或 XML 代码。
+2. 点 **粘贴并预览**，不必先理解文件后缀。
+3. 多段代码分别选择，不擅自拼接 HTML/CSS/JS。
+4. 点作品名称重命名；导出为标准文件，其他编辑器和浏览器也能使用。
 
-- **极致轻量无负担**：仅依靠 Android 官方标准 SDK 原生组件构建，全 Release 安装包体积仅约 **40 KB**（开启 R8 代码混淆与资源缩减）。
-- **任意文件后缀支持**：支持以任意自定义扩展名（如 `.html`, `.svg`, `.xml`, `.shader.glsl`, `.custom`）保存并管理画布。
-- **现代化 Edge-to-Edge 视觉适配**：全面适配 Android 15 (Target SDK 35) 全面屏边缘延伸与沉浸式状态栏/导航栏 `WindowInsets` 安全区，杜绝刘海屏与系统状态栏遮挡。
-- **分层工具栏与全宽 Tab**：顶栏精简为操作与重命名区，视图切换（代码 / 画布渲染）独立成全宽分段 Tab 行，保证触控命中率与小屏显示完整性。
-- **即时安全沙箱渲染**：
-  - **HTML5 渲染**：开箱即用，默认关闭 JavaScript 执行与文件系统穿透，提供独立开关门禁保护。
-  - **SVG 矢量画布**：自动注入响应式视口包装，适配深浅色模式与矢量缩放。
-  - **普通 XML 树形与安全解析（重要诚实说明）**：
-    - ✅ **纯普通 XML 数据结构格式化与语法有效性校验**。
-    - ✅ **SAX / DOM 防御 XXE (XML External Entity) 注入反欺骗沙箱**。
-    - ⚠️ **本应用明确不支持 XSL/XSLT 样式表转换与高级 XML 模板引擎**，仅提供普通 XML 语法校验、节点层级展示与错误即时定位。
-- **剪贴板快捷粘贴与代码防爆保护**：
-  - 提供单键直接粘贴剪贴板源码能力。
-  - 设置 **2MB** 内存与导入上限，带有清晰拦截与错误提示，避免系统 Binder Transaction 崩溃及卡顿。
-- **完善的撤销/重做与原子落盘**：
-  - 内存级快照支持撤销与重做。
-  - 单线程串行执行器搭配不可变快照（`snapshot()`）持久化，消除后台并发保存时数据竞态冲突与脏写。
-- **隐私与系统集成**：支持通过 SAF (Storage Access Framework) 系统选择器导入导出，支持 Content Provider 安全分享。
+已有作品默认打开预览，需要修改时再切「代码」。空白新建仍直接编辑。主页不显示代码片段；打开 HTML/SVG 预览后缓存真实封面，下次回主页更容易认出作品。封面为预览首屏而非实时网页，修改或切换主题后旧封面失效，临时缓存最多 40 张，系统可清理。
 
----
+## v0.1.1 打磨
 
-## 📐 页面架构与截图
+- 修复命名/重命名黑底黑字：主题、输入框、提示、按钮统一适配深浅色。
+- 首页突出「粘贴并预览」，隐藏源码片段；作品点开先看效果。
+- 提取 AI 回复的 Markdown 代码块，支持多段选择和保留原文；不拆源码内部的 Markdown 示例。
+- 粘贴到已有作品时选择追加或覆盖，覆盖可撤销；语法高亮保留完整选区。
+- 预览支持刷新；长按「代码」标签复制全部源码。
+- 对 CDN、缺失本地资源、需要编译的代码给出持续可读的说明。
+- 保存使用不可变快照与原子替换，多页面并发不丢其他作品；清空作品后不再自动出现示例。
 
-### 1. 画布管理主屏 (`MainActivity`)
-提供画布快速检索、实时字数/大小统计、标签展示、快速分享/删除以及新建画布入口。
+## 功能与边界
 
-![MainActivity](docs/evidence/main_screen.png)
+- 新建、任意后缀、重命名、搜索、自动保存、粘贴、撤销/重做、系统文件导入导出与分享。
+- HTML/SVG 可视化渲染，普通 XML 提供格式化文本、语法校验与防 XXE。
+- JavaScript 与网络加载默认关闭。需要按钮/动画时开启「启用交互」；需要 HTTPS 图片或 CDN 时点「联网加载」并确认，仅对当前页面生效。不开放本地文件访问，HTTP 明文资源不支持。只开启你信任的代码。
+- 不包含 Vue/React 编译器、Node.js、Python 或 XSLT。请让 AI 提供「单个自包含 HTML 文件，CSS/JS 内嵌，不依赖 CDN」。
+- 相对路径图片、CSS、JS 不会靠粘贴自动补齐；需要内嵌资源或可访问链接。
+- 文件导入上限 2MB，超大剪贴板有明确提示；大文件性能不作为本版保证范围。
+- Android 8.0+，需要系统 WebView；厂商输入法和动画体验待实机反馈。
 
-### 2. 代码编辑器与全宽分段 Tab (`EditorActivity`)
-拥有防遮挡的安全区内边距、撤销/重做操作条、剪贴板一键粘贴，以及独立分行的分段切换 Tab。
+## 构建
 
-![Editor Screen](docs/evidence/editor_screen.png)
+JDK 17、Android SDK API 35。Windows 使用 `gradlew.bat`，Linux/macOS 使用 `./gradlew`。
 
-### 3. SVG 矢量自适应渲染
-自动识别 `.svg` 后缀或 SVG 标签，以自适应容器呈现高质量矢量图。
-
-![SVG Preview](docs/evidence/svg_preview.png)
-
-### 4. XML 结构与语法校验视图
-普通 XML 代码的结构化高亮、层级解析与 XXE 安全沙箱拦截结果。
-
-![XML Preview](docs/evidence/xml_preview.png)
-
----
-
-## 🛠️ 构建与测试运行
-
-### 前置要求
-- JDK 17
-- Android SDK（API Level 35；本机验证使用 Build Tools 36.0.0）
-
-### 1. 运行本地单元测试
-```bash
+```sh
 ./gradlew testDebugUnitTest
-```
-
-### 2. 运行真机/模拟器完整 E2E 仪器测试
-包含新建任意后缀文件、剪贴板粘贴、编辑、撤销重做、保存退出重开、WebView DOM 注入求值与 JS 门禁测试、XML 语法错误拦截等全流程用例：
-```bash
 ./gradlew connectedDebugAndroidTest
-```
-
-### 3. 构建发布版 APK
-签名配置遵循外置 `signing.properties`（已加入 `.gitignore` 防止密钥泄露）：
-```properties
-storeFile=path/to/your-keystore.jks
-storePassword=your_store_password
-keyAlias=your_key_alias
-keyPassword=your_key_password
-```
-执行编译：
-```bash
 ./gradlew assembleRelease
 ```
-产物位置：`app/build/outputs/apk/release/app-release.apk`
 
----
+签名由未跟踪的 `signing.properties` 或环境变量提供，密钥、密码和本机配置不会发布。
 
-## 📄 开源许可证
+```properties
+storeFile=/path/to/your-keystore.jks
+storePassword=your_password
+keyAlias=your_alias
+keyPassword=your_password
+```
 
-本项目采用 [MIT License](LICENSE) 授权许可。
+## 截图
+
+![主页](docs/evidence/v0.1.1/main_light.png)
+![命名框](docs/evidence/v0.1.1/naming_light.png)
+![SVG 预览](docs/evidence/v0.1.1/svg_preview_light.png)
+
+MIT License。
+

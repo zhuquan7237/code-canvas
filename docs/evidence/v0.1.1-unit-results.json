@@ -1,0 +1,38 @@
+[
+  {
+    "name": "com.nous.codecanvas.data.DocumentRepositoryTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0"
+  },
+  {
+    "name": "com.nous.codecanvas.editor.UndoRedoManagerTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0"
+  },
+  {
+    "name": "com.nous.codecanvas.util.AiCodeExtractorTest",
+    "tests": "9",
+    "failures": "0",
+    "errors": "0"
+  },
+  {
+    "name": "com.nous.codecanvas.util.CoreLogicTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0"
+  },
+  {
+    "name": "com.nous.codecanvas.util.PreviewKeyTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0"
+  },
+  {
+    "name": "com.nous.codecanvas.util.RenderingAdvisorTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0"
+  }
+]

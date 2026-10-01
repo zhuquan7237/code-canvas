@@ -14,3 +14,8 @@ signing.properties
 app/build/
 *.apk
 *.aab
+# Local exploratory screenshots (published evidence lives under docs/)
+/*.png
+/docs/evidence/v0.1.1-device-tests.txt
+/docs/evidence/v0.1.1-all-tests-final.txt
+/docs/evidence/v0.1.1/exported-welcome*.html

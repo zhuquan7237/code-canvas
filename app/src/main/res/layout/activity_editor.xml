@@ -111,7 +111,7 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:gravity="center"
-                android:text="画布渲染"
+                android:text="预览效果"
                 android:textSize="13sp"
                 android:textColor="@color/canvas_ink_secondary"
                 android:background="@android:color/transparent" />
@@ -182,47 +182,44 @@
             android:textColor="@color/canvas_teal_primary" />
     </LinearLayout>
 
-    <!-- Preview Controls Bar (Visible only on Preview tab) -->
+    <!-- Separate rows keep controls readable on narrow phones. -->
     <LinearLayout
         android:id="@+id/toolbar_preview_controls"
-        android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingHorizontal="12dp"
-        android:background="@color/canvas_surface_subtle"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/txt_render_mode_badge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="HTML 渲染"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:textColor="@color/canvas_teal_dark"
-            android:paddingHorizontal="6dp"
-            android:paddingVertical="2dp"
-            android:background="@drawable/bg_tag" />
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
-
-        <Switch
-            android:id="@+id/switch_allow_js"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="JS脚本执行"
-            android:textSize="12sp"
-            android:textColor="@color/canvas_ink_secondary" />
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:paddingHorizontal="12dp"
+        android:background="@color/canvas_surface_subtle" android:visibility="gone">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="44dp"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView android:id="@+id/txt_render_mode_badge"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="HTML 渲染" android:textSize="12sp" android:textStyle="bold"
+                android:textColor="@color/canvas_teal_dark" android:singleLine="true" android:ellipsize="end" />
+            <Button android:id="@+id/btn_preview_refresh" android:layout_width="56dp" android:layout_height="36dp"
+                android:text="刷新" android:textSize="12sp" android:textColor="@color/canvas_teal_dark"
+                android:background="@drawable/bg_button_subtle" android:layout_marginEnd="8dp" />
+            <Button android:id="@+id/btn_preview_network" android:layout_width="84dp" android:layout_height="36dp"
+                android:text="联网加载" android:textSize="12sp" android:textColor="@color/canvas_teal_dark"
+                android:background="@drawable/bg_button_subtle" />
+        </LinearLayout>
+        <Switch android:id="@+id/switch_allow_js" android:layout_width="match_parent" android:layout_height="36dp"
+            android:text="启用交互 · 页面按钮与动态效果" android:textSize="12sp" android:textColor="@color/canvas_ink_secondary" />
     </LinearLayout>
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="@color/canvas_border" />
+
+    <TextView
+        android:id="@+id/txt_preview_advice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="10dp"
+        android:textSize="12sp"
+        android:textColor="@color/canvas_ink_secondary"
+        android:background="@color/canvas_surface_subtle"
+        android:visibility="gone" />
 
     <!-- Content Container: ViewFlipper for animated transition -->
     <ViewFlipper

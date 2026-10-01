@@ -14,6 +14,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ListView;
@@ -44,16 +45,42 @@ public class MainActivity extends Activity {
 
     private static final int REQ_IMPORT_SAF = 1001;
 
+    private final java.util.concurrent.ExecutorService thumbnailExecutor = java.util.concurrent.Executors.newFixedThreadPool(2);
     private DocumentRepository repository;
+    private AlertDialog activeDialog;
     private ListView listDocuments;
     private View viewEmpty;
     private EditText editSearch;
+    private Button btnQuickPaste;
     private ImageButton btnNew;
     private ImageButton btnImport;
 
     private final List<CanvasDocument> allDocuments = new ArrayList<>();
     private final List<CanvasDocument> filteredDocuments = new ArrayList<>();
     private DocumentAdapter adapter;
+    private final java.util.Map<String, DocumentPresentation> presentations = new java.util.HashMap<>();
+
+    /** Derived metadata is prepared off-main once per reload, not on every scroll bind. */
+    private static final class DocumentPresentation {
+        final String previewKey;
+        final String sizeText;
+        final RenderKind kind;
+        DocumentPresentation(CanvasDocument doc, boolean dark) {
+            String content=doc.getContent();
+            previewKey=com.nous.codecanvas.util.PreviewKey.forDocument(doc.getId(),content,dark);
+            kind=RenderKindDetector.detect(doc.getTitle(),content);
+            int bytes=content.getBytes(StandardCharsets.UTF_8).length;
+            String size=bytes<1024 ? bytes+" B" : String.format(Locale.getDefault(),"%.1f KB",bytes/1024.0f);
+            int lines=content.isEmpty() ? 0 : content.split("\r\n|\r|\n",-1).length;
+            sizeText=size+" · "+lines+" 行";
+        }
+    }
+
+    private java.util.Map<String,DocumentPresentation> preparePresentations(List<CanvasDocument> docs, boolean dark) {
+        java.util.Map<String,DocumentPresentation> result=new java.util.HashMap<>();
+        for(CanvasDocument doc:docs) result.put(doc.getId(),new DocumentPresentation(doc,dark));
+        return result;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,6 +122,7 @@ public class MainActivity extends Activity {
         listDocuments = findViewById(R.id.list_documents);
         viewEmpty = findViewById(R.id.view_empty);
         editSearch = findViewById(R.id.edit_search);
+        btnQuickPaste = findViewById(R.id.btn_quick_paste_preview);
         btnNew = findViewById(R.id.btn_new);
         btnImport = findViewById(R.id.btn_import);
 
@@ -103,11 +131,12 @@ public class MainActivity extends Activity {
 
         listDocuments.setOnItemClickListener((parent, view, position, id) -> {
             CanvasDocument doc = filteredDocuments.get(position);
-            openEditor(doc.getId());
+            openEditor(doc.getId(), true);
         });
     }
 
     private void setupListeners() {
+        btnQuickPaste.setOnClickListener(v -> performQuickPasteAndPreview());
         btnNew.setOnClickListener(v -> showNewDocumentDialog());
         btnImport.setOnClickListener(v -> startSafImport());
 
@@ -126,10 +155,15 @@ public class MainActivity extends Activity {
     }
 
     private void loadDocuments() {
+        final boolean dark=(getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_YES;
         new Thread(() -> {
             try {
                 List<CanvasDocument> docs = repository.getAllDocuments();
+                java.util.Map<String,DocumentPresentation> prepared=preparePresentations(docs,dark);
                 runOnUiThread(() -> {
+                    if(isDestroyed() || isFinishing()) return;
+                    presentations.clear();
+                    presentations.putAll(prepared);
                     allDocuments.clear();
                     allDocuments.addAll(docs);
                     filterDocuments(editSearch.getText().toString());
@@ -157,35 +191,134 @@ public class MainActivity extends Activity {
         viewEmpty.setVisibility(filteredDocuments.isEmpty() ? View.VISIBLE : View.GONE);
     }
 
-    private void openEditor(String docId) {
+    private void openEditor(String docId, boolean startPreview) {
         Intent intent = new Intent(this, EditorActivity.class);
         intent.putExtra(EditorActivity.EXTRA_DOC_ID, docId);
+        intent.putExtra(EditorActivity.EXTRA_START_PREVIEW, startPreview);
         startActivity(intent);
     }
 
-    private void showNewDocumentDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("新建画布文件");
-        final EditText input = new EditText(this);
-        input.setHint("输入文件名 (例如 demo.html, chart.svg, config.xml)");
-        input.setText("untitled.html");
-        input.setSelection("untitled.html".length());
-        builder.setView(input);
+    private void performQuickPasteAndPreview() {
+        android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard == null || !clipboard.hasPrimaryClip()) {
+            Toast.makeText(this, "剪贴板为空，请先复制代码", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        builder.setPositiveButton("创建", (dialog, which) -> {
-            String title = FileUtils.sanitizeFileName(input.getText().toString());
-            CanvasDocument newDoc = new CanvasDocument(UUID.randomUUID().toString(), title, "", System.currentTimeMillis());
-            new Thread(() -> {
-                try {
-                    repository.saveDocument(newDoc);
-                    runOnUiThread(() -> openEditor(newDoc.getId()));
-                } catch (Exception e) {
-                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "创建失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+        android.content.ClipData clip = clipboard.getPrimaryClip();
+        if (clip == null || clip.getItemCount() == 0) {
+            Toast.makeText(this, "剪贴板为空", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        CharSequence rawText = clip.getItemAt(0).coerceToText(this);
+        if (rawText == null || rawText.length() == 0) {
+            Toast.makeText(this, "剪贴板内容为空", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (rawText.length() > 2 * 1024 * 1024) { // 2MB Cap
+            Toast.makeText(this, "剪贴板代码过大 (超过 2MB 限制)", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        final String rawString = rawText.toString();
+        java.util.List<com.nous.codecanvas.util.AiCodeExtractor.CodeBlock> blocks =
+                com.nous.codecanvas.util.AiCodeExtractor.extract(rawString);
+
+        if (blocks.size() > 1) {
+            // Multi-block picker dialog
+            String[] items = new String[blocks.size() + 1];
+            for (int i = 0; i < blocks.size(); i++) {
+                com.nous.codecanvas.util.AiCodeExtractor.CodeBlock b = blocks.get(i);
+                String label = (b.language.isEmpty() ? "代码块 " + (i + 1) : b.language.toUpperCase(Locale.ROOT) + " 块 " + (i + 1));
+                String snippet = b.code.length() > 30 ? b.code.substring(0, 30).replace("\n", " ") + "..." : b.code.replace("\n", " ");
+                items[i] = label + " (" + snippet + ")";
+            }
+            items[blocks.size()] = "完整原始剪贴板文本";
+
+            activeDialog = new AlertDialog.Builder(this)
+                    .setTitle("检测到多段代码块，请选择预览项")
+                    .setItems(items, (dialog, which) -> {
+                        if (which < blocks.size()) {
+                            createAndLaunchQuickPaste(blocks.get(which).code, blocks.get(which).language);
+                        } else {
+                            createAndLaunchQuickPaste(rawString, "");
+                        }
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+        } else {
+            String code = blocks.isEmpty() ? rawString : blocks.get(0).code;
+            String lang = blocks.isEmpty() ? "" : blocks.get(0).language;
+            createAndLaunchQuickPaste(code, lang);
+        }
+    }
+
+    private void createAndLaunchQuickPaste(String code, String lang) {
+        String inferredExt = inferExtension(code, lang);
+        SimpleDateFormat sdf = new SimpleDateFormat("MMdd_HHmm", Locale.getDefault());
+        String defaultTitle = "快速画布_" + sdf.format(new Date()) + inferredExt;
+
+        CanvasDocument newDoc = new CanvasDocument(
+                UUID.randomUUID().toString(),
+                defaultTitle,
+                code,
+                System.currentTimeMillis()
+        );
+
+        new Thread(() -> {
+            try {
+                repository.saveDocument(newDoc);
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this, "已从剪贴板创建并预览", Toast.LENGTH_SHORT).show();
+                    openEditor(newDoc.getId(), true);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "创建画布失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+    private String inferExtension(String code, String lang) {
+        String l = lang.trim().toLowerCase(Locale.ROOT);
+        if (l.contains("html") || l.contains("htm")) return ".html";
+        if (l.contains("svg")) return ".svg";
+        if (l.contains("xml")) return ".xml";
+        if (l.contains("json")) return ".json";
+        if (l.contains("js") || l.contains("javascript")) return ".js";
+        if (l.contains("css")) return ".css";
+
+        RenderKind kind = RenderKindDetector.detect("", code);
+        if (kind == RenderKind.SVG) return ".svg";
+        if (kind == RenderKind.HTML) return ".html";
+        if (kind == RenderKind.XML) return ".xml";
+        return ".txt";
+    }
+
+    private void showNewDocumentDialog() {
+        SimpleDateFormat sdf = new SimpleDateFormat("MMdd_HHmm", Locale.getDefault());
+        String defaultTitle = "新建画布_" + sdf.format(new Date()) + ".html";
+
+        AlertDialog dialog = UiDialogHelper.createThemedInputDialog(
+                this,
+                "新建画布文件",
+                "输入文件名 (例如 demo.html, chart.svg, config.xml)",
+                defaultTitle,
+                title -> {
+                    CanvasDocument newDoc = new CanvasDocument(UUID.randomUUID().toString(), title, "", System.currentTimeMillis());
+                    new Thread(() -> {
+                        try {
+                            repository.saveDocument(newDoc);
+                            runOnUiThread(() -> openEditor(newDoc.getId(), false));
+                        } catch (Exception e) {
+                            runOnUiThread(() -> Toast.makeText(MainActivity.this, "创建失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                        }
+                    }).start();
                 }
-            }).start();
-        });
-        builder.setNegativeButton("取消", null);
-        builder.show();
+        );
+        activeDialog=dialog;
+        dialog.show();
     }
 
     private void startSafImport() {
@@ -258,7 +391,7 @@ public class MainActivity extends Activity {
 
                 runOnUiThread(() -> {
                     Toast.makeText(MainActivity.this, "成功导入: " + importedDoc.getTitle(), Toast.LENGTH_SHORT).show();
-                    openEditor(importedDoc.getId());
+                    openEditor(importedDoc.getId(), true);
                 });
 
             } catch (Exception e) {
@@ -301,25 +434,47 @@ public class MainActivity extends Activity {
             ImageButton btnShare = convertView.findViewById(R.id.btn_card_share);
             ImageButton btnDelete = convertView.findViewById(R.id.btn_card_delete);
 
+            android.widget.ImageView cover = convertView.findViewById(R.id.img_doc_preview);
+            DocumentPresentation presentation=presentations.get(doc.getId());
+            if(presentation==null) throw new IllegalStateException("Missing prepared document metadata");
+            String key=presentation.previewKey;
+            cover.setTag(key);
+            cover.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+            RenderKind coverKind = presentation.kind;
+            cover.setImageResource(coverKind==RenderKind.HTML ? R.drawable.cover_web : coverKind==RenderKind.SVG ? R.drawable.cover_vector : R.drawable.cover_document);
+            cover.setContentDescription("类型封面；打开预览后显示作品缩略图");
+            thumbnailExecutor.execute(() -> {
+                android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(PreviewThumbnailCache.file(getApplicationContext(),key).getAbsolutePath());
+                runOnUiThread(() -> {
+                    if(key.equals(cover.getTag()) && bitmap!=null){ cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP); cover.setImageBitmap(bitmap); cover.setContentDescription("作品预览缩略图"); }
+                    else if(bitmap!=null) bitmap.recycle();
+                });
+            });
             txtTitle.setText(doc.getTitle());
             txtTime.setText(dateFormat.format(new Date(doc.getUpdatedAt())));
 
-            String content = doc.getContent();
-            txtSnippet.setText(content.isEmpty() ? "(空白内容)" : content);
-
-            // Render type badge
-            RenderKind kind = RenderKindDetector.detect(doc.getTitle(), content);
+            // Type summary instead of raw code snippets
+            TextView txtSummary = convertView.findViewById(R.id.txt_doc_summary);
+            RenderKind kind = presentation.kind;
             txtTag.setText(kind.name());
 
-            // Size & Line stats
-            int bytes = content.getBytes(StandardCharsets.UTF_8).length;
-            String sizeText = bytes < 1024 ? bytes + " B" : String.format(Locale.getDefault(), "%.1f KB", bytes / 1024.0f);
-            int lineCount = content.isEmpty() ? 0 : content.split("\r\n|\r|\n", -1).length;
-            txtSize.setText(sizeText + " · " + lineCount + " 行");
+            if (txtSummary != null) {
+                if (kind == RenderKind.HTML) {
+                    txtSummary.setText("网页 / HTML 画布 · 点击预览");
+                } else if (kind == RenderKind.SVG) {
+                    txtSummary.setText("SVG 矢量图 · 点击预览");
+                } else if (kind == RenderKind.XML) {
+                    txtSummary.setText("XML 结构文档 · 点击校验");
+                } else {
+                    txtSummary.setText("代码画布 · 点击查看");
+                }
+            }
 
-            convertView.setOnClickListener(v -> openEditor(doc.getId()));
+            txtSize.setText(presentation.sizeText);
+
+            convertView.setOnClickListener(v -> openEditor(doc.getId(), true));
             if (contentContainer != null) {
-                contentContainer.setOnClickListener(v -> openEditor(doc.getId()));
+                contentContainer.setOnClickListener(v -> openEditor(doc.getId(), true));
             }
 
             btnShare.setOnClickListener(v -> shareDocument(doc));
@@ -358,7 +513,7 @@ public class MainActivity extends Activity {
     }
 
     private void confirmDeleteDocument(CanvasDocument doc) {
-        new AlertDialog.Builder(this)
+        activeDialog = new AlertDialog.Builder(this)
                 .setTitle("确认删除")
                 .setMessage("确定删除画布「" + doc.getTitle() + "」吗？")
                 .setPositiveButton("删除", (dialog, which) -> {
@@ -373,5 +528,25 @@ public class MainActivity extends Activity {
                 })
                 .setNegativeButton("取消", null)
                 .show();
+    }
+
+    public AlertDialog getActiveDialogForTest() { return activeDialog; }
+
+    @Override protected void onDestroy() {
+        if(activeDialog!=null && activeDialog.isShowing()) activeDialog.dismiss();
+        super.onDestroy();
+        thumbnailExecutor.shutdown();
+    }
+
+    public void loadDocumentsForTest() {
+        try {
+            allDocuments.clear();
+            allDocuments.addAll(repository.getAllDocuments());
+            boolean dark=(getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_YES;
+            presentations.clear(); presentations.putAll(preparePresentations(allDocuments,dark));
+            filterDocuments(editSearch != null ? editSearch.getText().toString() : "");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

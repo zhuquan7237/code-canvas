@@ -43,13 +43,16 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 public class EditorActivity extends Activity {
 
     public static final String EXTRA_DOC_ID = "extra_doc_id";
+    public static final String EXTRA_START_PREVIEW = "extra_start_preview";
     private static final int REQ_EXPORT_SAF = 1002;
 
     private DocumentRepository repository;
+    private AlertDialog activeDialog;
     private CanvasDocument currentDocument;
 
     // Views
@@ -86,6 +89,7 @@ public class EditorActivity extends Activity {
     private boolean isProgrammaticChange = false;
     private boolean isUndoRedoAction = false;
     private boolean isAllowJs = false;
+    private boolean isAllowNetwork = false;
 
     // Debounce Runnables
     private final Runnable autoSaveRunnable = new Runnable() {
@@ -138,6 +142,11 @@ public class EditorActivity extends Activity {
         }
 
         bindDocumentData();
+
+        boolean startPreview = getIntent().getBooleanExtra(EXTRA_START_PREVIEW, false);
+        if (startPreview) {
+            switchToTab(1);
+        }
 
         // Restore if savedInstanceState
         if (savedInstanceState != null) {
@@ -194,6 +203,7 @@ public class EditorActivity extends Activity {
         settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
         settings.setJavaScriptEnabled(false);
+        settings.setBlockNetworkLoads(true);
         settings.setDomStorageEnabled(false);
         settings.setDatabaseEnabled(false);
         settings.setGeolocationEnabled(false);
@@ -205,7 +215,37 @@ public class EditorActivity extends Activity {
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(true);
 
+        webPreview.setWebChromeClient(new android.webkit.WebChromeClient() {
+            @Override
+            public boolean onJsAlert(WebView view, String url, String message, android.webkit.JsResult result) {
+                activeDialog = new AlertDialog.Builder(EditorActivity.this)
+                        .setTitle("页面提示")
+                        .setMessage(message)
+                        .setPositiveButton("确定", (d, w) -> result.confirm())
+                        .setOnCancelListener(d -> result.cancel())
+                        .show();
+                return true;
+            }
+
+            @Override
+            public boolean onConsoleMessage(android.webkit.ConsoleMessage consoleMessage) {
+                return super.onConsoleMessage(consoleMessage);
+            }
+        });
+
         webPreview.setWebViewClient(new WebViewClient() {
+            @Override public void onPageFinished(WebView view, String url) {
+                final String renderedContent = editCode.getText().toString();
+                final boolean dark = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+                final String key = com.nous.codecanvas.util.PreviewKey.forDocument(currentDocument.getId(), renderedContent, dark);
+                view.postVisualStateCallback(System.nanoTime(), new WebView.VisualStateCallback() {
+                    @Override public void onComplete(long requestId) {
+                        if (isDestroyed() || isFinishing() || viewFlipper.getDisplayedChild()!=1 || !renderedContent.equals(editCode.getText().toString())) return;
+                        android.graphics.Bitmap image = PreviewThumbnailCache.capture(view);
+                        if(image!=null && !saveExecutor.isShutdown()) saveExecutor.execute(() -> PreviewThumbnailCache.store(getApplicationContext(),key,image));
+                    }
+                });
+            }
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 // Prevent navigation escaping sandbox
@@ -221,6 +261,19 @@ public class EditorActivity extends Activity {
 
         tabCode.setOnClickListener(v -> switchToTab(0));
         tabPreview.setOnClickListener(v -> switchToTab(1));
+        findViewById(R.id.btn_preview_refresh).setOnClickListener(v -> renderPreview());
+        findViewById(R.id.btn_preview_network).setOnClickListener(v -> {
+            if (isAllowNetwork) { setNetworkAllowed(false); return; }
+            activeDialog = new AlertDialog.Builder(this).setTitle("允许此页面联网？")
+                    .setMessage("用于加载 HTTPS 图片、字体和外部脚本。页面可能向第三方网站发送请求；启用交互后，脚本也可联网。仅对当前打开的页面生效，离开后恢复离线。只开启你信任的代码。")
+                    .setPositiveButton("允许本页联网", (d,w) -> setNetworkAllowed(true))
+                    .setNegativeButton("保持离线",null).show();
+        });
+        tabCode.setOnLongClickListener(v -> {
+            ((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("代码",editCode.getText().toString()));
+            Toast.makeText(this,"已复制全部代码",Toast.LENGTH_SHORT).show();
+            return true;
+        });
 
         btnExportSaf.setOnClickListener(v -> startSafExport());
         btnShare.setOnClickListener(v -> shareFile());
@@ -233,6 +286,11 @@ public class EditorActivity extends Activity {
         switchAllowJs.setOnCheckedChangeListener((buttonView, isChecked) -> {
             isAllowJs = isChecked;
             webPreview.getSettings().setJavaScriptEnabled(isAllowJs);
+            if (isAllowJs) {
+                Toast.makeText(this, "已启用页面按钮与动态效果；仅运行你信任的代码", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "已关闭脚本，页面仍可静态预览", Toast.LENGTH_SHORT).show();
+            }
             renderPreview();
         });
 
@@ -323,16 +381,23 @@ public class EditorActivity extends Activity {
         if (clipboard != null && clipboard.hasPrimaryClip()) {
             ClipData clip = clipboard.getPrimaryClip();
             if (clip != null && clip.getItemCount() > 0) {
-                CharSequence text = clip.getItemAt(0).coerceToText(this);
-                if (text != null) {
-                    if (text.length() > 2 * 1024 * 1024) { // 2MB cap
+                CharSequence rawText = clip.getItemAt(0).coerceToText(this);
+                if (rawText != null) {
+                    if (rawText.length() > 2 * 1024 * 1024) { // 2MB cap
                         Toast.makeText(this, "剪贴板代码过大 (超过 2MB 限制)", Toast.LENGTH_LONG).show();
                         return;
                     }
-                    int start = Math.max(0, editCode.getSelectionStart());
-                    int end = Math.max(0, editCode.getSelectionEnd());
-                    editCode.getText().replace(Math.min(start, end), Math.max(start, end), text, 0, text.length());
-                    Toast.makeText(this, "已粘贴剪贴板代码", Toast.LENGTH_SHORT).show();
+                    final String rawString = rawText.toString();
+                    java.util.List<com.nous.codecanvas.util.AiCodeExtractor.CodeBlock> blocks =
+                            com.nous.codecanvas.util.AiCodeExtractor.extract(rawString);
+
+                    if (blocks.size() > 1) {
+                        // Multi-block picker
+                        showMultiBlockPicker(blocks, rawString);
+                    } else {
+                        String textToInsert = blocks.isEmpty() ? rawString : blocks.get(0).code;
+                        promptAppendOrReplace(textToInsert);
+                    }
                 }
             }
         } else {
@@ -340,14 +405,81 @@ public class EditorActivity extends Activity {
         }
     }
 
+    private void showMultiBlockPicker(final java.util.List<com.nous.codecanvas.util.AiCodeExtractor.CodeBlock> blocks, final String originalRaw) {
+        String[] items = new String[blocks.size() + 1];
+        for (int i = 0; i < blocks.size(); i++) {
+            com.nous.codecanvas.util.AiCodeExtractor.CodeBlock b = blocks.get(i);
+            String label = (b.language.isEmpty() ? "代码块 " + (i + 1) : b.language.toUpperCase(Locale.ROOT) + " 块 " + (i + 1));
+            String snippet = b.code.length() > 30 ? b.code.substring(0, 30).replace("\n", " ") + "..." : b.code.replace("\n", " ");
+            items[i] = label + " (" + snippet + ")";
+        }
+        items[blocks.size()] = "完整原始剪贴板文本";
+
+        activeDialog = new AlertDialog.Builder(this)
+                .setTitle("检测到多段代码块，请选择")
+                .setItems(items, (dialog, which) -> {
+                    if (which < blocks.size()) {
+                        promptAppendOrReplace(blocks.get(which).code);
+                    } else {
+                        promptAppendOrReplace(originalRaw);
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void promptAppendOrReplace(final String text) {
+        String currentContent = editCode.getText().toString();
+        if (currentContent.trim().isEmpty()) {
+            insertTextIntoEditor(text, true);
+            return;
+        }
+
+        // If selection exists, replace the selection directly
+        int start = editCode.getSelectionStart();
+        int end = editCode.getSelectionEnd();
+        if (start != end && start >= 0 && end >= 0) {
+            insertTextIntoEditor(text, false);
+            return;
+        }
+
+        activeDialog = new AlertDialog.Builder(this)
+                .setTitle("粘贴方式选择")
+                .setMessage("当前画布已有代码，请选择操作：")
+                .setPositiveButton("追加到末尾", (dialog, which) -> {
+                    editCode.setSelection(editCode.length());
+                    insertTextIntoEditor("\n\n" + text, false);
+                    editCode.setSelection(editCode.length());
+                })
+                .setNeutralButton("覆盖替换 (可撤销)", (dialog, which) -> insertTextIntoEditor(text, true))
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void insertTextIntoEditor(String text, boolean replaceAll) {
+        if (replaceAll) {
+            editCode.setText(text);
+            editCode.setSelection(text.length());
+        } else {
+            int start = Math.max(0, editCode.getSelectionStart());
+            int end = Math.max(0, editCode.getSelectionEnd());
+            editCode.getText().replace(Math.min(start, end), Math.max(start, end), text, 0, text.length());
+        }
+        Toast.makeText(this, "已粘贴代码", Toast.LENGTH_SHORT).show();
+    }
+
     private void applySyntaxHighlight() {
-        int cursor = editCode.getSelectionStart();
+        int selStart = editCode.getSelectionStart();
+        int selEnd = editCode.getSelectionEnd();
         boolean isDark = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
         isProgrammaticChange = true;
         SyntaxHighlighter.highlight(editCode.getText(), isDark);
         isProgrammaticChange = false;
-        if (cursor >= 0 && cursor <= editCode.length()) {
-            editCode.setSelection(cursor);
+        int len = editCode.length();
+        if (selStart >= 0 && selEnd >= 0 && selStart <= len && selEnd <= len) {
+            editCode.setSelection(selStart, selEnd);
+        } else if (selStart >= 0 && selStart <= len) {
+            editCode.setSelection(selStart);
         }
     }
 
@@ -361,11 +493,17 @@ public class EditorActivity extends Activity {
             tabPreview.setTextColor(getResources().getColor(R.color.canvas_ink_secondary));
             tabPreview.setBackgroundColor(0x00000000);
 
+            findViewById(R.id.txt_preview_advice).setVisibility(View.GONE);
             toolbarEditorActions.setVisibility(View.VISIBLE);
             toolbarPreviewControls.setVisibility(View.GONE);
             viewFlipper.setDisplayedChild(0);
         } else {
             // Switch to Preview Canvas
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null && getCurrentFocus() != null) {
+                imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+            }
+
             tabPreview.setTextColor(0xFFFFFFFF);
             tabPreview.setBackgroundResource(R.color.canvas_teal_primary);
             tabCode.setTextColor(getResources().getColor(R.color.canvas_ink_secondary));
@@ -378,8 +516,16 @@ public class EditorActivity extends Activity {
         }
     }
 
+    private void setNetworkAllowed(boolean allowed) {
+        isAllowNetwork=allowed;
+        webPreview.getSettings().setBlockNetworkLoads(!allowed);
+        ((Button)findViewById(R.id.btn_preview_network)).setText(allowed ? "切回离线" : "联网加载");
+        renderPreview();
+    }
+
     private void renderPreview() {
         String content = editCode.getText().toString();
+        ((TextView)findViewById(R.id.txt_preview_advice)).setVisibility(View.GONE);
         String title = currentDocument.getTitle();
         RenderKind kind = RenderKindDetector.detect(title, content);
 
@@ -402,6 +548,18 @@ public class EditorActivity extends Activity {
         } else {
             layoutXmlView.setVisibility(View.GONE);
             webPreview.setVisibility(View.VISIBLE);
+
+            // Display persistent, plain-language diagnostics rather than a disappearing toast
+            java.util.List<String> warnings = com.nous.codecanvas.util.RenderingAdvisor.inspect(content);
+            if (!warnings.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                for (String w : warnings) {
+                    sb.append("• ").append(w).append("\n");
+                }
+                TextView advice = findViewById(R.id.txt_preview_advice);
+                advice.setText(sb.toString().trim());
+                advice.setVisibility(View.VISIBLE);
+            }
 
             if (kind == RenderKind.SVG) {
                 txtRenderModeBadge.setText("SVG 矢量图");
@@ -445,22 +603,20 @@ public class EditorActivity extends Activity {
     }
 
     private void showRenameDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("重命名画布 (可包含任意后缀)");
-        final EditText input = new EditText(this);
-        input.setText(currentDocument.getTitle());
-        input.setSelection(currentDocument.getTitle().length());
-        builder.setView(input);
-
-        builder.setPositiveButton("确定", (dialog, which) -> {
-            String newTitle = FileUtils.sanitizeFileName(input.getText().toString());
-            currentDocument.setTitle(newTitle);
-            txtEditorTitle.setText(newTitle);
-            saveCurrentDocument();
-            Toast.makeText(EditorActivity.this, "已重命名为: " + newTitle, Toast.LENGTH_SHORT).show();
-        });
-        builder.setNegativeButton("取消", null);
-        builder.show();
+        AlertDialog dialog = UiDialogHelper.createThemedInputDialog(
+                this,
+                "重命名画布 (可包含任意后缀)",
+                "输入文件名 (如 my_page.html, icon.svg)",
+                currentDocument.getTitle(),
+                newTitle -> {
+                    currentDocument.setTitle(newTitle);
+                    txtEditorTitle.setText(newTitle);
+                    saveCurrentDocument();
+                    Toast.makeText(EditorActivity.this, "已重命名为: " + newTitle, Toast.LENGTH_SHORT).show();
+                }
+        );
+        activeDialog=dialog;
+        dialog.show();
     }
 
     private void startSafExport() {
@@ -540,8 +696,11 @@ public class EditorActivity extends Activity {
         return currentDocument;
     }
 
+    public AlertDialog getActiveDialogForTest() { return activeDialog; }
+
     @Override
     protected void onDestroy() {
+        if(activeDialog!=null && activeDialog.isShowing()) activeDialog.dismiss();
         handler.removeCallbacks(autoSaveRunnable);
         handler.removeCallbacks(highlightRunnable);
         if (webPreview != null) {

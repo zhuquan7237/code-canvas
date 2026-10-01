@@ -1,0 +1,239 @@
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:javaPreCompileDebug
+> Task :app:generateDebugResValues
+> Task :app:checkDebugAarMetadata
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources
+> Task :app:mergeDebugResources
+> Task :app:packageDebugResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:parseDebugLocalResources
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest
+> Task :app:processDebugJavaRes NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes NO-SOURCE
+> Task :app:preDebugAndroidTestBuild SKIPPED
+> Task :app:processDebugManifestForPackage
+> Task :app:javaPreCompileDebugAndroidTest
+> Task :app:checkDebugAndroidTestAarMetadata
+> Task :app:generateDebugAndroidTestResValues
+> Task :app:mapDebugAndroidTestSourceSetPaths
+> Task :app:generateDebugAndroidTestResources
+> Task :app:mergeDebugAndroidTestResources
+> Task :app:processDebugAndroidTestManifest
+> Task :app:mergeDebugAndroidTestShaders
+> Task :app:compileDebugAndroidTestShaders NO-SOURCE
+> Task :app:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :app:mergeDebugAndroidTestAssets
+> Task :app:compressDebugAndroidTestAssets
+> Task :app:desugarDebugAndroidTestFileDependencies
+> Task :app:processDebugAndroidTestJavaRes NO-SOURCE
+> Task :app:checkDebugAndroidTestDuplicateClasses
+> Task :app:mergeDebugAndroidTestJniLibFolders
+> Task :app:mergeExtDexDebugAndroidTest
+> Task :app:mergeDebugJniLibFolders
+> Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:mergeDebugAndroidTestNativeLibs NO-SOURCE
+> Task :app:stripDebugAndroidTestDebugSymbols NO-SOURCE
+> Task :app:mergeLibDexDebugAndroidTest
+> Task :app:validateSigningDebugAndroidTest
+> Task :app:writeDebugAndroidTestSigningConfigVersions
+> Task :app:mergeDebugAndroidTestJavaResource
+> Task :app:processDebugAndroidTestResources
+> Task :app:processDebugResources
+
+> Task :app:compileDebugJavaWithJavac
+ע: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+ע: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:compileDebugUnitTestJavaWithJavac
+> Task :app:testDebugUnitTest
+
+> Task :app:compileDebugAndroidTestJavaWithJavac
+ע: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+ע: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+
+> Task :app:dexBuilderDebugAndroidTest
+> Task :app:mergeDebugAndroidTestGlobalSynthetics
+> Task :app:mergeProjectDexDebugAndroidTest
+> Task :app:packageDebugAndroidTest
+> Task :app:createDebugAndroidTestApkListingFileRedirect
+> Task :app:assembleDebugAndroidTest
+
+BUILD SUCCESSFUL in 6s
+46 actionable tasks: 46 executed
+Performing Streamed Install
+Success
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasActivityE2ETest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=
+com.nous.codecanvas.CodeCanvasActivityE2ETest:
+INSTRUMENTATION_STATUS: test=testE2ECreateWithArbitrarySuffixEditUndoRedoSaveReopen
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasActivityE2ETest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testE2ECreateWithArbitrarySuffixEditUndoRedoSaveReopen
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasActivityE2ETest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testWebViewHtmlSvgEvaluationAndJsGating
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasActivityE2ETest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testWebViewHtmlSvgEvaluationAndJsGating
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasInstrumentedSmokeTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=
+com.nous.codecanvas.CodeCanvasInstrumentedSmokeTest:
+INSTRUMENTATION_STATUS: test=testRepositoryDurabilityAndSeeding
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasInstrumentedSmokeTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testRepositoryDurabilityAndSeeding
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasInstrumentedSmokeTest
+INSTRUMENTATION_STATUS: current=4
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testXmlSecurityEngineUnderAndroidRuntime
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasInstrumentedSmokeTest
+INSTRUMENTATION_STATUS: current=4
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testXmlSecurityEngineUnderAndroidRuntime
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasRegressionTestSuite
+INSTRUMENTATION_STATUS: current=5
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=
+com.nous.codecanvas.CodeCanvasRegressionTestSuite:
+INSTRUMENTATION_STATUS: test=testMultiBlockSvgRealSelectionAppendReplaceUndoAndSelection
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasRegressionTestSuite
+INSTRUMENTATION_STATUS: current=5
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testMultiBlockSvgRealSelectionAppendReplaceUndoAndSelection
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasRegressionTestSuite
+INSTRUMENTATION_STATUS: current=6
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testOriginalChoicePreservesAllText
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasRegressionTestSuite
+INSTRUMENTATION_STATUS: current=6
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testOriginalChoicePreservesAllText
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasRegressionTestSuite
+INSTRUMENTATION_STATUS: current=7
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testQuickpasteFencedHtmlViaPrimaryButton
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasRegressionTestSuite
+INSTRUMENTATION_STATUS: current=7
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testQuickpasteFencedHtmlViaPrimaryButton
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasRegressionTestSuite
+INSTRUMENTATION_STATUS: current=8
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testRealCardTapAndRealNewNamingDefaultTabs
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.CodeCanvasRegressionTestSuite
+INSTRUMENTATION_STATUS: current=8
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testRealCardTapAndRealNewNamingDefaultTabs
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.NamingDialogThemeContrastTest
+INSTRUMENTATION_STATUS: current=9
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=
+com.nous.codecanvas.NamingDialogThemeContrastTest:
+INSTRUMENTATION_STATUS: test=testBothLightAndDarkActualNamingContrast
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.NamingDialogThemeContrastTest
+INSTRUMENTATION_STATUS: current=9
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testBothLightAndDarkActualNamingContrast
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.NamingDialogThemeContrastTest
+INSTRUMENTATION_STATUS: current=10
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testLightThemeRequestsReadableSystemBarIcons
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.NamingDialogThemeContrastTest
+INSTRUMENTATION_STATUS: current=10
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testLightThemeRequestsReadableSystemBarIcons
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.ThumbnailCaptureTest
+INSTRUMENTATION_STATUS: current=11
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=
+com.nous.codecanvas.ThumbnailCaptureTest:
+INSTRUMENTATION_STATUS: test=testPreviewStoresRealThumbnail
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.nous.codecanvas.ThumbnailCaptureTest
+INSTRUMENTATION_STATUS: current=11
+INSTRUMENTATION_STATUS: id=InstrumentationTestRunner
+INSTRUMENTATION_STATUS: numtests=11
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testPreviewStoresRealThumbnail
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+Test results for InstrumentationTestRunner=...........
+Time: 61.718
+
+OK (11 tests)
+
+
+INSTRUMENTATION_CODE: -1
