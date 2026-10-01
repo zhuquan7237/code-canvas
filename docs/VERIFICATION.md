@@ -26,8 +26,21 @@
 ## 更新链路验收
 
 - `scripts/release.py` 只从**磁盘上真实存在的 APK** 计算字节数与 SHA-256，不接受手填。
-- `docs/update/latest.json` 在 Release 资产上传后生成并推送；回读原始地址确认真实可达且内容与 APK 一致。
+- 已发布资产 `code-canvas-0.1.2.apk`（70787 字节）的 GitHub digest 为 `sha256:b4325c04…e61634`，与本地文件、与 `docs/update/latest.json` 三者完全一致。
+- 从清单里的 `apkUrl` 公网实际下载：HTTP 200、一次跳转到 GitHub 资源主机、70787 字节、SHA-256 与清单一致（**MATCH**）。
 - 应用侧只接受正向递增的 `versionCode`，下载主机限定本仓库 Release / GitHub 资源域名，校验字节数、SHA-256、包名、versionCode、versionName 与签名证书后才调用系统安装器。
+
+### 真机（模拟器）实测更新链路
+
+1. 装已发布的 0.1.2 → 底部显示 **「代码画布 0.1.2 · 已是最新版本」**：证明真机确实从 `raw.githubusercontent.com` 取到了线上清单并完成解析与版本比较。
+2. 用**同签名、versionCode=2 的本地测试夹具**（仅本地构建，从未上传/发布）替换安装 → 底部变为 **「新版本 0.1.2 · 点击更新」**：证明「发现新版本」判定正确。
+3. 点击 → 弹出说明框，正文是清单里真实的 `notes` 与字节数（[截图](evidence/v0.1.2/update_offer_dialog.png)）；点「下载并安装」后从公网真实资产下载并完成校验。
+4. 首次安装未知来源应用被正确拦下，给出「安装包已校验。请在系统设置中允许代码画布安装应用，然后返回继续」的说明（[截图](evidence/v0.1.2/update_installer.png)）。
+5. 授权后应用自动继续，**系统安装器弹出「Update this app?」并识别为同一应用的就地更新**（[截图](evidence/v0.1.2/update_system_installer.png)）——说明大小 / SHA-256 / 包名 / versionCode / versionName / 签名证书全部通过。
+
+**未通过的一步（如实记录）**：点「Update」后，模拟器上的 **Google Play Protect 直接拦截**（先提示扫描，扫描后判定 "Harmful app blocked"），最终没有完成系统安装。这是系统级安全门，应用既无法也不应该绕过（本版不会去关闭 Play Protect 或未知来源设置）。自签名侧载包在装有 Play Protect 的设备上首次安装会出现这一提示，属正常现象。
+
+- 因此：**应用侧到「把校验通过的 APK 交给系统安装器」为止已全链路验证**；「系统安装器真正写盘完成」这一步被模拟器的 Play Protect 拦下，未取得成功证据。国内 ROM（如 HyperOS 多不带 Play Protect）通常不会出现该拦截，但仍需真机确认。
 
 ## 功能边界（本版不变）
 

@@ -57,10 +57,12 @@
 - **模拟器仪器测试 20 项全绿**（独立 QA 模拟器 emulator-5556，Android 17，`am instrument` 全量执行 `OK (20 tests)`），覆盖：真实对比度（Rendered View 与资源两套）、列表/方格密度与跨重启记忆、代码↔预览切换不重载与不白屏、查找替换/符号插入真实可撤销、XML 结构视图不等待 WebView、粘贴与多段选择、剪贴板、缩略图缓存、更新清单解析与安全校验。
 - 实际签名正式版安装、日夜列表/方格、编辑器工具栏、预览、命名弹窗截图见 [docs/evidence/v0.1.2](evidence/v0.1.2/)。
 - `apksigner verify`：APK Signature Scheme v2 通过，签名者证书与 v0.1.0/v0.1.1 一致。
-- 应用内更新链路：`docs/update/latest.json` 由 `scripts/release.py` 依据**真实已上传的 APK** 生成，并回读校验哈希。
+- 应用内更新链路：`docs/update/latest.json` 由 `scripts/release.py` 依据**真实已上传的 APK** 生成，并回读校验哈希（GitHub 资产 digest、本地文件、清单三者一致；从清单里的公网 URL 实际下载 70787 字节，SHA-256 相符）。
+- 真机（模拟器）实测更新流程：已发布版显示「已是最新版本」；用同签名 versionCode=2 的本地夹具替换后显示「新版本 0.1.2 · 点击更新」→ 说明框（真实 notes）→ 下载并校验 → 权限引导 → **系统安装器弹出「Update this app?」识别为就地更新**（截图见 [docs/evidence/v0.1.2](evidence/v0.1.2/)）。
 
 ## 尚未验证 / 边界
 
+- 最后一步「系统安装器真正写盘完成」在测试模拟器上被 **Google Play Protect** 拦下（判定 "Harmful app blocked"）。这是系统级安全门，应用不会去绕过它。自签名侧载包在带 Play Protect 的设备上首次安装会出现该提示；国内 ROM（HyperOS 多不带 Play Protect）通常不受影响，但仍需你实机确认一遍。
 - **仍未在小米 Turbo 3 / HyperOS 真机验证**：输入法、手势导航、120Hz 动画、厂商后台限制下的更新安装都需要你实机试用。
 - 模拟器不能代表真机帧率；本版只保证「不重载、不白屏、有过渡」，没有承诺具体帧率数字。
 - 普通 XML 只做结构展示与校验，不是 Android 布局渲染或 XSLT。不会编译 Vue/React，也不运行 Python/Node.js。推荐让 AI 输出单个自包含 HTML（CSS/JS 内嵌、不依赖 CDN）。
