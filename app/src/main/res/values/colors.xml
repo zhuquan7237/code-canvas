@@ -58,10 +58,9 @@
     <color name="canvas_disabled_fill">#CBD5E1</color>
     <color name="canvas_disabled_ink">#4A5568</color>
 
-    <!-- XML/plain code surface (kept neutral so syntax colors stay legible) -->
+    <!-- XML/plain code surface. The code area paints this, and the syntax
+         colours are measured against it. -->
     <color name="canvas_code_surface">#FFFFFF</color>
-    <color name="canvas_code_bg_light">#F8FAFC</color>
-    <color name="canvas_code_bg_dark">#121417</color>
     <color name="canvas_code_ink">#0F172A</color>
 
     <!-- Segment / tab chrome + selected chip ink -->
@@ -109,8 +108,6 @@
         segment_track            #E4E9F2
         on_segment_selected      #FFFFFF
         code_surface             #FFFFFF
-        code_bg_light            #F8FAFC
-        code_bg_dark             #121417
         code_ink                 #0F172A
         syntax_tag               #0F6B5C
         syntax_attr              #1D4FB8

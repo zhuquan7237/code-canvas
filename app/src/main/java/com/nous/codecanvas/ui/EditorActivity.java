@@ -86,6 +86,14 @@ public class EditorActivity extends Activity {
     private final UndoRedoManager undoRedoManager = new UndoRedoManager();
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final java.util.concurrent.ExecutorService saveExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
+    /** Counts user edits, so a finished save can tell whether it still matches what is on screen. */
+    private long editRevision = 0L;
+    /** Revision the store holds for this document; -1 means it has never been saved. */
+    private long persistedRevision = -1L;
+    /** Set when the file could not be opened. Editing and saving stay disabled. */
+    private boolean documentLoadFailed = false;
+    /** True only for a document this screen created and has never written to the store. */
+    private boolean documentIsNew = false;
     private boolean isProgrammaticChange = false;
     private boolean isUndoRedoAction = false;
     private boolean isAllowJs = false;
@@ -93,6 +101,11 @@ public class EditorActivity extends Activity {
     private final com.nous.codecanvas.editor.PreviewState previewState = new com.nous.codecanvas.editor.PreviewState();
     private int previewLoadCount;
     public int getPreviewLoadCountForTest(){return previewLoadCount;}
+    private View previewLoadingView;
+    private String previewBaseUrl;
+    private long previewTicket = -1L;
+    /** The renderer process died; the WebView has been removed and must be rebuilt before reuse. */
+    private boolean previewRendererDead = false;
 
     // Debounce Runnables
     private final Runnable autoSaveRunnable = new Runnable() {
@@ -133,15 +146,37 @@ public class EditorActivity extends Activity {
         setupListeners();
 
         String docId = getIntent().getStringExtra(EXTRA_DOC_ID);
+        if (savedInstanceState != null) {
+            // A recreation races the debounced save the previous instance queued. Wait briefly so
+            // the reload below cannot read an older revision and then overwrite the last edits.
+            com.nous.codecanvas.data.DocumentSaveCoordinator.drainAndWait(1000);
+        }
+        String loadFailure = null;
         if (docId != null) {
             try {
                 currentDocument = repository.findById(docId);
             } catch (Exception e) {
-                e.printStackTrace();
+                android.util.Log.e("CodeCanvas", "could not open document " + docId, e);
+                loadFailure = "读取本地存储时出错：" + describe(e);
             }
+            if (currentDocument == null && loadFailure == null) {
+                loadFailure = "这个文件已经不在本地了，可能已在首页被删除。";
+            }
+        }
+        if (loadFailure != null) {
+            // Deliberately NOT the old behaviour: creating an empty untitled.html here turned a
+            // read error into "all my code vanished", and the next save wrote that emptiness over
+            // the real file. Fail visibly, and never save in this state.
+            showLoadFailure(loadFailure);
+            return;
         }
         if (currentDocument == null) {
             currentDocument = new CanvasDocument(String.valueOf(System.currentTimeMillis()), "untitled.html", "", System.currentTimeMillis());
+            persistedRevision = -1L;
+            documentIsNew = true;
+        } else {
+            persistedRevision = currentDocument.getRevision();
+            editRevision = currentDocument.getRevision();
         }
 
         bindDocumentData();
@@ -241,30 +276,120 @@ public class EditorActivity extends Activity {
             }
         });
 
-        webPreview.setWebViewClient(new WebViewClient(){@Override public boolean shouldOverrideUrlLoading(WebView v,String url){return true;}});
+        webPreview.setWebViewClient(new PreviewWebViewClient());
+    }
+
+    /**
+     * One client for the life of the screen. The old code replaced the whole client on every load,
+     * which meant no callback could ever be about "the current page", and there was no
+     * {@code onRenderProcessGone} at all — a renderer crash therefore took the app down with it.
+     */
+    private final class PreviewWebViewClient extends WebViewClient {
+        @Override public boolean shouldOverrideUrlLoading(WebView v, String url) { return true; }
+
+        @Override public void onPageFinished(WebView view, String url) {
+            if (previewBaseUrl == null || !previewBaseUrl.equals(url)) return;
+            final long ticket = previewTicket;
+            if (ticket != previewState.generation) return;
+            handler.removeCallbacks(previewTimeoutRunnable);
+            view.postVisualStateCallback(ticket, new WebView.VisualStateCallback() { @Override public void onComplete(long id) {
+                if (isDestroyed() || isFinishing() || !previewState.ready(ticket)) return;
+                if (previewLoadingView != null) previewLoadingView.setVisibility(View.GONE);
+                boolean dark = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+                String key = com.nous.codecanvas.util.PreviewKey.forDocument(currentDocument.getId(), editCode.getText().toString(), dark);
+                if (viewFlipper.getDisplayedChild() == 1) {
+                    android.graphics.Bitmap image = PreviewThumbnailCache.capture(view);
+                    if (image != null && !saveExecutor.isShutdown()) saveExecutor.execute(() -> PreviewThumbnailCache.store(getApplicationContext(), key, image));
+                }
+            }});
+        }
+
+        @Override public void onReceivedError(WebView view, android.webkit.WebResourceRequest request,
+                                              android.webkit.WebResourceError error) {
+            if (request != null && request.isForMainFrame()) {
+                markPreviewFailed("页面加载失败：" + (error == null ? "未知原因" : error.getDescription()));
+            }
+        }
+
+        @Override public boolean onRenderProcessGone(WebView view, android.webkit.RenderProcessGoneDetail detail) {
+            return handleRendererGone();
+        }
+    }
+
+    private final Runnable previewTimeoutRunnable = new Runnable() { @Override public void run() {
+        if (isDestroyed() || isFinishing()) return;
+        if (previewTicket != previewState.generation || viewFlipper.getDisplayedChild() != 1) return;
+        if (webPreview != null) webPreview.stopLoading();
+        previewState.invalidate();
+        if (previewLoadingView != null) previewLoadingView.setVisibility(View.GONE);
+        Toast.makeText(EditorActivity.this, "预览加载超时，已停止加载。可点刷新重试。", Toast.LENGTH_LONG).show();
+    }};
+
+    private void markPreviewFailed(String reason) {
+        if (isDestroyed() || isFinishing()) return;
+        handler.removeCallbacks(previewTimeoutRunnable);
+        previewState.invalidate();
+        if (previewLoadingView != null) previewLoadingView.setVisibility(View.GONE);
+        Toast.makeText(this, reason + "，可点刷新重试。", Toast.LENGTH_LONG).show();
+    }
+
+    /**
+     * The renderer crashed or was reclaimed. Returning true keeps the app alive; the dead WebView is
+     * torn down immediately, because leaving a destroyed renderer in the hierarchy is its own crash.
+     */
+    private boolean handleRendererGone() {
+        previewRendererDead = true;
+        handler.removeCallbacks(previewTimeoutRunnable);
+        previewState.invalidate();
+        if (previewLoadingView != null) previewLoadingView.setVisibility(View.GONE);
+        detachDeadWebView();
+        runOnUiThread(() -> {
+            if (isDestroyed() || isFinishing()) return;
+            new AlertDialog.Builder(this)
+                    .setTitle("预览已停止")
+                    .setMessage("渲染进程被系统回收或崩溃了。你的代码和编辑状态没有受影响，可以重建预览继续。")
+                    .setPositiveButton("重建预览", (d, w) -> { rebuildPreviewRenderer(); renderPreview(); })
+                    .setNegativeButton("返回代码", (d, w) -> switchToTab(0))
+                    .show();
+        });
+        return true;
+    }
+
+    private void detachDeadWebView() {
+        if (webPreview == null) return;
+        if (webPreview.getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) webPreview.getParent()).removeView(webPreview);
+        }
+        try {
+            webPreview.destroy();
+        } catch (Exception ignored) {
+        }
+        webPreview = null;
+    }
+
+    private void rebuildPreviewRenderer() {
+        if (webPreview != null) return;
+        android.view.ViewGroup host = findViewById(R.id.preview_canvas_card);
+        if (host == null) return;
+        webPreview = new WebView(this);
+        host.addView(webPreview, 0, new android.view.ViewGroup.LayoutParams(-1, -1));
+        previewRendererDead = false;
+        setupWebView();
     }
 
     private void loadPreview(String html,String fingerprint) {
         if(!previewState.request(fingerprint,false))return;
+        if(previewRendererDead||webPreview==null)rebuildPreviewRenderer();
+        if(webPreview==null)return;
         final long ticket=previewState.generation;
-        final String rendered=editCode.getText().toString();
         final String base="https://codecanvas.invalid/preview/"+ticket;
-        final View loading=findViewById(R.id.preview_loading);loading.setVisibility(View.VISIBLE);
+        previewBaseUrl=base;
+        previewTicket=ticket;
+        previewLoadingView=findViewById(R.id.preview_loading);
+        if(previewLoadingView!=null)previewLoadingView.setVisibility(View.VISIBLE);
         previewLoadCount++;
-        webPreview.setWebViewClient(new WebViewClient(){
-            @Override public boolean shouldOverrideUrlLoading(WebView v,String url){return true;}
-            @Override public void onPageFinished(WebView view,String url){
-                if(!base.equals(url)||ticket!=previewState.generation)return;
-                view.postVisualStateCallback(ticket,new WebView.VisualStateCallback(){@Override public void onComplete(long id){
-                    if(isDestroyed()||isFinishing()||!previewState.ready(ticket))return;
-                    loading.setVisibility(View.GONE);
-                    boolean dark=(getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)==Configuration.UI_MODE_NIGHT_YES;
-                    String key=com.nous.codecanvas.util.PreviewKey.forDocument(currentDocument.getId(),rendered,dark);
-                    if(viewFlipper.getDisplayedChild()==1){android.graphics.Bitmap image=PreviewThumbnailCache.capture(view);if(image!=null&&!saveExecutor.isShutdown())saveExecutor.execute(()->PreviewThumbnailCache.store(getApplicationContext(),key,image));}
-                }});
-            }
-        });
-        handler.postDelayed(()->{if(!isDestroyed()&&ticket==previewState.generation&&previewState.pending&&viewFlipper.getDisplayedChild()==1){loading.setVisibility(View.GONE);previewState.invalidate();Toast.makeText(this,"预览加载较慢，可点击刷新重试",Toast.LENGTH_LONG).show();}},15000);
+        handler.removeCallbacks(previewTimeoutRunnable);
+        handler.postDelayed(previewTimeoutRunnable,15000);
         webPreview.loadDataWithBaseURL(base,html,"text/html","UTF-8",null);
     }
 
@@ -275,7 +400,7 @@ public class EditorActivity extends Activity {
 
         tabCode.setOnClickListener(v -> switchToTab(0));
         tabPreview.setOnClickListener(v -> switchToTab(1));
-        findViewById(R.id.btn_preview_refresh).setOnClickListener(v -> {previewState.invalidate();renderPreview();});
+        findViewById(R.id.btn_preview_refresh).setOnClickListener(v -> {if(previewRendererDead||webPreview==null)rebuildPreviewRenderer();previewState.invalidate();renderPreview();});
         setupEditorHelpers();
         findViewById(R.id.btn_preview_network).setOnClickListener(v -> {
             if (isAllowNetwork) { setNetworkAllowed(false); return; }
@@ -300,7 +425,7 @@ public class EditorActivity extends Activity {
 
         switchAllowJs.setOnCheckedChangeListener((buttonView, isChecked) -> {
             isAllowJs = isChecked;
-            webPreview.getSettings().setJavaScriptEnabled(isAllowJs);
+            if (webPreview != null) webPreview.getSettings().setJavaScriptEnabled(isAllowJs);
             if (isAllowJs) {
                 Toast.makeText(this, "已启用页面按钮与动态效果；仅运行你信任的代码", Toast.LENGTH_SHORT).show();
             } else {
@@ -319,6 +444,7 @@ public class EditorActivity extends Activity {
             @Override
             public void afterTextChanged(Editable s) {
                 if (isProgrammaticChange) return;
+                editRevision++;
 
                 if (!isUndoRedoAction) {
                     undoRedoManager.pushState(s.toString(), editCode.getSelectionStart());
@@ -328,7 +454,7 @@ public class EditorActivity extends Activity {
                 updateStats(s.toString());
 
                 // Debounce Auto-Save (800ms)
-                txtSaveIndicator.setText("保存中...");
+                txtSaveIndicator.setText("保存中…");
                 handler.removeCallbacks(autoSaveRunnable);
                 handler.postDelayed(autoSaveRunnable, 800);
 
@@ -564,7 +690,7 @@ public class EditorActivity extends Activity {
 
     private void setNetworkAllowed(boolean allowed) {
         isAllowNetwork=allowed;
-        webPreview.getSettings().setBlockNetworkLoads(!allowed);
+        if (webPreview != null) webPreview.getSettings().setBlockNetworkLoads(!allowed);
         ((Button)findViewById(R.id.btn_preview_network)).setText(allowed ? "切回离线" : "联网加载");
         renderPreview();
     }
@@ -579,7 +705,7 @@ public class EditorActivity extends Activity {
         boolean isDark = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
 
         if (kind == RenderKind.XML) {
-            webPreview.setVisibility(View.GONE);
+            if (webPreview != null) webPreview.setVisibility(View.GONE);
             findViewById(R.id.preview_loading).setVisibility(View.GONE);
             previewState.invalidate();
             layoutXmlView.setVisibility(View.VISIBLE);
@@ -596,7 +722,7 @@ public class EditorActivity extends Activity {
             txtXmlContent.setText(XmlFormatter.formatForDisplay(content));
         } else {
             layoutXmlView.setVisibility(View.GONE);
-            webPreview.setVisibility(View.VISIBLE);
+            if (webPreview != null) webPreview.setVisibility(View.VISIBLE);
 
             // Display persistent, plain-language diagnostics rather than a disappearing toast
             java.util.List<String> warnings = com.nous.codecanvas.util.RenderingAdvisor.inspect(content);
@@ -628,27 +754,110 @@ public class EditorActivity extends Activity {
     }
 
     private void saveCurrentDocument() {
-        if (currentDocument == null || editCode == null) return;
-        currentDocument.setContent(editCode.getText().toString());
+        if (documentLoadFailed || currentDocument == null || editCode == null) return;
+        final String content = editCode.getText().toString();
+        final String title = currentDocument.getTitle();
+        final long capturedEdit = editRevision;
+        final boolean creating = documentIsNew;
+
+        currentDocument.setContent(content);
         currentDocument.setUpdatedAt(System.currentTimeMillis());
-        final CanvasDocument snapshotDoc = currentDocument.snapshot();
-        saveExecutor.execute(() -> {
-            try {
-                repository.saveDocument(snapshotDoc);
-                runOnUiThread(() -> {
-                    if (txtSaveIndicator != null) {
-                        txtSaveIndicator.setText("已自动保存");
+        if (txtSaveIndicator != null) txtSaveIndicator.setText("保存中…");
+
+        // One process-wide writer queue, so two editor screens cannot interleave writes, plus the
+        // store's revision check so a save captured before a newer edit can never win the race.
+        com.nous.codecanvas.data.DocumentSaveCoordinator.save(
+                repository, currentDocument.getId(), title, content, creating ? -1L : persistedRevision,
+                new com.nous.codecanvas.data.DocumentSaveCoordinator.Result() {
+                    @Override
+                    public void onSaved(long storedRevision) {
+                        runOnUiThread(() -> {
+                            if (isFinishing() || isDestroyed()) return;
+                            documentIsNew = false;
+                            persistedRevision = storedRevision;
+                            currentDocument.setRevision(storedRevision);
+                            // Only claim "saved" when the text on screen is the text that was
+                            // written. Claiming it for a superseded snapshot is how the old
+                            // indicator ended up lying to the user.
+                            if (capturedEdit == editRevision) {
+                                txtSaveIndicator.setText("已保存");
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onFailed(Exception error) {
+                        if (error instanceof com.nous.codecanvas.data.DocumentRepository.StaleWriteException) {
+                            // Another screen moved this document forward. What the user is looking at
+                            // is still the newest text, so adopt the stored revision and write again —
+                            // but only if the document still exists, otherwise we would resurrect a
+                            // file the user deleted.
+                            runOnUiThread(() -> {
+                                CanvasDocument latest = null;
+                                try {
+                                    latest = repository.findById(currentDocument.getId());
+                                } catch (Exception ignored) {
+                                }
+                                if (latest == null) {
+                                    persistFailed("文件已被删除，本次修改没有保存");
+                                    return;
+                                }
+                                persistedRevision = latest.getRevision();
+                                documentIsNew = false;
+                                handler.removeCallbacks(autoSaveRunnable);
+                                handler.postDelayed(autoSaveRunnable, 0);
+                            });
+                            return;
+                        }
+                        boolean missing = error instanceof com.nous.codecanvas.data.DocumentRepository.DocumentMissingException;
+                        runOnUiThread(() -> persistFailed(missing
+                                ? "文件已被删除，本次修改没有保存"
+                                : "保存失败：" + describe(error)));
                     }
                 });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    if (txtSaveIndicator != null) {
-                        txtSaveIndicator.setText("保存失败: " + e.getMessage());
-                    }
-                    Toast.makeText(EditorActivity.this, "保存文档失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
-            }
-        });
+    }
+
+    private void persistFailed(String reason) {
+        if (isFinishing() || isDestroyed()) return;
+        if (txtSaveIndicator != null) txtSaveIndicator.setText(reason);
+        Toast.makeText(EditorActivity.this, reason, Toast.LENGTH_LONG).show();
+    }
+
+    private static String describe(Throwable t) {
+        if (t == null) return "未知错误";
+        String message = t.getMessage();
+        if (message == null || message.isEmpty()) return t.getClass().getSimpleName();
+        return message.length() > 80 ? message.substring(0, 80) + "…" : message;
+    }
+
+    /**
+     * Replace the editor with an honest failure state. Deliberately does not fall back to a blank
+     * document, and does not save anything: the file on disk is the user's only copy.
+     */
+    private void showLoadFailure(String message) {
+        documentLoadFailed = true;
+        handler.removeCallbacks(autoSaveRunnable);
+        handler.removeCallbacks(highlightRunnable);
+        if (viewFlipper != null) viewFlipper.setVisibility(View.GONE);
+        if (toolbarEditorActions != null) toolbarEditorActions.setVisibility(View.GONE);
+        if (toolbarPreviewControls != null) toolbarPreviewControls.setVisibility(View.GONE);
+        View helpers = findViewById(R.id.editor_helpers);
+        if (helpers != null) helpers.setVisibility(View.GONE);
+        View advice = findViewById(R.id.txt_preview_advice);
+        if (advice != null) advice.setVisibility(View.GONE);
+        View tabs = (tabCode != null && tabCode.getParent() instanceof View) ? (View) tabCode.getParent() : null;
+        if (tabs != null) tabs.setVisibility(View.GONE);
+        if (txtSaveIndicator != null) txtSaveIndicator.setText("");
+        if (txtEditorTitle != null) txtEditorTitle.setText("打不开这个文件");
+
+        TextView msg = findViewById(R.id.txt_editor_error_message);
+        if (msg != null) msg.setText(message);
+        View panel = findViewById(R.id.layout_editor_error);
+        if (panel != null) panel.setVisibility(View.VISIBLE);
+        View retry = findViewById(R.id.btn_editor_error_retry);
+        if (retry != null) retry.setOnClickListener(v -> recreate());
+        View back = findViewById(R.id.btn_editor_error_back);
+        if (back != null) back.setOnClickListener(v -> finish());
     }
 
     private void showRenameDialog() {
@@ -699,10 +908,10 @@ public class EditorActivity extends Activity {
                 if (os != null) {
                     os.write(content.getBytes(StandardCharsets.UTF_8));
                     os.flush();
-                    runOnUiThread(() -> Toast.makeText(EditorActivity.this, "成功导出文件", Toast.LENGTH_SHORT).show());
+                    runOnUiThread(() -> Toast.makeText(EditorActivity.this, "已导出源码文件", Toast.LENGTH_SHORT).show());
                 }
             } catch (Exception e) {
-                runOnUiThread(() -> Toast.makeText(EditorActivity.this, "导出失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(EditorActivity.this, "导出源码失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
         }).start();
     }
@@ -713,24 +922,13 @@ public class EditorActivity extends Activity {
         final String docContent = editCode.getText().toString();
         new Thread(() -> {
             try {
-                File shareDir = new File(getCacheDir(), "shares");
-                if (!shareDir.exists()) shareDir.mkdirs();
-                File targetFile = new File(shareDir, docTitle);
-                try (FileOutputStream fos = new FileOutputStream(targetFile)) {
-                    fos.write(docContent.getBytes(StandardCharsets.UTF_8));
-                    fos.flush();
-                }
-
-                Uri contentUri = Uri.parse("content://" + getPackageName() + CanvasFileProvider.AUTHORITY_SUFFIX + "/" + targetFile.getName());
-
-                Intent shareIntent = new Intent(Intent.ACTION_SEND);
-                shareIntent.setType("*/*");
-                shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
-                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-                runOnUiThread(() -> startActivity(Intent.createChooser(shareIntent, "分享代码画布文件")));
+                String authority = getPackageName() + CanvasFileProvider.AUTHORITY_SUFFIX;
+                com.nous.codecanvas.util.ShareExporter.Staged staged =
+                        com.nous.codecanvas.util.ShareExporter.stage(this, authority, docTitle, docContent);
+                runOnUiThread(() -> startActivity(
+                        com.nous.codecanvas.util.ShareExporter.chooserIntent(staged, "分享源码")));
             } catch (Exception e) {
-                runOnUiThread(() -> Toast.makeText(EditorActivity.this, "分享失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(EditorActivity.this, "分享失败: " + describe(e), Toast.LENGTH_SHORT).show());
             }
         }).start();
     }

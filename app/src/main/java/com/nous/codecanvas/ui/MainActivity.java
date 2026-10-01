@@ -51,6 +51,10 @@ public class MainActivity extends Activity {
     private ListView listDocuments;
     private android.widget.GridView gridDocuments;
     private com.nous.codecanvas.update.AppUpdater updater;
+    /** URI of an external open already handled, so a recreation does not import twice. */
+    private String handledIncomingUri;
+    /** Text shared into the app, consumed the next time the user asks to paste. */
+    private String pendingSharedText;
     private View viewEmpty;
     private EditText editSearch;
     private Button btnQuickPaste;
@@ -112,6 +116,51 @@ public class MainActivity extends Activity {
 
         initViews();
         setupListeners();
+        handleIncomingIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIncomingIntent(intent);
+    }
+
+    /**
+     * Consume an external open/share. The manifest has always advertised ACTION_VIEW, but nothing
+     * read the intent, so picking "代码画布" in a file manager just landed on the home screen.
+     */
+    private void handleIncomingIntent(Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        Uri data = intent.getData();
+        if (Intent.ACTION_VIEW.equals(action) && data != null) {
+            String key = data.toString();
+            if (key.equals(handledIncomingUri)) return;   // a recreation must not import twice
+            handledIncomingUri = key;
+            importFromUri(data);
+        } else if (Intent.ACTION_SEND.equals(action)) {
+            String shared = intent.getStringExtra(Intent.EXTRA_TEXT);
+            if (shared != null && !shared.trim().isEmpty()) {
+                pendingSharedText = shared;
+                // Another app handing us code should land in the same place as the paste button:
+                // extracted, named, and opened for preview.
+                java.util.List<com.nous.codecanvas.util.AiCodeExtractor.CodeBlock> blocks =
+                        com.nous.codecanvas.util.AiCodeExtractor.extract(shared);
+                if (blocks.isEmpty()) {
+                    createAndLaunchQuickPaste(shared, "");
+                } else {
+                    createAndLaunchQuickPaste(blocks.get(0).code, blocks.get(0).language);
+                }
+            }
+        }
+    }
+
+    /** Text handed over by another app, offered on the next paste action. */
+    public String consumePendingSharedTextForTest() {
+        String value = pendingSharedText;
+        pendingSharedText = null;
+        return value;
     }
 
     @Override
@@ -400,6 +449,11 @@ public class MainActivity extends Activity {
                     }
                 }
                 String content = new String(buffer.toByteArray(), StandardCharsets.UTF_8);
+                if (content.trim().isEmpty()) {
+                    // An empty stream used to be stored as an empty document and reported as a
+                    // successful import, which reads as "the app lost my file".
+                    throw new IllegalStateException("文件是空的，没有可导入的内容");
+                }
 
                 CanvasDocument importedDoc = new CanvasDocument(
                         UUID.randomUUID().toString(),
@@ -465,9 +519,13 @@ public class MainActivity extends Activity {
             cover.setContentDescription("类型封面；打开预览后显示作品缩略图");
             thumbnailExecutor.execute(() -> {
                 android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(PreviewThumbnailCache.file(getApplicationContext(),key).getAbsolutePath());
+                // A stored capture that painted nothing is discarded rather than shown; the cover
+                // already on the row is the honest fallback.
+                if(bitmap!=null && PreviewThumbnailCache.looksBlank(bitmap)){ bitmap.recycle(); PreviewThumbnailCache.file(getApplicationContext(),key).delete(); bitmap=null; }
+                final android.graphics.Bitmap loaded = bitmap;
                 runOnUiThread(() -> {
-                    if(key.equals(cover.getTag()) && bitmap!=null){ cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP); cover.setImageBitmap(bitmap); cover.setContentDescription("作品预览缩略图"); }
-                    else if(bitmap!=null) bitmap.recycle();
+                    if(key.equals(cover.getTag()) && loaded!=null){ cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP); cover.setImageBitmap(loaded); cover.setContentDescription("作品预览缩略图"); }
+                    else if(loaded!=null) loaded.recycle();
                 });
             });
             if(txtTitle!=null) txtTitle.setText(doc.getTitle());
@@ -516,22 +574,11 @@ public class MainActivity extends Activity {
         final String docContent = doc.getContent();
         new Thread(() -> {
             try {
-                File shareDir = new File(getCacheDir(), "shares");
-                if (!shareDir.exists()) shareDir.mkdirs();
-                File targetFile = new File(shareDir, docTitle);
-                try (FileOutputStream fos = new FileOutputStream(targetFile)) {
-                    fos.write(docContent.getBytes(StandardCharsets.UTF_8));
-                    fos.flush();
-                }
-
-                Uri contentUri = Uri.parse("content://" + getPackageName() + CanvasFileProvider.AUTHORITY_SUFFIX + "/" + targetFile.getName());
-
-                Intent shareIntent = new Intent(Intent.ACTION_SEND);
-                shareIntent.setType("*/*");
-                shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
-                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-                runOnUiThread(() -> startActivity(Intent.createChooser(shareIntent, "分享代码画布文件")));
+                String authority = getPackageName() + com.nous.codecanvas.provider.CanvasFileProvider.AUTHORITY_SUFFIX;
+                com.nous.codecanvas.util.ShareExporter.Staged staged =
+                        com.nous.codecanvas.util.ShareExporter.stage(this, authority, docTitle, docContent);
+                runOnUiThread(() -> startActivity(
+                        com.nous.codecanvas.util.ShareExporter.chooserIntent(staged, "分享源码")));
             } catch (Exception e) {
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "分享失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }

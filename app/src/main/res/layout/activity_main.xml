@@ -126,12 +126,32 @@
 
         <TextView
             android:id="@+id/txt_file_count"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="我的文件"
             android:textSize="13sp"
             android:textStyle="bold"
+            android:textColor="@color/canvas_ink_secondary" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <!-- The update entry lives with the content it affects, not pinned to the
+             bottom of the screen where it read as an unrelated footer. -->
+        <Button
+            android:id="@+id/btn_check_update"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:minWidth="0dp"
+            android:layout_marginEnd="8dp"
+            android:paddingHorizontal="10dp"
+            android:background="@drawable/bg_button_subtle"
+            android:text="检查更新"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end"
             android:textColor="@color/canvas_ink_secondary" />
 
         <LinearLayout
@@ -222,16 +242,4 @@
                 android:textColor="@color/canvas_ink_secondary" />
         </LinearLayout>
     </FrameLayout>
-
-    <!-- Update status stays out of the way: quiet neutral text, not a blue bar.
-         It only gains emphasis when there really is a new version. -->
-    <Button
-        android:id="@+id/btn_check_update"
-        android:layout_width="match_parent"
-        android:layout_height="42dp"
-        android:layout_marginHorizontal="12dp"
-        android:background="?android:attr/selectableItemBackground"
-        android:text="代码画布 0.1.3 · 检查更新"
-        android:textSize="12sp"
-        android:textColor="@color/canvas_ink_secondary" />
 </LinearLayout>

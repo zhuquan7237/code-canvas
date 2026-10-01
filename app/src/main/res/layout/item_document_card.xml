@@ -1,6 +1,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="152dp"
+    android:layout_height="wrap_content"
+    android:minHeight="156dp"
     android:orientation="vertical"
     android:padding="10dp"
     android:background="@drawable/bg_card">

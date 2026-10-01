@@ -2,7 +2,7 @@
 
 把 AI 给出的代码，变成看得见的作品。轻量原生 Android 应用，使用系统 WebView，不打包浏览器内核。
 
-[下载最新 APK](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
+[下载最新 APK](https://relay.zhuquan.xyz/dl/code-canvas-0.1.4.apk)（自建源，国内可直连）· [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
 
 ## 怎么用
 
@@ -23,7 +23,24 @@
 - 对 CDN、缺失本地资源、需要编译的代码给出持续可读的说明。
 - 保存使用不可变快照与原子替换，多页面并发不丢其他作品；清空作品后不再自动出现示例。
 
-## v0.1.3 本次更新（界面重做）
+## v0.1.4 本次更新（应用内更新 + 外部评审修复）
+
+**更新不再需要去仓库拉。** 本版起版本清单与安装包都优先走自建源 `relay.zhuquan.xyz`（Cloudflare 前缀，国内可直连），GitHub 只作兜底；下载后校验大小、SHA-256、包名、版本号与签名，再交给系统安装器。**0.1.3 及更早的版本只认 GitHub，所以要手动装一次这一版，之后才能用上应用内更新。**
+
+这一版的问题清单来自外部模型的**全维度评审**（逻辑 / 页面 / 功能 / 美观 / 交互 / 实际体验 / 更新方案），逐条核实后才改；我的逐屏实拍自审也额外抓到一个评审没提到的缺陷。
+
+- **夜间代码页正文几乎不可读（P0，真 bug）**：夜间正文色是近黑 `#0F172A` 压在 `#101722` 的代码底上；更糟的是对比度测试比的是**没人用的死资源**（夜间仍为浅色），所以测试一直是绿的。改色、删死资源、断言改比真实底色，并新增**真实控件**对比度仪器测试。
+- **长 SVG / 大文档被当成纯文本**：渲染类型原来只看前 3000 字符里有没有 `</svg>`，长文档的结束标签在窗口外。改成按**根元素**判定。
+- **读文件失败不再静默新建空文档**；保存引入 `revision` 单调递增 + 单飞协调器，写入前校验，旧修订号的写入被拒——「已保存」不再撒谎。
+- **分享/导出**：文件名转义 `#`/`%` 等 URI 保留字符、保证唯一、收窄 MIME；文案改成「导出源码文件 / 分享源码」。
+- **XML 预览不再改写语义**：只在结构安全（纯元素嵌套、无文本内容、无 CDATA）时才格式化，否则原样展示；并加深度与长度上限。
+- **预览渲染进程崩溃/被回收不再拖垮应用**：补 `onRenderProcessGone`，拆掉死 WebView 并支持一键重建预览；所有 WebView 调用补空保护。
+- **空白抓帧不再盖掉类型封面**：抓帧先铺白底，页面没画完就抓会存下纯白图，主页那行就变成白框。现在「还是白底」判定为没画，不存也不显示（纯色帧是真内容，保留）。
+- **主页**：更新入口从底部挪到「我的文件」标题行，底部不再有页脚式按钮；**方格卡片**固定 152dp 会裁掉时间行，改 `wrap_content` + `minHeight`；**编辑器**上部工具栏 58/48/48dp 压到 52/44/44dp；**撤销栈**加总字符预算，大文档不再吃上百 MB。
+
+哪些是评审指出的、哪些我**没做到**（行号栏、真机测试、若干 P1/P2 视觉项、内置证书指纹）逐条写在 [docs/RELEASE-v0.1.4.md](docs/RELEASE-v0.1.4.md)。
+
+## v0.1.3 更新（界面重做）
 
 **这一版不加功能，只修"上一版界面根本不能交付"这件事。**
 
@@ -77,20 +94,36 @@ keyPassword=your_password
 
 ## 发布（维护者）
 
-应用内「检查更新」读的是 `docs/update/latest.json`（原始地址 + GitHub Release API 兜底）。**清单里的哈希、大小、URL 必须来自真实已上传的 APK**，顺序不能颠倒：
+应用内「检查更新」按顺序读三个版本清单源：**自建源** `https://relay.zhuquan.xyz/dl/codecanvas-latest.json` → `docs/update/latest.json` 的 raw 地址 → GitHub Contents API。**清单里的哈希、大小、URL 必须来自真实已上传的 APK**，顺序不能颠倒：
 
 1. 升 `app/build.gradle.kts` 的 `versionName` / `versionCode`。
-2. `./gradlew testDebugUnitTest assembleRelease`，单元测试必须全绿。
-3. 打 tag 并建 GitHub Release，上传 `app/build/outputs/apk/release/app-release.apk`。
-4. 生成清单并提交推送：
+2. `./gradlew testDebugUnitTest connectedDebugAndroidTest assembleRelease`，两套测试必须全绿。
+3. 把 APK 放到自建源的**带版本号路径**（内容不变，不会被 CDN 缓存成旧包），并在同一目录写清单：
+   ```sh
+   scp app/build/outputs/apk/release/app-release.apk root@<server>:/opt/dsh-relay/dl/code-canvas-<版本>.apk
+   ```
+4. 打 tag 并建 GitHub Release，上传同一个 APK 文件（作为备用下载地址）。
+5. 生成清单（写两份：仓库里的兜底清单 + 上传到自建源的那份）并提交推送：
    ```sh
    python scripts/release.py --apk app/build/outputs/apk/release/app-release.apk \
-     --version-name 0.1.3 --version-code 4 --tag v0.1.3 \
-     --notes "本次更新内容…"
+     --version-name 0.1.4 --version-code 5 --tag v0.1.4 \
+     --asset-name code-canvas-0.1.4.apk \
+     --apk-url https://relay.zhuquan.xyz/dl/code-canvas-0.1.4.apk \
+     --fallback-apk-url https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.4/code-canvas-0.1.4.apk \
+     --also-out <自建源用清单路径> --notes "本次更新内容…"
    ```
    脚本从文件本身算 SHA-256 与字节数，不接受手填；`latest.json` 只有正向递增的 `versionCode` 才会被应用接受。
 
 ## 截图
+
+v0.1.4（[全部截图](docs/evidence/v0.1.4/)）：
+
+![主页列表](docs/evidence/v0.1.4/home_list_day.png)
+![主页方格](docs/evidence/v0.1.4/home_grid_day.png)
+![主页列表·夜间](docs/evidence/v0.1.4/home_list_night.png)
+![编辑器代码](docs/evidence/v0.1.4/editor_code_day.png)
+![编辑器代码·夜间](docs/evidence/v0.1.4/editor_code_night.png)
+![应用内更新](docs/evidence/v0.1.4/update_offer.png)
 
 v0.1.3（[全部截图](docs/evidence/v0.1.3/)）：
 

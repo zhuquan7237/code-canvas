@@ -149,23 +149,83 @@ public class DocumentRepository {
         }
     }
 
-    public void saveDocument(CanvasDocument doc) throws java.io.IOException {
+    /** The document is not in the store: deleted elsewhere, or the id never existed. */
+    public static class DocumentMissingException extends java.io.IOException {
+        public DocumentMissingException(String id) {
+            super("document not found: " + id);
+        }
+    }
+
+    /**
+     * A newer revision is already stored, so this write is obsolete. Dropping it is the whole
+     * point: a save queued before a later edit must not win the race and silently revert content.
+     */
+    public static class StaleWriteException extends java.io.IOException {
+        public StaleWriteException(String id, long expected, long actual) {
+            super("stale write for " + id + ": expected revision " + expected + ", stored " + actual);
+        }
+    }
+
+    /**
+     * Update an existing document's content in place. Returns the revision now stored.
+     *
+     * <p>Two guarantees this method exists for: it <b>never creates</b> (a missing id means the
+     * user deleted the file while a save was in flight, and recreating it would silently undo
+     * their deletion), and it <b>refuses stale writes</b> (if the store already moved past
+     * {@code expectedRevision}, an older queued save can no longer clobber the newer content).</p>
+     */
+    public long updateDocument(String id, String title, String content, long expectedRevision)
+            throws java.io.IOException {
         synchronized (GLOBAL_FILE_LOCK) {
-            if (doc == null) return;
+            if (id == null) {
+                throw new DocumentMissingException("null");
+            }
+            List<CanvasDocument> docs = getAllDocuments();
+            for (int i = 0; i < docs.size(); i++) {
+                CanvasDocument stored = docs.get(i);
+                if (!id.equals(stored.getId())) {
+                    continue;
+                }
+                if (stored.getRevision() != expectedRevision) {
+                    throw new StaleWriteException(id, expectedRevision, stored.getRevision());
+                }
+                CanvasDocument next = new CanvasDocument(id, title, content,
+                        System.currentTimeMillis(), stored.getRevision() + 1);
+                docs.set(i, next);
+                saveAllDocuments(docs);
+                return next.getRevision();
+            }
+            throw new DocumentMissingException(id);
+        }
+    }
+
+    /**
+     * Insert or update a document wholesale, returning the revision now in the store.
+     * Used when creating a document (home screen new/import); the editor uses
+     * {@link #updateDocument} so a stale save cannot clobber newer content.
+     */
+    public long saveDocument(CanvasDocument doc) throws java.io.IOException {
+        synchronized (GLOBAL_FILE_LOCK) {
+            if (doc == null) return -1L;
             List<CanvasDocument> docs = getAllDocuments();
             boolean found = false;
             CanvasDocument docCopy = doc.snapshot();
             for (int i = 0; i < docs.size(); i++) {
                 if (docs.get(i).getId().equals(docCopy.getId())) {
+                    // Reachable from the home screen (rename, import). Keep revisions monotonic so
+                    // an editor holding an older revision is correctly treated as stale.
+                    docCopy.setRevision(Math.max(docs.get(i).getRevision(), docCopy.getRevision()) + 1);
                     docs.set(i, docCopy);
                     found = true;
                     break;
                 }
             }
             if (!found) {
+                docCopy.setRevision(Math.max(1L, docCopy.getRevision()));
                 docs.add(0, docCopy);
             }
             saveAllDocuments(docs);
+            return docCopy.getRevision();
         }
     }
 

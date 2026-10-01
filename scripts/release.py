@@ -36,7 +36,13 @@ def main() -> int:
     parser.add_argument("--tag", required=True, help="git tag, e.g. v0.1.2")
     parser.add_argument("--asset-name", default="app-release.apk")
     parser.add_argument("--notes", required=True)
+    parser.add_argument("--apk-url", default=None,
+                        help="primary download address; defaults to the GitHub release asset")
+    parser.add_argument("--fallback-apk-url", default=None,
+                        help="optional mirror tried when the primary address fails")
     parser.add_argument("--out", default="docs/update/latest.json")
+    parser.add_argument("--also-out", default=None,
+                        help="write the same manifest to a second path (e.g. the copy for the mirror host)")
     args = parser.parse_args()
 
     apk = pathlib.Path(args.apk)
@@ -55,15 +61,22 @@ def main() -> int:
         "schemaVersion": 1,
         "versionName": args.version_name,
         "versionCode": args.version_code,
-        "apkUrl": f"https://github.com/{REPO}/releases/download/{args.tag}/{args.asset_name}",
+        "apkUrl": args.apk_url or f"https://github.com/{REPO}/releases/download/{args.tag}/{args.asset_name}",
         "sha256": sha256_of(apk),
         "size": size,
         "notes": args.notes,
     }
+    if args.fallback_apk_url:
+        manifest["fallbackApkUrl"] = args.fallback_apk_url
 
     out = pathlib.Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if args.also_out:
+        mirror = pathlib.Path(args.also_out)
+        mirror.parent.mkdir(parents=True, exist_ok=True)
+        mirror.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"wrote {mirror} ({mirror.stat().st_size} bytes)")
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
     print(f"\nwrote {out} ({out.stat().st_size} bytes)")
     return 0

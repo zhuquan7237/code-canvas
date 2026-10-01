@@ -70,7 +70,7 @@ public class ColorContrastTest {
         text("on-danger/danger", p.color("on_danger"), p.color("danger"));
         text("disabled-ink/disabled-fill", p.color("disabled_ink"), p.color("disabled_fill"));
         text("on-segment-selected/primary", p.color("on_segment_selected"), p.color("primary"));
-        text("code-ink/code-bg-light", p.color("code_ink"), p.color("code_bg_light"));
+        text("code-ink/code-surface", p.color("code_ink"), p.color("code_surface"));
     }
 
     @Test
@@ -96,7 +96,7 @@ public class ColorContrastTest {
         text("on-danger/danger", p.color("on_danger"), p.color("danger"));
         text("disabled-ink/disabled-fill", p.color("disabled_ink"), p.color("disabled_fill"));
         text("on-segment-selected/primary", p.color("on_segment_selected"), p.color("primary"));
-        text("code-ink/code-bg-light", p.color("code_ink"), p.color("code_bg_light"));
+        text("code-ink/code-surface", p.color("code_ink"), p.color("code_surface"));
     }
 
     @Test

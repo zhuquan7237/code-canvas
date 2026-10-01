@@ -57,11 +57,13 @@
     <color name="canvas_disabled_fill">#2C394C</color>
     <color name="canvas_disabled_ink">#C4D0E2</color>
 
-    <!-- XML/plain code surface (kept neutral so syntax colors stay legible) -->
+    <!-- XML/plain code surface. The code area paints this, and the syntax
+         colours are measured against it. -->
     <color name="canvas_code_surface">#101722</color>
-    <color name="canvas_code_bg_light">#F8FAFC</color>
-    <color name="canvas_code_bg_dark">#121417</color>
-    <color name="canvas_code_ink">#0F172A</color>
+    <!-- Readable body text on the dark code surface. This used to be #0F172A —
+         near-black on a near-black surface, which made every non-highlighted
+         character (CSS, Chinese prose, plain text) effectively invisible. -->
+    <color name="canvas_code_ink">#DDE7F5</color>
 
     <!-- Segment / tab chrome + selected chip ink -->
     <color name="canvas_segment_track">#212B3A</color>
@@ -108,9 +110,7 @@
         segment_track            #212B3A
         on_segment_selected      #0B1220
         code_surface             #101722
-        code_bg_light            #F8FAFC
-        code_bg_dark             #121417
-        code_ink                 #0F172A
+        code_ink                 #DDE7F5
         syntax_tag               #5FD3C0
         syntax_attr              #9CC2FF
         syntax_string            #7EE0A0

@@ -9,6 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import com.nous.codecanvas.ui.EditorActivity;
 import com.nous.codecanvas.ui.MainActivity;
 
 /**
@@ -36,6 +37,7 @@ public class ThemeContrastInstrumentedTest extends InstrumentationTestCase {
             {R.color.canvas_preview, R.color.canvas_surface_subtle},
             {R.color.canvas_warning, R.color.canvas_warning_surface},
             {R.color.canvas_danger, R.color.canvas_surface},
+            {R.color.canvas_code_ink, R.color.canvas_code_surface},
             {R.color.syntax_tag, R.color.canvas_code_surface},
             {R.color.syntax_attr, R.color.canvas_code_surface},
             {R.color.syntax_string, R.color.canvas_code_surface},
@@ -91,6 +93,52 @@ public class ThemeContrastInstrumentedTest extends InstrumentationTestCase {
                         + " contrast " + ratio + " < 3.0", ratio >= 3.0);
             }
         }
+    }
+
+    /**
+     * The palette tables only prove the tokens are sane relative to each other. This proves the
+     * real editor View actually paints them: a night palette where the body ink was near-black on
+     * a near-black surface passed every table check, because the tables compared the code ink
+     * against a light background token that no View ever used.
+     */
+    public void testRealEditorCodeAreaUsesCodeTokensAndStaysReadable() throws Throwable {
+        EditorActivity editor = (EditorActivity) getInstrumentation().startActivitySync(
+                new android.content.Intent(getInstrumentation().getTargetContext(), EditorActivity.class)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
+        getInstrumentation().waitForIdleSync();
+        try {
+            android.widget.EditText code = (android.widget.EditText) editor.findViewById(R.id.edit_code);
+            assertNotNull("code editor must exist", code);
+            Context device = getInstrumentation().getTargetContext();
+            int expectedInk = color(device, R.color.canvas_code_ink);
+            assertEquals("editor text must be bound to the code ink token", expectedInk, code.getCurrentTextColor());
+
+            int painted = paintedBackgroundBehind(code);
+            int expectedSurface = color(device, R.color.canvas_code_surface);
+            assertEquals("the code area must paint the code surface token, not the generic surface",
+                    expectedSurface, painted);
+
+            double ratio = contrast(code.getCurrentTextColor(), painted);
+            assertTrue("code body text on the surface it is actually drawn on is " + ratio + ":1 (<4.5)", ratio >= 4.5);
+        } finally {
+            editor.finish();
+        }
+    }
+
+    /** First fully opaque colour actually painted behind a view. */
+    private static int paintedBackgroundBehind(View v) {
+        View cur = v;
+        while (cur != null) {
+            Drawable d = cur.getBackground();
+            if (d instanceof ColorDrawable) {
+                int c = ((ColorDrawable) d).getColor();
+                if (((c >>> 24) & 0xFF) == 0xFF) {
+                    return c;
+                }
+            }
+            cur = cur.getParent() instanceof View ? (View) cur.getParent() : null;
+        }
+        throw new AssertionError("no opaque background behind the code editor");
     }
 
     /** The disabled state must stay legible, not dissolve into the surface. */
