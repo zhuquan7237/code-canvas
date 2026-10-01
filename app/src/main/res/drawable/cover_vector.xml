@@ -1,7 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="160dp" android:height="90dp" android:viewportWidth="128" android:viewportHeight="72">
-    <path android:fillColor="@color/canvas_preview_surface" android:pathData="M42,16 L85,16 L85,56 L42,56Z" />
-    <path android:fillColor="@color/canvas_preview" android:fillAlpha="0.85" android:pathData="M64,23 a13,13 0,1 0,0 26 a13,13 0,1 0,0 -26" />
-    <path android:fillColor="@color/canvas_surface" android:pathData="M32,13 L38,13 L38,19 L32,19Z M90,13 L96,13 L96,19 L90,19Z M32,53 L38,53 L38,59 L32,59Z M90,53 L96,53 L96,59 L90,59Z" />
-    <path android:fillColor="@android:color/transparent" android:strokeColor="@color/canvas_preview" android:strokeWidth="1" android:pathData="M35,16 L93,16 L93,56 L35,56Z M35,16 L64,36 L93,16 M35,56 L64,36 L93,56" />
+<!-- Vector-path glyph: one bezier with its two anchor nodes. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="44dp"
+    android:height="44dp"
+    android:viewportWidth="44"
+    android:viewportHeight="44">
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@color/canvas_icon_on_subtle"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:pathData="M10,31 C17,13 27,31 34,14" />
+
+    <path
+        android:fillColor="@color/canvas_surface"
+        android:strokeColor="@color/canvas_icon_on_subtle"
+        android:strokeWidth="2.2"
+        android:pathData="M10,31 m-3.2,-3.2 h6.4 v6.4 h-6.4 z" />
+
+    <path
+        android:fillColor="@color/canvas_surface"
+        android:strokeColor="@color/canvas_icon_on_subtle"
+        android:strokeWidth="2.2"
+        android:pathData="M34,14 m-3.2,-3.2 h6.4 v6.4 h-6.4 z" />
 </vector>

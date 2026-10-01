@@ -171,6 +171,10 @@ public class EditorActivity extends Activity {
         layoutTitleClickable = findViewById(R.id.layout_title_clickable);
         tabCode = findViewById(R.id.tab_code);
         tabPreview = findViewById(R.id.tab_preview);
+        // The XML can only paint the pill via a state list, and selector states
+        // cannot be preset from XML, so seed the initial selection here.
+        tabCode.setSelected(true);
+        tabPreview.setSelected(false);
         btnExportSaf = findViewById(R.id.btn_export_saf);
         btnShare = findViewById(R.id.btn_share);
         btnBack = findViewById(R.id.btn_back);
@@ -338,7 +342,8 @@ public class EditorActivity extends Activity {
     private void setupEditorHelpers() {
         android.widget.LinearLayout row=findViewById(R.id.layout_editor_helpers);
         for(String label:new String[]{"查找/替换","更多","Tab","<",">","/","=","\"\"","{}","()","[]"}) {
-            Button b=new Button(this);b.setText(label);b.setTextSize(12);b.setTextColor(getResources().getColor(label.equals("查找/替换")?R.color.canvas_primary:R.color.canvas_ink_primary));b.setBackgroundResource(R.drawable.bg_button_subtle);
+            Button b=new Button(this);b.setText(label);b.setTextSize(12);b.setTextColor(getResources().getColor(label.equals("查找/替换")?R.color.canvas_primary:R.color.canvas_ink_primary));b.setBackgroundResource(R.drawable.bg_helper_key);
+            b.setStateListAnimator(null);b.setAllCaps(false);b.setElevation(0f);
             b.setMinWidth(0);b.setMinimumWidth(0);b.setPadding(10,0,10,0);
             row.addView(b,new android.widget.LinearLayout.LayoutParams((int)((label.length()>4?96:label.equals("更多")?64:48)*getResources().getDisplayMetrics().density),-1));
             b.setOnClickListener(v->{if(label.equals("查找/替换"))showFind();else if(label.equals("更多"))showMore();else {
@@ -522,9 +527,11 @@ public class EditorActivity extends Activity {
         if (tabIndex == 0) {
             // Switch to Code Editor
             tabCode.setTextColor(getResources().getColor(R.color.canvas_on_primary));
-            tabCode.setBackgroundResource(R.color.canvas_teal_primary);
+            tabCode.setBackgroundResource(R.drawable.bg_segment_item);
+            tabCode.setSelected(true);
             tabPreview.setTextColor(getResources().getColor(R.color.canvas_ink_secondary));
-            tabPreview.setBackgroundColor(0x00000000);
+            tabPreview.setBackgroundResource(R.drawable.bg_segment_item);
+            tabPreview.setSelected(false);
 
             findViewById(R.id.txt_preview_advice).setVisibility(View.GONE);
             toolbarEditorActions.setVisibility(View.VISIBLE);
@@ -539,9 +546,11 @@ public class EditorActivity extends Activity {
             }
 
             tabPreview.setTextColor(getResources().getColor(R.color.canvas_on_primary));
-            tabPreview.setBackgroundResource(R.color.canvas_teal_primary);
+            tabPreview.setBackgroundResource(R.drawable.bg_segment_item);
+            tabPreview.setSelected(true);
             tabCode.setTextColor(getResources().getColor(R.color.canvas_ink_secondary));
-            tabCode.setBackgroundColor(0x00000000);
+            tabCode.setBackgroundResource(R.drawable.bg_segment_item);
+            tabCode.setSelected(false);
 
             toolbarEditorActions.setVisibility(View.GONE);
             findViewById(R.id.editor_helpers).setVisibility(View.GONE);

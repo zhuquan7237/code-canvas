@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tint for the view-mode toggle: the selected pill is a filled primary chip,
+     so its glyph must switch to on-primary, not stay gray on blue. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true" android:color="@color/canvas_on_primary" />
+    <item android:state_activated="true" android:color="@color/canvas_on_primary" />
+    <item android:color="@color/canvas_icon_on_surface" />
+</selector>

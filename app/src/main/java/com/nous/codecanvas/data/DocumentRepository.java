@@ -18,7 +18,10 @@ import java.util.UUID;
 
 public class DocumentRepository {
     private static final String DOCUMENTS_FILE = "code_canvas_docs.json";
-    private static final String SEED_MARKER_FILE = "code_canvas_seeded.marker";
+    // Bump the marker name when the built-in samples are redesigned: a fresh
+    // install seeds the new ones, while existing users keep whatever they have
+    // (the seeding path never overwrites a non-empty document list).
+    private static final String SEED_MARKER_FILE = "code_canvas_seeded_v2.marker";
     private static final int MAX_DOCUMENT_FILE_SIZE = 50 * 1024 * 1024; // 50MB safety cap
     private static final Object GLOBAL_FILE_LOCK = new Object();
 
@@ -196,46 +199,52 @@ public class DocumentRepository {
             List<CanvasDocument> seeds = new ArrayList<>();
 
             // 1. HTML5 Canvas & Interaction Demo
-            String htmlCode = "<!DOCTYPE html>\n" +
-                    "<html>\n" +
+            String htmlCode =                     "<!DOCTYPE html>\n" +
+                    "<html lang=\"zh\">\n" +
                     "<head>\n" +
                     "  <meta charset=\"utf-8\">\n" +
                     "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
                     "  <style>\n" +
-                    "    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0f172a; color: #f8fafc; padding: 24px; text-align: center; }\n" +
-                    "    .badge { display: inline-block; padding: 4px 12px; background: #0d9488; color: #fff; border-radius: 999px; font-size: 12px; font-weight: bold; margin-bottom: 12px; }\n" +
-                    "    h1 { font-size: 24px; margin-bottom: 8px; }\n" +
-                    "    p { color: #94a3b8; font-size: 14px; line-height: 1.6; max-width: 400px; margin: 0 auto 20px auto; }\n" +
-                    "    .btn { background: #14b8a6; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: transform 0.1s; }\n" +
-                    "    .btn:active { transform: scale(0.96); }\n" +
+                    "    :root { color-scheme: light dark; --ink:#172033; --muted:#526078; --line:#D2DAE6; --accent:#2456C6; --on:#FFFFFF; --chip:#EEF1F7; }\n" +
+                    "    @media (prefers-color-scheme: dark) { :root { --ink:#EDF1F8; --muted:#A7B2C4; --line:#31405A; --accent:#7FA5FF; --on:#0B1424; --chip:#1B2536; } }\n" +
+                    "    html, body { height:100%; }\n" +
+                    "    body { margin:0; padding:24px 20px; box-sizing:border-box; display:flex; flex-direction:column;\n" +
+                    "           align-items:center; justify-content:center; text-align:center; background:transparent;\n" +
+                    "           color:var(--ink); font-family:-apple-system,'Noto Sans SC','PingFang SC',sans-serif; }\n" +
+                    "    .chip { display:inline-block; padding:3px 10px; border-radius:999px; background:var(--chip);\n" +
+                    "            color:var(--muted); font-size:11px; font-weight:600; letter-spacing:.08em; }\n" +
+                    "    h1 { margin:14px 0 8px; font-size:22px; line-height:1.35; font-weight:700; }\n" +
+                    "    p { margin:0 0 22px; max-width:18em; font-size:13px; line-height:1.6; color:var(--muted); }\n" +
+                    "    button { font:inherit; font-size:14px; font-weight:600; padding:11px 22px; border-radius:10px;\n" +
+                    "             border:none; background:var(--accent); color:var(--on); }\n" +
+                    "    button:active { transform:translateY(1px); }\n" +
+                    "    .foot { margin-top:16px; font-size:11px; color:var(--muted); }\n" +
                     "  </style>\n" +
                     "</head>\n" +
                     "<body>\n" +
-                    "  <div class=\"badge\">CodeCanvas 示例</div>\n" +
+                    "  <span class=\"chip\">CODE CANVAS</span>\n" +
                     "  <h1>极简代码画布</h1>\n" +
-                    "  <p>纯原生高能效渲染器。支持直接粘贴、无缝切换预览，支持任意格式文件后缀。</p>\n" +
-                    "  <button class=\"btn\" onclick=\"alert('代码画布已准备就绪！')\">点击测试互动</button>\n" +
+                    "  <p>粘贴代码，直接看渲染效果</p>\n" +
+                    "  <button onclick=\"this.textContent='交互正常'\">点我测试交互</button>\n" +
+                    "  <div class=\"foot\">脚本开关关闭时，这个按钮不会响应</div>\n" +
                     "</body>\n" +
-                    "</html>";
+                    "</html>\n";
             seeds.add(new CanvasDocument(UUID.randomUUID().toString(), "welcome.html", htmlCode, System.currentTimeMillis() - 3000));
 
             // 2. Beautiful SVG Vector Art
-            String svgCode = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 300\" width=\"100%\" height=\"100%\">\n" +
+            String svgCode =                     "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 300\" width=\"100%\" height=\"100%\">\n" +
                     "  <defs>\n" +
-                    "    <linearGradient id=\"grad1\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"100%\">\n" +
-                    "      <stop offset=\"0%\" style=\"stop-color:#0D9488;stop-opacity:1\" />\n" +
-                    "      <stop offset=\"100%\" style=\"stop-color:#0284C7;stop-opacity:1\" />\n" +
+                    "    <linearGradient id=\"g\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">\n" +
+                    "      <stop offset=\"0\" stop-color=\"#2456C6\"/>\n" +
+                    "      <stop offset=\"1\" stop-color=\"#7FA5FF\"/>\n" +
                     "    </linearGradient>\n" +
-                    "    <filter id=\"shadow\" x=\"-10%\" y=\"-10%\" width=\"130%\" height=\"130%\">\n" +
-                    "      <feDropShadow dx=\"0\" dy=\"8\" stdDeviation=\"12\" flood-color=\"#0D9488\" flood-opacity=\"0.2\"/>\n" +
-                    "    </filter>\n" +
                     "  </defs>\n" +
-                    "  <rect width=\"400\" height=\"300\" rx=\"16\" fill=\"#1E293B\"/>\n" +
-                    "  <circle cx=\"200\" cy=\"130\" r=\"65\" fill=\"url(#grad1)\" filter=\"url(#shadow)\"/>\n" +
-                    "  <path d=\"M175 110 L235 110 L205 160 Z\" fill=\"#FFFFFF\" opacity=\"0.9\"/>\n" +
-                    "  <text x=\"200\" y=\"230\" text-anchor=\"middle\" fill=\"#F8FAFC\" font-family=\"monospace\" font-size=\"18\" font-weight=\"bold\">SVG 矢量画布</text>\n" +
-                    "  <text x=\"200\" y=\"255\" text-anchor=\"middle\" fill=\"#64748B\" font-family=\"sans-serif\" font-size=\"13\">响应式自适应容器</text>\n" +
-                    "</svg>";
+                    "  <rect width=\"400\" height=\"300\" rx=\"16\" fill=\"#EEF1F7\"/>\n" +
+                    "  <circle cx=\"200\" cy=\"124\" r=\"58\" fill=\"url(#g)\"/>\n" +
+                    "  <path d=\"M178 106 L228 106 L203 150 Z\" fill=\"#FFFFFF\" opacity=\"0.92\"/>\n" +
+                    "  <text x=\"200\" y=\"220\" text-anchor=\"middle\" fill=\"#172033\" font-family=\"sans-serif\" font-size=\"17\" font-weight=\"700\">SVG 矢量画布</text>\n" +
+                    "  <text x=\"200\" y=\"245\" text-anchor=\"middle\" fill=\"#526078\" font-family=\"sans-serif\" font-size=\"12\">缩放不失真 · 自适应容器</text>\n" +
+                    "</svg>\n";
             seeds.add(new CanvasDocument(UUID.randomUUID().toString(), "vector-art.svg", svgCode, System.currentTimeMillis() - 2000));
 
             // 3. XML Structure Demo

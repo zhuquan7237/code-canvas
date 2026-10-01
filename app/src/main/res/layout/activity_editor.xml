@@ -6,33 +6,36 @@
     android:orientation="vertical"
     android:background="@color/canvas_bg">
 
-    <!-- Top Action Bar -->
+    <!-- Top bar: bare glyphs, no outlined boxes. -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="58dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingHorizontal="12dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
         android:background="@color/canvas_surface">
 
         <ImageButton
             android:id="@+id/btn_back"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:background="@drawable/bg_button_subtle"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:padding="11dp"
+            android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_back"
-            android:contentDescription="返回"
-            android:layout_marginEnd="8dp" />
+            android:contentDescription="返回" />
 
         <LinearLayout
             android:id="@+id/layout_title_clickable"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:layout_marginStart="6dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            android:paddingVertical="8dp">
 
             <TextView
                 android:id="@+id/txt_editor_title"
@@ -46,52 +49,48 @@
                 android:ellipsize="middle" />
 
             <ImageView
-                android:layout_width="14dp"
-                android:layout_height="14dp"
-                android:layout_marginStart="6dp"
+                android:layout_width="13dp"
+                android:layout_height="13dp"
+                android:layout_marginStart="7dp"
                 android:src="@drawable/ic_edit"
-                android:contentDescription="重命名" />
+                android:importantForAccessibility="no" />
         </LinearLayout>
 
         <ImageButton
             android:id="@+id/btn_export_saf"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:background="@drawable/bg_button_subtle"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:padding="11dp"
+            android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_export"
-            android:contentDescription="导出"
-            android:layout_marginEnd="6dp" />
+            android:contentDescription="导出" />
 
         <ImageButton
             android:id="@+id/btn_share"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:background="@drawable/bg_button_subtle"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:padding="11dp"
+            android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_share"
             android:contentDescription="分享" />
     </LinearLayout>
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/canvas_border" />
-
-    <!-- Dedicated Tab Row: Segmented Tab full width container -->
+    <!-- Segmented code / preview switch: one trough, one rounded pill. -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="44dp"
+        android:layout_height="48dp"
         android:orientation="horizontal"
-        android:gravity="center"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="4dp"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="10dp"
         android:background="@color/canvas_surface">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
-            android:background="@drawable/bg_search"
-            android:padding="2dp">
+            android:padding="3dp"
+            android:background="@drawable/bg_segment_track">
 
             <TextView
                 android:id="@+id/tab_code"
@@ -103,7 +102,7 @@
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:textColor="@color/canvas_on_primary"
-                android:background="@color/canvas_teal_primary" />
+                android:background="@drawable/bg_segment_item" />
 
             <TextView
                 android:id="@+id/tab_preview"
@@ -111,55 +110,55 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:gravity="center"
-                android:text="预览效果"
+                android:text="预览"
                 android:textSize="13sp"
+                android:textStyle="bold"
                 android:textColor="@color/canvas_ink_secondary"
-                android:background="@android:color/transparent" />
+                android:background="@drawable/bg_segment_item" />
         </LinearLayout>
     </LinearLayout>
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/canvas_border" />
-
-<FrameLayout android:layout_width="match_parent" android:layout_height="96dp">    <!-- Secondary Toolbar: Undo / Redo / Paste / Save / Status -->
+    <!-- Code actions: one row. Undo/redo are bare glyphs, paste is a text
+         action, and the counters sit at the trailing edge. -->
     <LinearLayout
         android:id="@+id/toolbar_editor_actions"
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingHorizontal="12dp"
-        android:background="@color/canvas_surface_subtle">
+        android:paddingStart="12dp"
+        android:paddingEnd="16dp"
+        android:background="@color/canvas_surface">
 
         <ImageButton
             android:id="@+id/btn_undo"
-            android:layout_width="44dp"
-            android:layout_height="48dp"
-            android:background="@android:color/transparent"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="9dp"
+            android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_undo"
             android:contentDescription="撤销" />
 
         <ImageButton
             android:id="@+id/btn_redo"
-            android:layout_width="44dp"
-            android:layout_height="48dp"
-            android:background="@android:color/transparent"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="9dp"
+            android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_redo"
-            android:contentDescription="重做"
-            android:layout_marginStart="4dp" />
+            android:contentDescription="重做" />
 
         <Button
             android:id="@+id/btn_paste"
             android:layout_width="wrap_content"
-            android:layout_height="44dp"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_button_subtle"
-            android:text="直接粘贴"
-            android:textSize="12sp"
-            android:textColor="@color/canvas_teal_dark"
-            android:paddingHorizontal="8dp" />
+            android:layout_height="36dp"
+            android:layout_marginStart="10dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:paddingHorizontal="12dp"
+            android:text="粘贴"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="@color/canvas_primary" />
 
         <TextView
             android:id="@+id/txt_editor_stats"
@@ -170,45 +169,79 @@
             android:text="1 行 · 0 字符"
             android:textSize="12sp"
             android:fontFamily="monospace"
-            android:textColor="@color/canvas_ink_tertiary"
-            android:layout_marginEnd="8dp" />
+            android:textColor="@color/canvas_ink_secondary"
+            android:layout_marginEnd="10dp" />
 
         <TextView
             android:id="@+id/txt_save_indicator"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="已自动保存"
+            android:text="已保存"
             android:textSize="12sp"
-            android:textColor="@color/canvas_teal_primary" />
-    </LinearLayout><HorizontalScrollView android:id="@+id/editor_helpers" android:layout_width="match_parent" android:layout_height="48dp" android:layout_gravity="bottom" android:fillViewport="false" android:background="@color/canvas_surface_subtle"><LinearLayout android:id="@+id/layout_editor_helpers" android:layout_width="wrap_content" android:layout_height="match_parent" android:orientation="horizontal"/></HorizontalScrollView>
-
-    <!-- Separate rows keep controls readable on narrow phones. -->
-    <LinearLayout
-        android:id="@+id/toolbar_preview_controls"
-        android:layout_width="match_parent" android:layout_height="96dp"
-        android:orientation="vertical" android:paddingHorizontal="12dp"
-        android:background="@color/canvas_surface_subtle" android:visibility="gone">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="44dp"
-            android:orientation="horizontal" android:gravity="center_vertical">
-            <TextView android:id="@+id/txt_render_mode_badge"
-                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                android:text="HTML 渲染" android:textSize="12sp" android:textStyle="bold"
-                android:textColor="@color/canvas_teal_dark" android:singleLine="true" android:ellipsize="end" />
-            <Button android:id="@+id/btn_preview_refresh" android:layout_width="56dp" android:layout_height="36dp"
-                android:text="刷新" android:textSize="12sp" android:textColor="@color/canvas_teal_dark"
-                android:background="@drawable/bg_button_subtle" android:layout_marginEnd="8dp" />
-            <Button android:id="@+id/btn_preview_network" android:layout_width="84dp" android:layout_height="36dp"
-                android:text="联网加载" android:textSize="12sp" android:textColor="@color/canvas_teal_dark"
-                android:background="@drawable/bg_button_subtle" />
-        </LinearLayout>
-        <Switch android:id="@+id/switch_allow_js" android:layout_width="match_parent" android:layout_height="36dp"
-            android:text="启用交互 · 页面按钮与动态效果" android:textSize="12sp" android:textColor="@color/canvas_ink_secondary" />
+            android:textColor="@color/canvas_ink_secondary" />
     </LinearLayout>
 
-</FrameLayout>    <View
+    <!-- Preview controls: appear only in preview mode. -->
+    <LinearLayout
+        android:id="@+id/toolbar_preview_controls"
         android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/canvas_border" />
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="10dp"
+        android:background="@color/canvas_surface"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/txt_render_mode_badge"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="HTML 渲染"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="@color/canvas_ink_secondary"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <Button
+                android:id="@+id/btn_preview_refresh"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:minWidth="60dp"
+                android:background="@drawable/bg_button_subtle"
+                android:paddingHorizontal="12dp"
+                android:text="刷新"
+                android:textSize="12sp"
+                android:textColor="@color/canvas_ink_primary"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/btn_preview_network"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:minWidth="76dp"
+                android:background="@drawable/bg_button_subtle"
+                android:paddingHorizontal="12dp"
+                android:text="联网加载"
+                android:textSize="12sp"
+                android:textColor="@color/canvas_ink_primary" />
+        </LinearLayout>
+
+        <Switch
+            android:id="@+id/switch_allow_js"
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:text="允许页面脚本运行"
+            android:textSize="12sp"
+            android:textColor="@color/canvas_ink_secondary" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/txt_preview_advice"
@@ -217,22 +250,24 @@
         android:paddingHorizontal="16dp"
         android:paddingVertical="10dp"
         android:textSize="12sp"
+        android:lineSpacingMultiplier="1.3"
         android:textColor="@color/canvas_ink_secondary"
         android:background="@color/canvas_surface_subtle"
         android:visibility="gone" />
 
-    <!-- Content Container: ViewFlipper for animated transition -->
+    <!-- Content: editor page or preview canvas. -->
     <ViewFlipper
         android:id="@+id/view_flipper"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- Editor View (Child 0) -->
+        <!-- Child 0: code editor, on a white page. -->
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:fillViewport="true">
+            android:fillViewport="true"
+            android:background="@color/canvas_surface">
 
             <ScrollView
                 android:layout_width="wrap_content"
@@ -249,64 +284,104 @@
                     android:padding="16dp"
                     android:fontFamily="monospace"
                     android:textSize="13sp"
-                    android:lineSpacingMultiplier="1.2"
-                    android:textColor="@color/canvas_ink_primary"
-                    android:hint="输入或粘贴 HTML / SVG / XML 代码..."
-                    android:textColorHint="@color/canvas_ink_tertiary"
+                    android:lineSpacingMultiplier="1.35"
+                    android:textColor="@color/canvas_code_ink"
+                    android:hint="输入或粘贴 HTML / SVG / XML 代码…"
+                    android:textColorHint="@color/canvas_ink_secondary"
                     android:inputType="textMultiLine|textNoSuggestions"
                     android:importantForAutofill="no" />
             </ScrollView>
         </HorizontalScrollView>
 
-        <!-- Preview View (Child 1) -->
+        <!-- Child 1: the preview canvas is a rounded card on the app background,
+             so the page below never hard-cuts into the white chrome above it. -->
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:paddingHorizontal="10dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="12dp">
 
-            <WebView
-                android:id="@+id/web_preview"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent" />
-
-            <!-- XML Structure & Error Panel -->
-            <ScrollView
-                android:id="@+id/layout_xml_view"
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:padding="16dp"
-                android:background="@color/canvas_bg"
-                android:visibility="gone">
+                android:background="@drawable/bg_canvas_card"
+                android:clipToOutline="true">
 
-                <LinearLayout
+                <WebView
+                    android:id="@+id/web_preview"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:layout_height="match_parent" />
 
-                    <TextView
-                        android:id="@+id/txt_xml_status"
+                <!-- XML structure / validation panel -->
+                <ScrollView
+                    android:id="@+id/layout_xml_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:padding="16dp"
+                    android:background="@color/canvas_surface"
+                    android:visibility="gone">
+
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:padding="10dp"
-                        android:background="@drawable/bg_card"
-                        android:text="XML 语法安全校验：合格"
-                        android:textColor="@color/canvas_teal_dark"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="12dp" />
+                        android:orientation="vertical">
 
-                    <TextView
-                        android:id="@+id/txt_xml_content"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="monospace"
-                        android:textSize="12sp"
-                        android:lineSpacingMultiplier="1.2"
-                        android:textColor="@color/canvas_ink_primary"
-                        android:textIsSelectable="true" />
-                </LinearLayout>
-            </ScrollView>
-<TextView android:id="@+id/preview_loading" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="正在准备预览…" android:textSize="14sp" android:textColor="@color/canvas_ink_secondary" android:background="@color/canvas_surface" android:visibility="gone"/>
+                        <TextView
+                            android:id="@+id/txt_xml_status"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:padding="12dp"
+                            android:background="@drawable/bg_card"
+                            android:text="XML 语法安全校验：合格"
+                            android:textColor="@color/canvas_success"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="14dp" />
+
+                        <TextView
+                            android:id="@+id/txt_xml_content"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="monospace"
+                            android:textSize="12sp"
+                            android:lineSpacingMultiplier="1.3"
+                            android:textColor="@color/canvas_ink_primary"
+                            android:textIsSelectable="true" />
+                    </LinearLayout>
+                </ScrollView>
+
+                <TextView
+                    android:id="@+id/preview_loading"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="正在准备预览…"
+                    android:textSize="14sp"
+                    android:textColor="@color/canvas_ink_secondary"
+                    android:background="@color/canvas_surface"
+                    android:visibility="gone" />
+            </FrameLayout>
         </FrameLayout>
     </ViewFlipper>
 
+    <!-- Symbol strip docked at the bottom: it sits right above the keyboard when
+         one is open, and it no longer eats a row out of the top chrome. -->
+    <HorizontalScrollView
+        android:id="@+id/editor_helpers"
+        android:layout_width="match_parent"
+        android:layout_height="46dp"
+        android:fillViewport="false"
+        android:scrollbars="none"
+        android:requiresFadingEdge="horizontal"
+        android:fadingEdgeLength="28dp"
+        android:paddingBottom="6dp"
+        android:background="@color/canvas_surface">
+
+        <LinearLayout
+            android:id="@+id/layout_editor_helpers"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
 </LinearLayout>

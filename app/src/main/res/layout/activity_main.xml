@@ -1,12 +1,237 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/root_main" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/canvas_bg">
-<LinearLayout android:layout_width="match_parent" android:layout_height="60dp" android:gravity="center_vertical" android:paddingHorizontal="16dp" android:background="@color/canvas_surface">
-<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><TextView android:id="@+id/txt_brand" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="代码画布" android:textSize="20sp" android:textColor="@color/canvas_ink_primary" android:textStyle="bold"/><TextView android:id="@+id/txt_brand_sub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="粘贴代码，立即看见" android:textSize="12sp" android:textColor="@color/canvas_ink_secondary" /></LinearLayout><ImageButton android:id="@+id/btn_import" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:background="?android:attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_import" android:contentDescription="导入文件"/><ImageButton android:id="@+id/btn_new" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:background="?android:attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_add" android:contentDescription="新建画布"/></LinearLayout>
-<Button android:id="@+id/btn_quick_paste_preview" android:layout_width="match_parent" android:layout_height="44dp" android:layout_marginHorizontal="16dp" android:layout_marginTop="12dp" android:layout_marginBottom="8dp" android:background="@drawable/bg_button_primary" android:text="粘贴并预览" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/text_on_primary_button"/>
-<EditText android:id="@+id/edit_search" android:layout_width="match_parent" android:layout_height="44dp" android:layout_marginHorizontal="16dp" android:paddingHorizontal="12dp" android:background="@drawable/bg_search" android:hint="搜索文件或代码内容" android:textSize="14sp" android:textColor="@color/canvas_ink_primary" android:textColorHint="@color/canvas_ink_secondary" android:singleLine="true"/>
-<LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:paddingStart="20dp" android:paddingEnd="12dp" android:gravity="center_vertical"><TextView android:id="@+id/txt_file_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="我的文件" android:textSize="13sp" android:textColor="@color/canvas_ink_secondary" android:layout_weight="1"/><ImageButton android:id="@+id/btn_layout_list" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:background="?android:attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_view_list" android:contentDescription="紧凑列表"/><ImageButton android:id="@+id/btn_layout_grid" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:background="?android:attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_view_grid" android:contentDescription="方格布局"/></LinearLayout>
-<FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
-<ListView android:id="@+id/list_documents" android:layout_width="match_parent" android:layout_height="match_parent" android:divider="@null" android:paddingHorizontal="12dp" android:dividerHeight="6dp" android:clipToPadding="false"/>
-<GridView android:id="@+id/grid_documents" android:layout_width="match_parent" android:layout_height="match_parent" android:numColumns="2" android:horizontalSpacing="8dp" android:verticalSpacing="8dp" android:paddingHorizontal="12dp" android:stretchMode="columnWidth" android:visibility="gone"/>
-<LinearLayout android:id="@+id/view_empty" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:visibility="gone"><TextView android:id="@+id/txt_empty" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="暂无文件" android:textSize="16sp" android:textColor="@color/canvas_ink_primary" /><TextView android:id="@+id/txt_empty_hint" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="新建文件，或粘贴 AI 给出的代码" android:textSize="13sp" android:textColor="@color/canvas_ink_secondary" /></LinearLayout></FrameLayout>
-<Button android:id="@+id/btn_check_update" android:layout_width="match_parent" android:layout_height="48dp" android:background="?android:attr/selectableItemBackground" android:text="代码画布 0.1.2 · 检查更新" android:textSize="12sp" android:textColor="@color/canvas_primary"/>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/canvas_bg">
+
+    <!-- Brand bar: the title carries the weight, the two actions are bare
+         glyphs. No boxes around icons - spacing and alignment do the grouping. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="58dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="8dp"
+        android:background="@color/canvas_surface">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/txt_brand"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="代码画布"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.01"
+                android:textColor="@color/canvas_ink_primary" />
+
+            <TextView
+                android:id="@+id/txt_brand_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="粘贴代码，立即看见"
+                android:textSize="12sp"
+                android:textColor="@color/canvas_ink_secondary" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btn_import"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="4dp"
+            android:padding="11dp"
+            android:background="@drawable/bg_icon_button"
+            android:src="@drawable/ic_import"
+            android:contentDescription="导入文件" />
+
+        <ImageButton
+            android:id="@+id/btn_new"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:padding="11dp"
+            android:background="@drawable/bg_icon_button"
+            android:src="@drawable/ic_add"
+            android:contentDescription="新建画布" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/canvas_border" />
+
+    <Button
+        android:id="@+id/btn_quick_paste_preview"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/bg_button_primary"
+        android:text="粘贴并预览"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.01"
+        android:textColor="@color/text_on_primary_button" />
+
+    <!-- Search with a real affordance glyph; the trough is flat at rest and only
+         grows an outline while it has focus. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="14dp"
+        android:background="@drawable/bg_search">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_search"
+            android:importantForAccessibility="no" />
+
+        <EditText
+            android:id="@+id/edit_search"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:background="@null"
+            android:hint="搜索文件或代码内容"
+            android:textSize="14sp"
+            android:textColor="@color/canvas_ink_primary"
+            android:textColorHint="@color/canvas_ink_secondary"
+            android:inputType="text"
+            android:singleLine="true"
+            android:importantForAutofill="no" />
+    </LinearLayout>
+
+    <!-- Section header + view-mode toggle: one filled primary pill, no jade chip. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="46dp"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="14dp">
+
+        <TextView
+            android:id="@+id/txt_file_count"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="我的文件"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="@color/canvas_ink_secondary" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="2dp"
+            android:background="@drawable/bg_segment_track">
+
+            <ImageButton
+                android:id="@+id/btn_layout_list"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:padding="8dp"
+                android:background="@drawable/bg_icon_toggle"
+                android:tint="@color/icon_toggle_tint"
+                android:src="@drawable/ic_view_list"
+                android:contentDescription="紧凑列表" />
+
+            <ImageButton
+                android:id="@+id/btn_layout_grid"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:padding="8dp"
+                android:background="@drawable/bg_icon_toggle"
+                android:tint="@color/icon_toggle_tint"
+                android:src="@drawable/ic_view_grid"
+                android:contentDescription="方格布局" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <ListView
+            android:id="@+id/list_documents"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@null"
+            android:dividerHeight="8dp"
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="8dp"
+            android:clipToPadding="false" />
+
+        <GridView
+            android:id="@+id/grid_documents"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:numColumns="2"
+            android:horizontalSpacing="12dp"
+            android:verticalSpacing="12dp"
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="8dp"
+            android:clipToPadding="false"
+            android:stretchMode="columnWidth"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/view_empty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingHorizontal="48dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/txt_empty"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="还没有画布"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/canvas_ink_primary" />
+
+            <TextView
+                android:id="@+id/txt_empty_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:text="粘贴 AI 给出的代码，或从文件导入"
+                android:textSize="13sp"
+                android:lineSpacingMultiplier="1.3"
+                android:textColor="@color/canvas_ink_secondary" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- Update status stays out of the way: quiet neutral text, not a blue bar.
+         It only gains emphasis when there really is a new version. -->
+    <Button
+        android:id="@+id/btn_check_update"
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:layout_marginHorizontal="12dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:text="代码画布 0.1.3 · 检查更新"
+        android:textSize="12sp"
+        android:textColor="@color/canvas_ink_secondary" />
 </LinearLayout>

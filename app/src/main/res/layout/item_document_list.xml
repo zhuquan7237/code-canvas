@@ -1,6 +1,89 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="80dp" android:padding="10dp" android:gravity="center_vertical" android:orientation="horizontal" android:background="@drawable/bg_card"><ImageView android:id="@+id/img_doc_preview" android:layout_width="48dp" android:layout_height="48dp" android:background="@drawable/bg_thumbnail" android:scaleType="centerCrop" android:contentDescription="文件缩略图"/>
- <LinearLayout android:id="@+id/card_content_container" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:orientation="vertical">
- <TextView android:id="@+id/txt_doc_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="文件名" android:textSize="14sp" android:textColor="@color/canvas_ink_primary" android:singleLine="true" android:ellipsize="middle" android:textStyle="bold"/>
- <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical"><TextView android:id="@+id/txt_doc_tag" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="HTML" android:textSize="11sp" android:textColor="@color/canvas_preview" android:layout_marginEnd="6dp"/><TextView android:id="@+id/txt_doc_size" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1 KB" android:textSize="11sp" android:textColor="@color/canvas_ink_secondary" /></LinearLayout>
- <TextView android:id="@+id/txt_doc_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="刚刚" android:textSize="11sp" android:textColor="@color/canvas_ink_secondary" />
- </LinearLayout><ImageButton android:id="@+id/btn_card_more" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:background="?android:attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_more" android:contentDescription="文件操作"/></LinearLayout>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="68dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="12dp"
+    android:background="@drawable/bg_card">
+
+    <ImageView
+        android:id="@+id/img_doc_preview"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/bg_thumbnail"
+        android:foreground="@drawable/fg_thumbnail"
+        android:scaleType="centerCrop"
+        android:contentDescription="文件缩略图" />
+
+    <LinearLayout
+        android:id="@+id/card_content_container"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="12dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/txt_doc_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="文件名"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="@color/canvas_ink_primary"
+            android:singleLine="true"
+            android:ellipsize="middle" />
+
+        <!-- One metadata line instead of three stacked rows keeps the list dense. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/txt_doc_tag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_chip"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp"
+                android:text="HTML"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="@color/canvas_ink_secondary" />
+
+            <TextView
+                android:id="@+id/txt_doc_size"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="1 KB"
+                android:textSize="11sp"
+                android:textColor="@color/canvas_ink_secondary" />
+
+            <TextView
+                android:id="@+id/txt_doc_time"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="刚刚"
+                android:textSize="11sp"
+                android:gravity="end"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textColor="@color/canvas_ink_secondary" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/btn_card_more"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:padding="11dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_more"
+        android:contentDescription="文件操作" />
+</LinearLayout>

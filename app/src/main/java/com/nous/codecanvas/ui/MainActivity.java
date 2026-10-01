@@ -147,8 +147,10 @@ public class MainActivity extends Activity {
     private void setGrid(boolean grid) {
         getPreferences(0).edit().putBoolean("grid",grid).apply();
         listDocuments.setVisibility(grid?View.GONE:View.VISIBLE);gridDocuments.setVisibility(grid?View.VISIBLE:View.GONE);
-        findViewById(R.id.btn_layout_list).setBackgroundResource(grid?R.drawable.bg_button_subtle:R.drawable.bg_tag);
-        findViewById(R.id.btn_layout_grid).setBackgroundResource(grid?R.drawable.bg_tag:R.drawable.bg_button_subtle);
+        // The toggle is one primary pill that moves, driven by the selected state
+        // of each button's own selector - not two different drawables.
+        findViewById(R.id.btn_layout_list).setSelected(!grid);
+        findViewById(R.id.btn_layout_grid).setSelected(grid);
     }
 
     private void setupListeners() {

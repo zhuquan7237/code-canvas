@@ -1,6 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="160dp" android:height="90dp" android:viewportWidth="128" android:viewportHeight="72">
-    <path android:fillColor="@color/canvas_surface" android:pathData="M26,12 L102,12 Q106,12 106,16 L106,56 Q106,60 102,60 L26,60 Q22,60 22,56 L22,16 Q22,12 26,12" />
-    <path android:fillColor="@color/canvas_preview_surface" android:pathData="M22,21 L106,21 L106,16 Q106,12 102,12 L26,12 Q22,12 22,16Z M30,29 L54,29 L54,50 L30,50Z" />
-    <path android:fillColor="@color/canvas_preview" android:pathData="M29,16 a1.5,1.5 0,1 0,3 0 a1.5,1.5 0,1 0,-3 0 M35,16 a1.5,1.5 0,1 0,3 0 a1.5,1.5 0,1 0,-3 0 M61,29 L94,29 L94,32 L61,32Z M61,38 L87,38 L87,40 L61,40Z M61,45 L94,45 L94,47 L61,47Z" />
+<!-- Browser-window glyph. Authored at the exact 44dp the list draws it at, so
+     nothing is scaled or clipped, and drawn in one ink colour so it reads on a
+     light card instead of dissolving into it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="44dp"
+    android:height="44dp"
+    android:viewportWidth="44"
+    android:viewportHeight="44">
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@color/canvas_icon_on_subtle"
+        android:strokeWidth="2.4"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round"
+        android:pathData="M9,10 L35,10 A3,3 0 0 1 38,13 L38,31 A3,3 0 0 1 35,34 L9,34 A3,3 0 0 1 6,31 L6,13 A3,3 0 0 1 9,10 Z" />
+
+    <path
+        android:strokeColor="@color/canvas_icon_on_subtle"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:pathData="M6,16.5 L38,16.5" />
+
+    <path
+        android:fillColor="@color/canvas_icon_on_subtle"
+        android:pathData="M11,13.2 m-1.3,0 a1.3,1.3 0 1,0 2.6,0 a1.3,1.3 0 1,0 -2.6,0" />
+
+    <path
+        android:strokeColor="@color/canvas_icon_on_subtle"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:pathData="M11,22.5 L33,22.5 M11,28 L25,28" />
 </vector>
