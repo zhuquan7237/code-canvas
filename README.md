@@ -2,7 +2,7 @@
 
 把 AI 给出的代码，变成看得见的作品。轻量原生 Android 应用，使用系统 WebView，不打包浏览器内核。
 
-[下载最新 APK](https://relay.zhuquan.xyz/dl/code-canvas-0.1.7.apk)（自建源，国内可直连）· [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
+[下载最新 APK](https://relay.zhuquan.xyz/dl/code-canvas-0.1.8.apk)（自建源，国内可直连）· [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
 
 ## 怎么用
 
@@ -22,6 +22,14 @@
 - 预览支持刷新；长按「代码」标签复制全部源码。
 - 对 CDN、缺失本地资源、需要编译的代码给出持续可读的说明。
 - 保存使用不可变快照与原子替换，多页面并发不丢其他作品；清空作品后不再自动出现示例。
+
+## v0.1.8 本次更新（代码编辑器行号栏 · 自适应应用图标 · 空态视觉引导）
+
+- **代码编辑器增加行号栏**：左侧固定行号槽，当前光标所在行自动高亮电光蓝；垂直滚动毫秒级同步，水平横滑时不遮挡行号。
+- **配置完整自适应应用图标**：告别系统默认绿色机器人图标，全新设计墨色网格底 + 细线画框 + 尖括号 + 发光青绿点自适应矢量图标，支持 Android 13+ 主题图标。
+- **主页空态与新手引导升级**：加入细线画布插画、完整格式介绍（HTML/SVG/XML）与一键粘贴/导入按钮。
+- **方格视图缩略图放大**：高度提至 104dp，专为「看图找图」的视觉检索优化。
+- 验收：单元测试 **79** 项，模拟器仪器测试 **32** 项。
 
 ## v0.1.7 本次更新（宽幅 SVG 完整无裁切 · 横屏全屏欣赏模式）
 

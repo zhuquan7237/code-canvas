@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "versionName": "0.1.7",
-  "versionCode": 8,
-  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.1.7.apk?v=3721a18c2490",
-  "sha256": "3721a18c249062df77f449e1d1510f73eb069b7a2c8bcb175d9a2319fd83ee31",
-  "size": 87499,
-  "notes": "宽幅 SVG 画面 100% 完整可见，解决自带 slice 导致左右被裁的问题；新增横屏「全屏」沉浸式欣赏模式。",
-  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.7/code-canvas-0.1.7.apk"
+  "versionName": "0.1.8",
+  "versionCode": 9,
+  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.1.8.apk?v=d1b3834e3931",
+  "sha256": "d1b3834e3931e56cec1db0644c3c2d987d333a082c44299ed1496ae12f71844e",
+  "size": 92607,
+  "notes": "代码编辑器支持行号栏与当前行高亮；装配自适应现代应用图标；主页空态与新手引导升级；方格视图缩略图放大。",
+  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.8/code-canvas-0.1.8.apk"
 }

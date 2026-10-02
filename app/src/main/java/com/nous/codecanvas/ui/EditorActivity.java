@@ -85,7 +85,10 @@ public class EditorActivity extends Activity {
     private Switch switchAllowJs;
 
     private ViewFlipper viewFlipper;
-    private EditText editCode;
+    private CodeEditText editCode;
+    private TextView txtLineNumbers;
+    private android.widget.ScrollView scrollLineNumbers;
+    private android.widget.ScrollView scrollCode;
     private WebView webPreview;
     private View layoutXmlView;
     private TextView txtXmlStatus;
@@ -252,6 +255,16 @@ public class EditorActivity extends Activity {
         viewFlipper.setOutAnimation(null);
 
         editCode = findViewById(R.id.edit_code);
+        txtLineNumbers = findViewById(R.id.txt_line_numbers);
+        scrollLineNumbers = findViewById(R.id.scroll_line_numbers);
+        scrollCode = findViewById(R.id.scroll_code);
+        if (editCode != null && txtLineNumbers != null) {
+            // The gutter follows the cursor so the current line is findable at a glance.
+            editCode.setOnCursorLineChanged(line -> refreshLineNumbers(line));
+        }
+        if (scrollCode != null && scrollLineNumbers != null) {
+            scrollCode.setOnScrollChangeListener((v, sx, sy, ox, oy) -> scrollLineNumbers.scrollTo(0, sy));
+        }
         webPreview = findViewById(R.id.web_preview);
         layoutXmlView = findViewById(R.id.layout_xml_view);
         txtXmlStatus = findViewById(R.id.txt_xml_status);
@@ -482,6 +495,7 @@ public class EditorActivity extends Activity {
                 }
 
                 updateStats(s.toString());
+                refreshLineNumbers(com.nous.codecanvas.editor.LineNumberGutter.lineOf(s, editCode.getSelectionStart()));
 
                 // Debounce Auto-Save (800ms)
                 txtSaveIndicator.setText("保存中…");
@@ -522,6 +536,7 @@ public class EditorActivity extends Activity {
         txtEditorTitle.setText(currentDocument.getTitle());
         isProgrammaticChange = true;
         editCode.setText(currentDocument.getContent());
+        refreshLineNumbers(1);
         isProgrammaticChange = false;
 
         undoRedoManager.pushState(currentDocument.getContent(), 0);
@@ -660,6 +675,18 @@ public class EditorActivity extends Activity {
             editCode.getText().replace(Math.min(start, end), Math.max(start, end), text, 0, text.length());
         }
         Toast.makeText(this, "已粘贴代码", Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * Repaint the gutter. Numbers must always describe the code beside them, so this is called
+     * from the text watcher and from the cursor callback rather than on a timer.
+     */
+    private void refreshLineNumbers(int currentLine) {
+        if (txtLineNumbers == null || editCode == null) return;
+        int lines = com.nous.codecanvas.editor.LineNumberGutter.lineCount(editCode.getText());
+        int active = getResources().getColor(R.color.canvas_primary);
+        int normal = getResources().getColor(R.color.canvas_line_number);
+        txtLineNumbers.setText(com.nous.codecanvas.editor.LineNumberGutter.highlighted(lines, currentLine, normal, active));
     }
 
     private void applySyntaxHighlight() {

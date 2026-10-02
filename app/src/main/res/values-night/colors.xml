@@ -15,6 +15,7 @@
     <color name="canvas_surface">#171F2B</color>
     <color name="canvas_surface_subtle">#212B3A</color>
     <color name="canvas_border">#37455A</color>
+    <color name="canvas_line_number">#8B96A8</color>
     <color name="canvas_border_strong">#63768F</color>
     <color name="canvas_card_shadow">#66000000</color>
 

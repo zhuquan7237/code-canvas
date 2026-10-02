@@ -276,37 +276,76 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- Child 0: code editor, on a white page. -->
-        <HorizontalScrollView
+        <!-- Child 0: code editor, on a white page. The line-number gutter sits outside the
+             horizontal scroller so it stays put when the code scrolls sideways, and its own
+             scroller is driven by the code's vertical scroll. -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:fillViewport="true"
+            android:orientation="horizontal"
             android:background="@color/canvas_code_surface">
 
             <ScrollView
+                android:id="@+id/scroll_line_numbers"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
-                android:fillViewport="true">
+                android:scrollbars="none"
+                android:fillViewport="true"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp">
 
-                <EditText
-                    android:id="@+id/edit_code"
+                <TextView
+                    android:id="@+id/txt_line_numbers"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:minWidth="360dp"
-                    android:gravity="top|start"
-                    android:background="@null"
-                    android:padding="16dp"
+                    android:gravity="top|end"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="9dp"
                     android:fontFamily="monospace"
                     android:textSize="13sp"
                     android:lineSpacingMultiplier="1.35"
+                    android:textColor="@color/canvas_line_number"
+                    android:importantForAccessibility="no" />
+            </ScrollView>
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp"
+                android:background="@color/canvas_border" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true">
+
+                <ScrollView
+                    android:id="@+id/scroll_code"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:fillViewport="true">
+
+                    <com.nous.codecanvas.ui.CodeEditText
+                        android:id="@+id/edit_code"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="360dp"
+                        android:gravity="top|start"
+                        android:background="@null"
+                        android:padding="16dp"
+                        android:fontFamily="monospace"
+                        android:textSize="13sp"
+                        android:lineSpacingMultiplier="1.35"
                     android:textColor="@color/canvas_code_ink"
                     android:hint="输入或粘贴 HTML / SVG / XML 代码…"
                     android:textColorHint="@color/canvas_ink_secondary"
-                    android:inputType="textMultiLine|textNoSuggestions"
-                    android:importantForAutofill="no"
-                    android:saveEnabled="false" />
-            </ScrollView>
-        </HorizontalScrollView>
+                        android:inputType="textMultiLine|textNoSuggestions"
+                        android:importantForAutofill="no"
+                        android:saveEnabled="false" />
+                </ScrollView>
+            </HorizontalScrollView>
+        </LinearLayout>
 
         <!-- Child 1: the preview canvas is a rounded card on the app background,
              so the page below never hard-cuts into the white chrome above it. -->

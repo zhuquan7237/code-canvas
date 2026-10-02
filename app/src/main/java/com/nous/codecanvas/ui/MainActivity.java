@@ -201,6 +201,11 @@ public class MainActivity extends Activity {
         viewEmpty = findViewById(R.id.view_empty);
         editSearch = findViewById(R.id.edit_search);
         btnQuickPaste = findViewById(R.id.btn_quick_paste_preview);
+        // 空态里的两个入口走的是同一条路径，不另起一套逻辑
+        View emptyPaste = findViewById(R.id.btn_empty_paste);
+        if (emptyPaste != null) emptyPaste.setOnClickListener(v -> performQuickPasteAndPreview());
+        View emptyImport = findViewById(R.id.btn_empty_import);
+        if (emptyImport != null) emptyImport.setOnClickListener(v -> startSafImport());
         btnNew = findViewById(R.id.btn_new);
         btnImport = findViewById(R.id.btn_import);
 

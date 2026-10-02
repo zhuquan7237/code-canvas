@@ -9,7 +9,7 @@
     <ImageView
         android:id="@+id/img_doc_preview"
         android:layout_width="match_parent"
-        android:layout_height="72dp"
+        android:layout_height="104dp"
         android:background="@drawable/bg_thumbnail"
         android:foreground="@drawable/fg_thumbnail"
         android:scaleType="centerCrop"

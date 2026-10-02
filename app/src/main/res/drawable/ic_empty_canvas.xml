@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  空态插画：一块空画布 + 一个加号。
+  细线条、与工具栏图标同一套语言（1.5 单位描边、圆角端点），不抢文字的注意力。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+
+    <!-- 画布 -->
+    <path
+        android:strokeColor="@color/canvas_border_strong"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M22,20 L62,20 A8,8 0 0 1 70,28 L70,60 A8,8 0 0 1 62,68 L22,68 A8,8 0 0 1 14,60 L14,28 A8,8 0 0 1 22,20 Z" />
+
+    <!-- 画布里的两行"代码" -->
+    <path
+        android:strokeColor="@color/canvas_border"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M24,33 L46,33 M24,42 L38,42" />
+
+    <!-- 加号徽标 -->
+    <path
+        android:fillColor="@color/canvas_primary"
+        android:pathData="M64,52 A14,14 0 1 1 63.99,52 Z" />
+    <path
+        android:strokeColor="@color/canvas_on_primary"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:pathData="M64,46 L64,58 M58,52 L70,52" />
+</vector>

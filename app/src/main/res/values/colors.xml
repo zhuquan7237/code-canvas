@@ -14,6 +14,8 @@
     <color name="canvas_surface">#FFFFFF</color>
     <color name="canvas_surface_subtle">#EEF1F7</color>
     <color name="canvas_border">#D2DAE6</color>
+    <!-- 代码行号：对代码底 5.11:1（浅）/ 6.02:1（夜），达到正文可读标准 -->
+    <color name="canvas_line_number">#656E82</color>
     <color name="canvas_border_strong">#74849B</color>
     <color name="canvas_card_shadow">#14000000</color>
 
