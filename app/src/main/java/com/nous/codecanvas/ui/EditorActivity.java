@@ -115,6 +115,7 @@ public class EditorActivity extends Activity {
      * back into the app. The choice is remembered across documents instead of resetting.
      */
     private boolean isAllowJs = true;
+    /** Default for a newly opened document; the in-editor toggle still overrides it per visit. */
     private boolean isAllowNetwork = false;
     private final com.nous.codecanvas.editor.PreviewState previewState = new com.nous.codecanvas.editor.PreviewState();
     private int previewLoadCount;
@@ -139,6 +140,11 @@ public class EditorActivity extends Activity {
             applySyntaxHighlight();
         }
     };
+
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(com.nous.codecanvas.util.AppearanceManager.wrap(newBase));
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -206,8 +212,10 @@ public class EditorActivity extends Activity {
 
         // The remembered preference is the baseline; a per-visit toggle in this instance wins.
         isAllowJs = com.nous.codecanvas.util.CanvasPrefs.scriptsAllowed(this);
+        isAllowNetwork = com.nous.codecanvas.util.CanvasPrefs.networkAllowedByDefault(this);
         if (savedInstanceState != null) {
             isAllowJs = savedInstanceState.getBoolean("key_allow_js", isAllowJs);
+            isAllowNetwork = savedInstanceState.getBoolean("key_allow_network", isAllowNetwork);
         }
         switchAllowJs.setChecked(isAllowJs);
     }
@@ -218,6 +226,7 @@ public class EditorActivity extends Activity {
         // Persist code content into currentDocument and repository rather than packing large strings in Binder bundle
         saveCurrentDocument();
         outState.putBoolean("key_allow_js", isAllowJs);
+        outState.putBoolean("key_allow_network", isAllowNetwork);
     }
 
     private void initViews() {

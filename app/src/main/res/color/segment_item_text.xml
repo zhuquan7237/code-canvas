@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Segment control label colour, driven by the same states that paint bg_segment_item.
+  Keeping the label in a ColorStateList means the selected/unselected pair can never drift
+  out of sync with the pill: one state change flips fill and text together, instead of the
+  screen having to remember to call setTextColor at every site that toggles selection.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_activated="true" android:color="@color/canvas_on_primary" />
+    <item android:state_selected="true" android:color="@color/canvas_on_primary" />
+    <item android:color="@color/canvas_ink_secondary" />
+</selector>

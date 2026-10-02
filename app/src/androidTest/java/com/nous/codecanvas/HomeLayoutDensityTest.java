@@ -6,6 +6,7 @@ public class HomeLayoutDensityTest extends InstrumentationTestCase {
  private MainActivity main;private final List<String> created=new ArrayList<>();
  private static int fullyVisible(android.view.ViewGroup list){int shown=0;for(int i=0;i<list.getChildCount();i++){View row=list.getChildAt(i);if(row.getTop()>=0&&row.getBottom()<=list.getHeight())shown++;}return shown;}
  @Override protected void setUp() throws Exception {super.setUp();
+  TestAppearance.resetToSystem(getInstrumentation().getTargetContext());
   DocumentRepository repo=new DocumentRepository(getInstrumentation().getTargetContext());
   for(int i=0;i<12;i++){String id="density-"+System.nanoTime()+"-"+i;created.add(id);repo.saveDocument(new CanvasDocument(id,"测试文件_"+i+(i%3==0?".html":i%3==1?".svg":".xml"),"<h1>密度测试 "+i+"</h1>",System.currentTimeMillis()));}
   main=(MainActivity)getInstrumentation().startActivitySync(new Intent(getInstrumentation().getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));

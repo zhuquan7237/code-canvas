@@ -2,6 +2,8 @@ package com.nous.codecanvas.ui;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
@@ -44,6 +46,8 @@ import java.util.UUID;
 public class MainActivity extends Activity {
 
     private static final int REQ_IMPORT_SAF = 1001;
+    /** Exporting straight from the list, so a card does not have to be opened in the editor first. */
+    private static final int REQ_EXPORT_DOCUMENT = 1002;
 
     private final java.util.concurrent.ExecutorService thumbnailExecutor = java.util.concurrent.Executors.newFixedThreadPool(2);
     private DocumentRepository repository;
@@ -68,6 +72,12 @@ public class MainActivity extends Activity {
     private ThumbnailBackfiller backfiller;
     private final java.util.Map<String, DocumentPresentation> presentations = new java.util.HashMap<>();
 
+    /** The appearance mode this Activity was built with; compared in onResume to detect changes. */
+    private int appearanceAtCreate = com.nous.codecanvas.util.AppearanceManager.MODE_SYSTEM;
+
+    /** Document awaiting a SAF export destination, set when the list's long-press menu exports. */
+    private CanvasDocument pendingExportDocument;
+
     /** Derived metadata is prepared off-main once per reload, not on every scroll bind. */
     private static final class DocumentPresentation {
         final String previewKey;
@@ -91,6 +101,14 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void attachBaseContext(Context newBase) {
+        // Appearance must be decided here, not in onCreate: the framework reads this Activity's
+        // resources before onCreate runs, and applyOverrideConfiguration() refuses to work after
+        // that ("getResources() or getAssets() has already been called").
+        super.attachBaseContext(com.nous.codecanvas.util.AppearanceManager.wrap(newBase));
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -109,6 +127,7 @@ public class MainActivity extends Activity {
         }
 
         repository = new DocumentRepository(this);
+        appearanceAtCreate = com.nous.codecanvas.util.AppearanceManager.getMode(this);
         // Seed default sample documents if cold start on new device
         try {
             repository.seedDefaultTemplatesIfEmpty();
@@ -191,6 +210,13 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        // Appearance can change while the settings screen is on top. This Activity pinned its own
+        // uiMode at onCreate, so a changed preference needs a full recreate to re-resolve
+        // res/values-night/* - reloading the list alone would leave the old palette in place.
+        if (appearanceAtCreate != com.nous.codecanvas.util.AppearanceManager.getMode(this)) {
+            recreate();
+            return;
+        }
         loadDocuments();
         if(updater!=null) updater.onResume();
     }
@@ -229,6 +255,21 @@ public class MainActivity extends Activity {
             CanvasDocument doc = filteredDocuments.get(position);
             openEditor(doc.getId(), true);
         });
+        // Long-press has to be registered on the ListView itself: an item's own
+        // setOnLongClickListener never fires, because the AbsListView consumes the long press for
+        // its own onItemLongClick dispatch first.
+        listDocuments.setOnItemLongClickListener((parent, view, position, id) -> {
+            if (position >= 0 && position < filteredDocuments.size()) {
+                showDocumentActions(filteredDocuments.get(position));
+            }
+            return true;
+        });
+        gridDocuments.setOnItemLongClickListener((parent, view, position, id) -> {
+            if (position >= 0 && position < filteredDocuments.size()) {
+                showDocumentActions(filteredDocuments.get(position));
+            }
+            return true;
+        });
     }
 
     private void setGrid(boolean grid) {
@@ -244,6 +285,11 @@ public class MainActivity extends Activity {
         btnQuickPaste.setOnClickListener(v -> performQuickPasteAndPreview());
         btnNew.setOnClickListener(v -> showNewDocumentDialog());
         btnImport.setOnClickListener(v -> startSafImport());
+        View settings = findViewById(R.id.btn_settings);
+        if (settings != null) {
+            settings.setOnClickListener(v ->
+                    startActivity(new Intent(MainActivity.this, SettingsActivity.class)));
+        }
 
         editSearch.addTextChangedListener(new TextWatcher() {
             @Override
@@ -446,6 +492,116 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
+    /**
+     * Long-press actions for a document card.
+     *
+     * <p>The card's two glyphs cover the common cases (share, delete), but renaming meant opening
+     * the editor and exporting meant going through the editor too. Long-press is where these
+     * actions belong on a list, and it costs no chrome on the row itself.</p>
+     */
+    private void showDocumentActions(final CanvasDocument doc) {
+        if (doc == null) return;
+        final String[] actions = {"打开", "重命名", "复制全部代码", "导出到文件", "分享源码", "删除"};
+        activeDialog = new AlertDialog.Builder(this)
+                .setTitle(doc.getTitle())
+                .setAdapter(destructiveAwareAdapter(actions, actions.length - 1), (d, which) -> {
+                    switch (which) {
+                        case 0:
+                            openEditor(doc.getId(), true);
+                            break;
+                        case 1:
+                            renameDocument(doc);
+                            break;
+                        case 2:
+                            copyDocumentCode(doc);
+                            break;
+                        case 3:
+                            exportDocument(doc);
+                            break;
+                        case 4:
+                            shareDocument(doc);
+                            break;
+                        case 5:
+                            confirmDeleteDocument(doc);
+                            break;
+                    }
+                })
+                .show();
+    }
+
+    /**
+     * A plain text list, except the destructive entry is tinted with {@code canvas_danger}.
+     *
+     * <p>Deleting is the one action here that cannot be undone, and leaving it in the same grey as
+     * "复制全部代码" makes the menu read as six equal choices. The tint is the whole affordance —
+     * no icon, no extra chrome, which keeps the thin-line look of the rest of the app.</p>
+     */
+    private android.widget.ListAdapter destructiveAwareAdapter(final String[] labels, final int destructiveIndex) {
+        return new android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, labels) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View row = super.getView(position, convertView, parent);
+                TextView text = row.findViewById(android.R.id.text1);
+                if (text != null) {
+                    boolean destructive = position == destructiveIndex;
+                    int color = getResources().getColor(
+                            destructive ? R.color.canvas_danger : R.color.canvas_ink_primary);
+                    text.setTextColor(color);
+                    text.setTextSize(16f);
+                    text.setPadding(text.getPaddingLeft(), dp(13), text.getPaddingRight(), dp(13));
+                }
+                return row;
+            }
+        };
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private void renameDocument(final CanvasDocument doc) {
+        activeDialog = UiDialogHelper.createThemedInputDialog(
+                this,
+                "重命名画布",
+                "文件名可以带任意后缀（.html / .svg / .xml / .txt …）",
+                doc.getTitle(),
+                newTitle -> new Thread(() -> {
+                    try {
+                        repository.updateDocument(doc.getId(), newTitle, doc.getContent(), doc.getRevision());
+                        runOnUiThread(() -> {
+                            loadDocuments();
+                            Toast.makeText(MainActivity.this, "已重命名为 " + newTitle, Toast.LENGTH_SHORT).show();
+                        });
+                    } catch (Exception e) {
+                        runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                                "重命名失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                    }
+                }).start()
+        );
+        activeDialog.show();
+    }
+
+    private void copyDocumentCode(final CanvasDocument doc) {
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (clipboard == null) return;
+        clipboard.setPrimaryClip(ClipData.newPlainText(doc.getTitle(), doc.getContent()));
+        Toast.makeText(this, "已复制 " + doc.getTitle() + " 的代码", Toast.LENGTH_SHORT).show();
+    }
+
+    /** Reuses the editor's export path so a list export and an in-editor export behave alike. */
+    private void exportDocument(final CanvasDocument doc) {
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TITLE, doc.getTitle());
+        try {
+            startActivityForResult(intent, REQ_EXPORT_DOCUMENT);
+            pendingExportDocument = doc;
+        } catch (Exception e) {
+            Toast.makeText(this, "无法启动导出: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private void startSafImport() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -465,7 +621,36 @@ public class MainActivity extends Activity {
             if (uri != null) {
                 importFromUri(uri);
             }
+        } else if (requestCode == REQ_EXPORT_DOCUMENT) {
+            // Whatever happens, the pending reference must not survive to the next export.
+            CanvasDocument doc = pendingExportDocument;
+            pendingExportDocument = null;
+            if (resultCode == RESULT_OK && data != null && data.getData() != null && doc != null) {
+                writeDocumentToUri(doc, data.getData());
+            }
         }
+    }
+
+    /** Streams the document straight to the destination the user picked in the system file picker. */
+    private void writeDocumentToUri(final CanvasDocument doc, final Uri target) {
+        new Thread(() -> {
+            try {
+                java.io.OutputStream out = getContentResolver().openOutputStream(target);
+                if (out == null) {
+                    throw new java.io.IOException("无法写入所选位置");
+                }
+                try {
+                    out.write(doc.getContent().getBytes(StandardCharsets.UTF_8));
+                } finally {
+                    out.close();
+                }
+                runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                        "已导出 " + doc.getTitle(), Toast.LENGTH_SHORT).show());
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                        "导出失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
     }
 
     private void importFromUri(Uri uri) {
@@ -584,17 +769,21 @@ public class MainActivity extends Activity {
             RenderKind coverKind = presentation.kind;
             cover.setImageResource(coverKind==RenderKind.HTML ? R.drawable.cover_web : coverKind==RenderKind.SVG ? R.drawable.cover_vector : R.drawable.cover_document);
             cover.setContentDescription("作品缩略图；还没生成好时显示文件类型封面");
-            thumbnailExecutor.execute(() -> {
-                android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(PreviewThumbnailCache.file(getApplicationContext(),key).getAbsolutePath());
-                // A stored capture that painted nothing is discarded rather than shown; the cover
-                // already on the row is the honest fallback.
-                if(bitmap!=null && PreviewThumbnailCache.looksBlank(bitmap)){ bitmap.recycle(); PreviewThumbnailCache.file(getApplicationContext(),key).delete(); bitmap=null; }
-                final android.graphics.Bitmap loaded = bitmap;
-                runOnUiThread(() -> {
-                    if(key.equals(cover.getTag()) && loaded!=null){ cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP); cover.setImageBitmap(loaded); cover.setContentDescription("作品预览缩略图"); }
-                    else if(loaded!=null) loaded.recycle();
+            // The home screen reads this preference on every bind, so turning it off takes effect
+            // immediately (and stops the backfiller from generating more) without a restart.
+            if (com.nous.codecanvas.util.CanvasPrefs.thumbnailsEnabled(MainActivity.this)) {
+                thumbnailExecutor.execute(() -> {
+                    android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(PreviewThumbnailCache.file(getApplicationContext(),key).getAbsolutePath());
+                    // A stored capture that painted nothing is discarded rather than shown; the cover
+                    // already on the row is the honest fallback.
+                    if(bitmap!=null && PreviewThumbnailCache.looksBlank(bitmap)){ bitmap.recycle(); PreviewThumbnailCache.file(getApplicationContext(),key).delete(); bitmap=null; }
+                    final android.graphics.Bitmap loaded = bitmap;
+                    runOnUiThread(() -> {
+                        if(key.equals(cover.getTag()) && loaded!=null){ cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP); cover.setImageBitmap(loaded); cover.setContentDescription("作品预览缩略图"); }
+                        else if(loaded!=null) loaded.recycle();
+                    });
                 });
-            });
+            }
             if(txtTitle!=null) txtTitle.setText(doc.getTitle());
             if(txtTime!=null) txtTime.setText(dateFormat.format(new Date(doc.getUpdatedAt())));
 
@@ -617,10 +806,16 @@ public class MainActivity extends Activity {
 
             if(txtSize!=null) txtSize.setText(presentation.sizeText);
 
-            convertView.setOnClickListener(v -> openEditor(doc.getId(), true));
+            // Row taps go through the ListView's own onItemClick / onItemLongClick so the long press
+            // reaches the list instead of being swallowed by a clickable child.
             if (contentContainer != null) {
-                contentContainer.setOnClickListener(v -> openEditor(doc.getId(), true));
+                contentContainer.setClickable(false);
+                contentContainer.setFocusable(false);
             }
+            convertView.setLongClickable(true);
+            // Kept so a direct performClick() on the row still opens the editor (the regression
+            // suite drives the list that way). Touch input follows the ListView's item listeners.
+            convertView.setOnClickListener(v -> openEditor(doc.getId(), true));
 
             if(btnShare!=null)btnShare.setOnClickListener(v -> shareDocument(doc));
             if(btnDelete!=null)btnDelete.setOnClickListener(v -> confirmDeleteDocument(doc));

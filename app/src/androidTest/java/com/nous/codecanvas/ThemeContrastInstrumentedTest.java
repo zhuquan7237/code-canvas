@@ -21,6 +21,14 @@ import com.nous.codecanvas.ui.MainActivity;
  */
 public class ThemeContrastInstrumentedTest extends InstrumentationTestCase {
 
+    @Override
+    protected void setUp() throws Exception {
+        super.setUp();
+        // These assertions compare the palette a running screen actually resolved, so the appearance
+        // preference must be the default rather than whatever a previous test left behind.
+        TestAppearance.resetToSystem(getInstrumentation().getTargetContext());
+    }
+
     private static final int[][] TEXT_PAIRS = {
             {R.color.canvas_ink_primary, R.color.canvas_bg},
             {R.color.canvas_ink_primary, R.color.canvas_surface},

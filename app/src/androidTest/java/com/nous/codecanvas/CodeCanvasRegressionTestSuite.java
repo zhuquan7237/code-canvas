@@ -21,7 +21,7 @@ public class CodeCanvasRegressionTestSuite extends InstrumentationTestCase {
  private final List<EditorActivity> editors=new ArrayList<>();
  private Instrumentation.ActivityMonitor monitor;
  @Override protected void setUp() throws Exception {
-  super.setUp(); main=(MainActivity)getInstrumentation().startActivitySync(new Intent(getInstrumentation().getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+  super.setUp(); TestAppearance.resetToSystem(getInstrumentation().getTargetContext()); main=(MainActivity)getInstrumentation().startActivitySync(new Intent(getInstrumentation().getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
   getInstrumentation().waitForIdleSync();
  }
  @Override protected void tearDown() throws Exception {

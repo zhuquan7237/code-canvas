@@ -25,6 +25,14 @@ import java.io.File;
  */
 public class ThumbnailBackfillTest extends InstrumentationTestCase {
 
+    @Override
+    protected void setUp() throws Exception {
+        super.setUp();
+        // The key this test looks for is derived from the resolved uiMode, so a leftover appearance
+        // preference would send the capture and the lookup to two different files.
+        TestAppearance.resetToSystem(getInstrumentation().getTargetContext());
+    }
+
     public void testUnopenedDocumentGetsAThumbnailFromTheHomeScreen() throws Exception {
         final Context c = getInstrumentation().getTargetContext();
         DocumentRepository repo = new DocumentRepository(c);

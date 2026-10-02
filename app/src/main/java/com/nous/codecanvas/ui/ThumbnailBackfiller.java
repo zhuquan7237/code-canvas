@@ -53,6 +53,9 @@ final class ThumbnailBackfiller {
 
     void enqueue(List<CanvasDocument> documents) {
         if (activity.isFinishing() || (Build.VERSION.SDK_INT >= 17 && activity.isDestroyed())) return;
+        // Generating thumbnails is exactly the work this switch is meant to stop. Skipping the
+        // queue keeps the promise instead of quietly rendering in the background anyway.
+        if (!CanvasPrefs.thumbnailsEnabled(activity)) return;
         boolean addAnything = false;
         int taken = 0;
         for (CanvasDocument doc : documents) {
