@@ -2,7 +2,7 @@
 
 把 AI 给出的代码，变成看得见的作品。轻量原生 Android 应用，使用系统 WebView，不打包浏览器内核。
 
-[下载最新 APK](https://relay.zhuquan.xyz/dl/code-canvas-0.1.8.apk)（自建源，国内可直连）· [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
+[下载最新 APK](https://relay.zhuquan.xyz/dl/code-canvas-0.2.0.apk)（自建源，国内可直连）· [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
 
 ## 怎么用
 
@@ -22,6 +22,14 @@
 - 预览支持刷新；长按「代码」标签复制全部源码。
 - 对 CDN、缺失本地资源、需要编译的代码给出持续可读的说明。
 - 保存使用不可变快照与原子替换，多页面并发不丢其他作品；清空作品后不再自动出现示例。
+
+## v0.2.0 本次更新（设置中心 · 卡片长按操作 · 缩略图开关）
+
+- **新增设置中心**（主页右上角齿轮）：**外观**（浅色 / 深色 / 跟随系统，此前只能跟随系统）、**预览**（脚本开关、主页缩略图开关、新文档默认联网偏好）、**存储**（缩略图缓存占用与一键清理）、**关于**（版本号取自安装包本身）。
+- **卡片长按操作**：长按任意作品可 打开 / 重命名 / 复制全部代码 / 导出到文件 / 分享源码 / 删除；其中「删除」用危险色标注。此前重命名与导出都必须先进编辑器。
+- **缩略图开关真正生效**：关闭后主页立刻回退类型封面，后台也不再排队生成新缩略图。
+- 修掉三个实机才暴露的缺陷：切换主题直接崩溃（`applyOverrideConfiguration` 抛 `IllegalStateException`）、长按菜单永不出现（可点击子容器吞掉触摸流）、设置页底部说明文字贴边。
+- 验收：单元测试 **85** 项，模拟器仪器测试 **41** 项，全过 0 失败。
 
 ## v0.1.8 本次更新（代码编辑器行号栏 · 自适应应用图标 · 空态视觉引导）
 
