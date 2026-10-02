@@ -2,7 +2,7 @@
 
 把 AI 给出的代码，变成看得见的作品。轻量原生 Android 应用，使用系统 WebView，不打包浏览器内核。
 
-[下载最新 APK](https://relay.zhuquan.xyz/dl/code-canvas-0.1.6.apk)（自建源，国内可直连）· [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
+[下载最新 APK](https://relay.zhuquan.xyz/dl/code-canvas-0.1.7.apk)（自建源，国内可直连）· [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
 
 ## 怎么用
 
@@ -22,6 +22,12 @@
 - 预览支持刷新；长按「代码」标签复制全部源码。
 - 对 CDN、缺失本地资源、需要编译的代码给出持续可读的说明。
 - 保存使用不可变快照与原子替换，多页面并发不丢其他作品；清空作品后不再自动出现示例。
+
+## v0.1.7 本次更新（宽幅 SVG 完整无裁切 · 横屏全屏欣赏模式）
+
+- **宽幅 SVG 画面 100% 完整可见，拒绝任何裁切**：解决宽幅 SVG 自带 `preserveAspectRatio="slice"` 和 `100vw/100vh` 导致竖屏手机只能看到中间一条、左右被切掉 60% 的问题。强制覆盖为 `meet` 并等比居中自适应，整幅画作四角边界完全保留。
+- **新增「全屏」横屏欣赏模式**：预览工具栏新增「全屏」按钮，一键旋转为横屏沉浸式全屏，宽幅画作与动态效果极大化展开；点击右上角悬浮按钮或按返回键无缝切回竖屏。
+- 验收：单元测试 **73** 项，模拟器仪器测试 **31** 项。
 
 ## v0.1.6 本次更新（实测反馈四条）
 

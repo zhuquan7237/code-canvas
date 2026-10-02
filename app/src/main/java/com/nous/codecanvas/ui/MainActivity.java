@@ -467,18 +467,26 @@ public class MainActivity extends Activity {
         new Thread(() -> {
             try {
                 String fileName = "imported.txt";
-                Cursor cursor = getContentResolver().query(uri, null, null, null, null);
-                if (cursor != null) {
-                    if (cursor.moveToFirst()) {
-                        int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-                        if (nameIndex >= 0) {
-                            String name = cursor.getString(nameIndex);
-                            if (name != null && !name.trim().isEmpty()) {
-                                fileName = name;
+                if ("file".equalsIgnoreCase(uri.getScheme())) {
+                    String last = uri.getLastPathSegment();
+                    if (last != null && !last.trim().isEmpty()) {
+                        fileName = last;
+                    }
+                } else {
+                    try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                        if (cursor != null && cursor.moveToFirst()) {
+                            int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                            if (nameIndex >= 0) {
+                                String name = cursor.getString(nameIndex);
+                                if (name != null && !name.trim().isEmpty()) {
+                                    fileName = name;
+                                }
                             }
                         }
+                    } catch (Exception ignored) {
+                        String last = uri.getLastPathSegment();
+                        if (last != null && !last.trim().isEmpty()) fileName = last;
                     }
-                    cursor.close();
                 }
 
                 fileName = FileUtils.sanitizeFileName(fileName);
@@ -486,7 +494,9 @@ public class MainActivity extends Activity {
                 ByteArrayOutputStream buffer = new ByteArrayOutputStream();
                 long totalBytes = 0;
                 long MAX_IMPORT_SIZE = 2 * 1024 * 1024; // 2MB
-                try (InputStream is = getContentResolver().openInputStream(uri)) {
+                try (InputStream is = "file".equalsIgnoreCase(uri.getScheme()) && uri.getPath() != null
+                        ? new java.io.FileInputStream(uri.getPath())
+                        : getContentResolver().openInputStream(uri)) {
                     if (is != null) {
                         byte[] data = new byte[8192];
                         int nRead;
@@ -520,6 +530,7 @@ public class MainActivity extends Activity {
                 });
 
             } catch (Exception e) {
+                android.util.Log.e("CodeCanvasImport", "import failed: " + uri, e);
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "导入失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
         }).start();

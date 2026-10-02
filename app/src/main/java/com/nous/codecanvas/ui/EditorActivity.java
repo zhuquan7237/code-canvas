@@ -6,6 +6,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Bundle;
@@ -21,6 +22,7 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -71,7 +73,14 @@ public class EditorActivity extends Activity {
     private TextView txtEditorStats;
     private TextView txtSaveIndicator;
 
-    private View toolbarPreviewControls;
+    private LinearLayout toolbarPreviewControls;
+    private View headerEditor;
+    private View layoutEditorTabs;
+    private View containerPreviewCanvas;
+    private View editorHelpersView;
+    private Button btnPreviewFullscreen;
+    private Button btnExitFullscreen;
+    private boolean isFullscreen = false;
     private TextView txtRenderModeBadge;
     private Switch switchAllowJs;
 
@@ -229,6 +238,12 @@ public class EditorActivity extends Activity {
         txtSaveIndicator = findViewById(R.id.txt_save_indicator);
 
         toolbarPreviewControls = findViewById(R.id.toolbar_preview_controls);
+        headerEditor = findViewById(R.id.header_editor);
+        layoutEditorTabs = findViewById(R.id.layout_editor_tabs);
+        containerPreviewCanvas = findViewById(R.id.container_preview_canvas);
+        editorHelpersView = findViewById(R.id.editor_helpers);
+        btnPreviewFullscreen = findViewById(R.id.btn_preview_fullscreen);
+        btnExitFullscreen = findViewById(R.id.btn_exit_fullscreen);
         txtRenderModeBadge = findViewById(R.id.txt_render_mode_badge);
         switchAllowJs = findViewById(R.id.switch_allow_js);
 
@@ -402,6 +417,13 @@ public class EditorActivity extends Activity {
 
     private void setupListeners() {
         btnBack.setOnClickListener(v -> finish());
+
+        if (btnPreviewFullscreen != null) {
+            btnPreviewFullscreen.setOnClickListener(v -> setFullscreen(true));
+        }
+        if (btnExitFullscreen != null) {
+            btnExitFullscreen.setOnClickListener(v -> setFullscreen(false));
+        }
 
         layoutTitleClickable.setOnClickListener(v -> showRenameDialog());
 
@@ -655,7 +677,48 @@ public class EditorActivity extends Activity {
         }
     }
 
+    private void setFullscreen(boolean fullscreen) {
+        isFullscreen = fullscreen;
+        if (fullscreen) {
+            if (headerEditor != null) headerEditor.setVisibility(View.GONE);
+            if (layoutEditorTabs != null) layoutEditorTabs.setVisibility(View.GONE);
+            if (toolbarPreviewControls != null) toolbarPreviewControls.setVisibility(View.GONE);
+            if (editorHelpersView != null) editorHelpersView.setVisibility(View.GONE);
+            View advice = findViewById(R.id.txt_preview_advice);
+            if (advice != null) advice.setVisibility(View.GONE);
+            if (btnExitFullscreen != null) btnExitFullscreen.setVisibility(View.VISIBLE);
+            if (containerPreviewCanvas != null) {
+                containerPreviewCanvas.setPadding(0, 0, 0, 0);
+            }
+            // Auto rotate to landscape for wider aspect ratios
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        } else {
+            if (headerEditor != null) headerEditor.setVisibility(View.VISIBLE);
+            if (layoutEditorTabs != null) layoutEditorTabs.setVisibility(View.VISIBLE);
+            if (toolbarPreviewControls != null) toolbarPreviewControls.setVisibility(View.VISIBLE);
+            if (btnExitFullscreen != null) btnExitFullscreen.setVisibility(View.GONE);
+            if (containerPreviewCanvas != null) {
+                int p10 = (int) (10 * getResources().getDisplayMetrics().density);
+                int p12 = (int) (12 * getResources().getDisplayMetrics().density);
+                containerPreviewCanvas.setPadding(p10, p10, p10, p12);
+            }
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (isFullscreen) {
+            setFullscreen(false);
+            return;
+        }
+        super.onBackPressed();
+    }
+
     private void switchToTab(int tabIndex) {
+        if (isFullscreen && tabIndex == 0) {
+            setFullscreen(false);
+        }
         if (viewFlipper.getDisplayedChild() == tabIndex) return;
 
         if (tabIndex == 0) {

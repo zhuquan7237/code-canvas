@@ -8,6 +8,7 @@
 
     <!-- Top bar: bare glyphs, no outlined boxes. -->
     <LinearLayout
+        android:id="@+id/header_editor"
         android:layout_width="match_parent"
         android:layout_height="52dp"
         android:orientation="horizontal"
@@ -77,6 +78,7 @@
 
     <!-- Segmented code / preview switch: one trough, one rounded pill. -->
     <LinearLayout
+        android:id="@+id/layout_editor_tabs"
         android:layout_width="match_parent"
         android:layout_height="44dp"
         android:orientation="horizontal"
@@ -232,6 +234,18 @@
                 android:text="联网加载"
                 android:textSize="12sp"
                 android:textColor="@color/canvas_ink_primary" />
+
+            <Button
+                android:id="@+id/btn_preview_fullscreen"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:minWidth="60dp"
+                android:background="@drawable/bg_button_subtle"
+                android:paddingHorizontal="12dp"
+                android:text="全屏"
+                android:textSize="12sp"
+                android:textColor="@color/canvas_ink_primary"
+                android:layout_marginStart="8dp" />
         </LinearLayout>
 
         <Switch
@@ -297,6 +311,7 @@
         <!-- Child 1: the preview canvas is a rounded card on the app background,
              so the page below never hard-cuts into the white chrome above it. -->
         <FrameLayout
+            android:id="@+id/container_preview_canvas"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:paddingHorizontal="10dp"
@@ -314,6 +329,21 @@
                     android:id="@+id/web_preview"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent" />
+
+                <!-- Floating exit fullscreen button -->
+                <Button
+                    android:id="@+id/btn_exit_fullscreen"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="12dp"
+                    android:background="@drawable/bg_button_subtle"
+                    android:paddingHorizontal="12dp"
+                    android:text="退出全屏"
+                    android:textSize="12sp"
+                    android:textColor="@color/canvas_ink_primary"
+                    android:elevation="4dp"
+                    android:visibility="gone" />
 
                 <!-- XML structure / validation panel -->
                 <ScrollView

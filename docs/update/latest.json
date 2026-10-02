@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "versionName": "0.1.6",
-  "versionCode": 7,
-  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.1.6.apk?v=41cb73a1a463",
-  "sha256": "41cb73a1a46301e41b3402cc4c975cf09cbd8edf5a35ab07dc575f514d2d1d68",
-  "size": 86231,
-  "notes": "主页的预览图：以前只有你打开过预览的作品才有缩略图，所以主页看着像没有预览。现在没打开过的也会自动渲染一张。\n\n预览大小统一：给没有 viewport 的 HTML 自动补上，SVG 会按屏幕宽度缩放，不再有的渲染得特别小、有的特别大。\n\n页面脚本默认开启（会记住你的选择，随时能关）。联网仍然按页面单独询问。\n\n「在其他应用里打开」：文件管理器和聊天应用里打开或分享 .html / .svg / .xml 时，列表里会出现「代码画布」，点了直接进预览。",
-  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.6/code-canvas-0.1.6.apk"
+  "versionName": "0.1.7",
+  "versionCode": 8,
+  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.1.7.apk?v=3721a18c2490",
+  "sha256": "3721a18c249062df77f449e1d1510f73eb069b7a2c8bcb175d9a2319fd83ee31",
+  "size": 87499,
+  "notes": "宽幅 SVG 画面 100% 完整可见，解决自带 slice 导致左右被裁的问题；新增横屏「全屏」沉浸式欣赏模式。",
+  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.1.7/code-canvas-0.1.7.apk"
 }
