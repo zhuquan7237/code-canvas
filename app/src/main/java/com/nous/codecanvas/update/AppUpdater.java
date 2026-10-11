@@ -27,10 +27,17 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * In-app updates that work without reaching GitHub.
@@ -48,12 +55,27 @@ import java.util.concurrent.Executors;
  */
 public final class AppUpdater {
 
-    /** Tried in order. The first is this project's own host; GitHub is kept as a fallback. */
+    /** Tried together, not in turn. The first is this project's own host; GitHub is the fallback. */
     private static final String[] MANIFEST_SOURCES = {
             "https://relay.zhuquan.xyz/dl/codecanvas-latest.json",
             "https://raw.githubusercontent.com/zhuquan7237/code-canvas/main/docs/update/latest.json",
             "https://api.github.com/repos/zhuquan7237/code-canvas/contents/docs/update/latest.json?ref=main"
     };
+
+    /**
+     * Sources are queried in parallel and the newest answer wins.
+     *
+     * <p>Asking them one at a time was a mistake on two counts. Correctness: the mirror is queried
+     * first, so whenever the mirror lagged behind, the app reported "already up to date" while a
+     * newer manifest sat one source away — silently, with nothing failing loudly. Speed: on a
+     * mainland network the GitHub sources fail *slowly* (or not at all), so a sequential sweep
+     * turned a routine check into a twenty-second stare at "检查中…". Parallel keeps the total
+     * wait at roughly one slow source instead of the sum of three.
+     */
+    private static final ExecutorService SOURCE_POOL =
+            Executors.newFixedThreadPool(MANIFEST_SOURCES.length);
+    /** Upper bound on one source, so a hung connection cannot hold the whole check open. */
+    private static final long SOURCE_WAIT_MS = 12000L;
 
     private static final long AUTO_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L;
     /** Backoff after consecutive check failures, so a blocked network is not hammered. */
@@ -168,21 +190,33 @@ public final class AppUpdater {
         }
         if (manual) button.setText("检查中…");
         io.execute(() -> {
-            UpdateManifest manifest = null;
+            // Every source is asked at once; the newest answer wins (see SOURCE_POOL).
+            final List<CompletableFuture<UpdateManifest>> pending = new ArrayList<>();
+            for (final String source : MANIFEST_SOURCES) {
+                pending.add(CompletableFuture.supplyAsync(() -> {
+                    try {
+                        String json = readText(source + (source.contains("?") ? "&" : "?") + "t="
+                                + System.currentTimeMillis(), false);
+                        return UpdateManifest.parse(json);
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                }, SOURCE_POOL));
+            }
             String lastError = null;
             StringBuilder tried = new StringBuilder();
-            for (String source : MANIFEST_SOURCES) {
+            List<UpdateManifest> answered = new ArrayList<>();
+            for (int i = 0; i < pending.size(); i++) {
                 if (closed) return;
                 try {
-                    String json = readText(source + (source.contains("?") ? "&" : "?") + "t="
-                            + System.currentTimeMillis(), false);
-                    manifest = UpdateManifest.parse(json);
-                    break;
+                    answered.add(pending.get(i).get(SOURCE_WAIT_MS, TimeUnit.MILLISECONDS));
                 } catch (Exception e) {
-                    lastError = describe(e);
-                    tried.append(sourceOf(source)).append("：").append(lastError).append('\n');
+                    Throwable cause = (e instanceof ExecutionException) ? e.getCause() : e;
+                    lastError = describe(cause);
+                    tried.append(sourceOf(MANIFEST_SOURCES[i])).append("：").append(lastError).append('\n');
                 }
             }
+            UpdateManifest manifest = newestOf(answered);
             if (manifest == null) {
                 final String detail = tried.length() > 0 ? tried.toString().trim() : lastError;
                 prefs.edit()
@@ -518,6 +552,27 @@ public final class AppUpdater {
         if (c != null) c.disconnect();
         dismissDialog();
         io.shutdownNow();
+    }
+
+    // ---------------------------------------------------------------- selection
+
+    /**
+     * The newest manifest among the sources that answered, or {@code null} when none did.
+     *
+     * <p>This replaced "the first source that answered". That rule was wrong exactly when the
+     * sources were out of step — which is the normal state of a mirror plus an upstream: the mirror
+     * is queried first, so a mirror still serving the previous release made the app say "已是最新"
+     * while a newer manifest sat one source away. Nothing threw, nothing logged; the update simply
+     * never appeared. A source that errors is an absent voice, not the answer.
+     */
+    static UpdateManifest newestOf(Collection<UpdateManifest> candidates) {
+        UpdateManifest newest = null;
+        for (UpdateManifest candidate : candidates) {
+            if (candidate != null && (newest == null || candidate.versionCode > newest.versionCode)) {
+                newest = candidate;
+            }
+        }
+        return newest;
     }
 
     // ---------------------------------------------------------------- test hooks

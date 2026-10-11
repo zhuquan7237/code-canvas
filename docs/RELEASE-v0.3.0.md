@@ -138,7 +138,7 @@ v0.2.0 之后，能力已经够了：能渲染、能设外观、能管文件。�
 
 | 项目 | 结果 |
 | --- | --- |
-| 单元测试 | **141 项全过，0 失败**（19 个类；v0.2.0 是 133。新增 `ClipboardCodeOfferTest`，`ColorContrastTest` 扩充约束） |
+| 单元测试 | **147 项全过，0 失败**（20 个类；v0.2.0 是 133。新增 `ClipboardCodeOfferTest`、`UpdateSourceSelectionTest`，`ColorContrastTest` 扩充约束） |
 | 仪器测试 | **59 项全过，0 失败**（19 个类，480 秒，Android 模拟器实跑） |
 | 构建 | `assembleDebug` 成功 |
 | 实机核对 | 模拟器截图逐项比对浅色/夜间配色、抽屉、动作面板、卡片圆角与阴影 |
@@ -150,6 +150,14 @@ v0.2.0 之后，能力已经够了：能渲染、能设外观、能管文件。�
 1. **剪贴板横幅对任意文本弹出** —— `AiCodeExtractor.extract()` 永不返回空。修法：`hasFencedBlock()`。
 2. **夜间三级文字对比度不足** —— 浮起面上只有 4.12:1，肉眼看不出来，是算出来的。修法：`#93A1B5`。改完写进 `ColorContrastTest`，防止再漂。
 3. **抽屉断言偶发失败** —— 面板 220ms 滑入动画没结束就断言。这是测试的错，不是实现的错（没有放宽断言，是等了动画）。
+4. **更新通道在镜像落后时静默失效** —— 最隐蔽的一条，因为它**不报错**。
+   应用按顺序试三个清单源，取第一个能解析的就停，而自建镜像排在第一位。于是只要镜像落后一个版本，
+   应用一边显示"已是最新"、一边把真正的新版本留在下一个源上：没有异常、没有日志、没有提示。
+   触发它的是"发布时忘记同步镜像"这种最常见的操作失误——这次发布就踩了。
+   修法：三个源**并行**查询、取 `versionCode` 最大的那份（`AppUpdater.newestOf`），
+   配 6 项回归测试，其中一条就是"镜像落后不得掩盖新版本"。
+   并行还顺带修了速度：顺序试的时候，国内网络下 GitHub 的两个源是**慢慢失败**的，
+   一次例行检查会变成二十秒的"检查中…"；并行之后总耗时约等于最慢的那一个源。
 
 > 有一次视觉评审说"夜间危险行对比度不足"，实际测算是 7.74:1，不成立；
 > 但同一次评审引出的第 2 条是真问题。**评审可以作为线索，不能作为结论——数值才是结论。**
@@ -162,15 +170,26 @@ v0.2.0 之后，能力已经够了：能渲染、能设外观、能管文件。�
 - **无障碍仍未系统化**：内容描述逐处补过，但没有走完整的 TalkBack 回归。
 - 抽屉没有做手势跟手拖拽，只做点击与边缘滑出。
 
-## 构建
+## 安装
 
-签名密钥不在仓库内，所以这一版没有附打包好的 APK。从源码构建：
+- **GitHub Release（已签名，可直接覆盖安装 0.1.0–0.2.0，数据不丢）**：
+  https://github.com/zhuquan7237/code-canvas/releases/download/v0.3.0/code-canvas-0.3.0.apk
+- 自建镜像 `relay.zhuquan.xyz/dl/code-canvas-0.3.0.apk`：同一份包，待同步。
+- 签名证书 SHA-256 `a6f25e1a…f553d19b6`，与 0.1.0 起各版本一致——所以不需要先卸载旧版。
+
+应用内更新只读得到已经同步了的清单；如果"检查更新"没反应，先确认镜像上的
+`codecanvas-latest.json` 是否已经指向 0.3.0（`docs/update/latest.json` 是那份清单的源）。
+
+## 构建
 
 ```sh
 git clone https://github.com/zhuquan7237/code-canvas.git
 cd code-canvas
 ./gradlew assembleDebug      # 产物：app/build/outputs/apk/debug/app-debug.apk
-./gradlew testDebugUnitTest  # 141 项单元测试
+./gradlew testDebugUnitTest  # 147 项单元测试
 ```
+
+正式包需要仓库外的 `signing.properties`（`storeFile` / `storePassword` / `keyAlias` / `keyPassword`），
+然后 `./gradlew assembleRelease`。
 
 设计规范见 [`docs/DESIGN.md`](DESIGN.md)。
