@@ -12,7 +12,7 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="brand-lockup">
-          <div class="brand-logo" aria-hidden="true">&lt;/&gt;</div>
+          <img src="icon-64.png" class="brand-logo-img" alt="代码画布" />
           <div>
             <div class="brand-title">代码画布</div>
             <div class="brand-subtitle" id="catalogCountLabel">全部作品 · 0</div>
@@ -24,9 +24,9 @@
       </div>
 
       <div class="sidebar-actions">
-        <button class="btn-primary hero-paste-btn" id="btnQuickPaste" title="从剪贴板智能提取代码并预览 (Ctrl+Shift+V)">
+        <button class="btn-primary hero-paste-btn" id="btnQuickPaste" title="从剪贴板智能提取代码并预览 (Alt+V / Ctrl+Shift+V)">
           <svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
-          <span>粘贴并预览</span>
+          <span>粘贴并预览 (Alt+V)</span>
         </button>
         <div class="sidebar-sub-actions">
           <button class="btn-subtle" id="btnNewDoc" title="新建空白画布 (Ctrl+N)">
@@ -65,15 +65,16 @@
           <button class="segment-btn" data-theme-mode="dark" title="深色模式">深色</button>
           <button class="segment-btn active" data-theme-mode="system" title="跟随系统外观">系统</button>
         </div>
-        <button class="icon-btn" id="btnOpenStorage" title="打开本地数据存储文件夹">
-          <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <button class="icon-btn settings-trigger-btn" id="btnOpenSettings" title="设置与同步更新">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="update-dot hidden" id="updateBadgeDot"></span>
         </button>
       </div>
     </aside>
 
     <!-- Main Workbench -->
     <main class="workbench">
-      <!-- Top Header Bar (Integrated with Windows TitleBarOverlay) -->
+      <!-- Top Header Bar -->
       <header class="topbar" id="topbar">
         <div class="topbar-left">
           <button class="icon-btn hidden" id="btnExpandSidebar" title="展开侧边目录 (Ctrl+B)">
@@ -147,11 +148,11 @@
               </button>
               <div class="font-size-group" title="调整代码字号">
                 <button class="tool-chip compact" id="btnFontDec" aria-label="缩小字号">A-</button>
-                <span class="font-size-val" id="fontSizeLabel">13px</span>
+                <span class="font-size-val" id="fontSizeLabel">12px</span>
                 <button class="tool-chip compact" id="btnFontInc" aria-label="放大字号">A+</button>
               </div>
             </div>
-            <div class="code-stats" id="codeStats">13 行 · 440 字符</div>
+            <div class="code-stats" id="codeStats">13 行 · 439 字符</div>
           </div>
 
           <!-- Inline Find & Replace Bar -->
@@ -208,7 +209,7 @@
     </main>
   </div>
 
-  <!-- Unified Modal Dialog (Rename / New / Multi-block Picker / Delete Confirm) -->
+  <!-- Unified Input Modal Dialog (Rename / New) -->
   <div class="modal-backdrop hidden" id="modalBackdrop">
     <div class="modal-card" id="modalCard" role="dialog" aria-modal="true">
       <h3 class="modal-title" id="modalTitle">标题</h3>
@@ -217,6 +218,85 @@
       <div class="modal-actions" id="modalActions">
         <button class="btn-subtle" id="modalCancelBtn">取消</button>
         <button class="btn-primary" id="modalConfirmBtn">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings & Sync Update Modal -->
+  <div class="modal-backdrop hidden" id="settingsBackdrop">
+    <div class="modal-card settings-card" role="dialog" aria-modal="true">
+      <div class="settings-header">
+        <div class="settings-brand">
+          <img src="icon-64.png" class="settings-logo" alt="代码画布" />
+          <div>
+            <h3 class="modal-title">设置与同步更新</h3>
+            <p class="modal-subtitle" id="settingsVersionText">代码画布 Windows 轻量版 · v0.5.0</p>
+          </div>
+        </div>
+        <button class="icon-btn compact" id="btnCloseSettings" title="关闭">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">零摩擦快速唤起（免回桌面双击）</div>
+        <label class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">复制 AI 代码时弹出右下角「灵动预览浮窗」</div>
+            <div class="setting-desc">在浏览器或聊天软件复制 HTML / SVG / XML 代码时，右下角滑出 4 秒轻提示，点击即刻预览</div>
+          </div>
+          <input type="checkbox" class="setting-switch" id="chkClipboardFloat" checked />
+        </label>
+        <label class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">全局一键闪现快捷键 <code>Alt + V</code></div>
+            <div class="setting-desc">在任意界面按下 Alt+V（或 Ctrl+Shift+V），立即从后台闪现窗口并渲染剪贴板代码</div>
+          </div>
+          <input type="checkbox" class="setting-switch" id="chkGlobalHotkey" checked />
+        </label>
+        <label class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">关闭窗口时最小化到系统托盘待命</div>
+            <div class="setting-desc">保持极低内存后台常驻，确保灵动浮窗与 Alt+V 随时 0 秒瞬开</div>
+          </div>
+          <input type="checkbox" class="setting-switch" id="chkCloseToTray" checked />
+        </label>
+        <label class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">开机自动静默驻留系统托盘</div>
+            <div class="setting-desc">登录 Windows 后自动在右下角托盘静默待命，不弹主窗口打扰</div>
+          </div>
+          <input type="checkbox" class="setting-switch" id="chkLaunchAtLogin" />
+        </label>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">版本同步更新（自建高速源 + GitHub Release）</div>
+        <label class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">启动时自动同步检查 GitHub 新版本</div>
+            <div class="setting-desc">优先走国内直连镜像 relay.zhuquan.xyz，GitHub Release 自动兜底</div>
+          </div>
+          <input type="checkbox" class="setting-switch" id="chkAutoUpdate" checked />
+        </label>
+        <div class="update-card" id="updateStatusCard">
+          <div class="update-status-main">
+            <div class="update-status-title" id="updateStatusTitle">当前版本 v0.5.0（原生超轻量引擎）</div>
+            <div class="update-status-sub" id="updateStatusSub">点击右侧「检查更新」与 GitHub 保持同步</div>
+          </div>
+          <div class="update-actions">
+            <button class="btn-subtle" id="btnCheckUpdate">检查更新</button>
+            <button class="btn-primary btn-sm hidden" id="btnInstallUpdate">一键同步升级</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-footer">
+        <button class="btn-subtle" id="btnOpenStorage">
+          <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>打开本地作品目录</span>
+        </button>
+        <button class="btn-primary" id="btnDoneSettings">完成</button>
       </div>
     </div>
   </div>

@@ -621,7 +621,90 @@
 </html>`;
   }
 
+  function detectClipboardSummary(rawText) {
+    if (!looksLikeClipboardCode(rawText)) {
+      return { isCode: false, kind: RenderKind.RAW, label: '', ext: '.txt', code: '' };
+    }
+    const blocks = extractCodeBlocks(rawText);
+    const code = blocks.length > 0 ? blocks[0].code : (extractMarkupRegion(rawText) || String(rawText).trim());
+    const lang = blocks.length > 0 ? blocks[0].language : '';
+    const ext = inferExtension(code, lang);
+    const kind = detectRenderKind('clip' + ext, code);
+    const labelMap = {
+      [RenderKind.SVG]: 'SVG 矢量图形',
+      [RenderKind.HTML]: 'HTML 交互画布',
+      [RenderKind.XML]: 'XML 结构配置',
+      [RenderKind.RAW]: '代码片段'
+    };
+    return {
+      isCode: true,
+      kind,
+      label: labelMap[kind] || '代码片段',
+      ext,
+      code
+    };
+  }
+
+  function trustedDesktopSetupUrl(urlStr) {
+    try {
+      const u = new URL(String(urlStr || '').trim());
+      if (u.protocol !== 'https:' || u.username || u.password || u.port) return false;
+      const host = u.hostname.toLowerCase();
+      const pathname = u.pathname;
+      if (host === 'relay.zhuquan.xyz') {
+        return pathname.startsWith('/dl/') && pathname.toLowerCase().endsWith('.exe');
+      }
+      if (host === 'github.com') {
+        return pathname.startsWith('/zhuquan7237/code-canvas/releases/download/') && pathname.toLowerCase().endsWith('.exe');
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function parseDesktopUpdateManifest(jsonStr) {
+    const obj = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+    if (!obj || obj.schemaVersion !== 1) {
+      throw new Error('更新清单版本不支持');
+    }
+    const versionCode = Number(obj.versionCode);
+    const versionName = String(obj.versionName || '').trim();
+    const setupUrl = String(obj.setupUrl || obj.apkUrl || '').trim();
+    const fallbackRaw = String(obj.fallbackSetupUrl || obj.fallbackApkUrl || '').trim();
+    const sha256 = String(obj.sha256 || '').trim().toLowerCase();
+    const size = Number(obj.size);
+    const notes = String(obj.notes || '');
+
+    if (!versionCode || versionCode <= 0 || !/^\d+\.\d+\.\d+$/.test(versionName) || !/^[0-9a-f]{64}$/.test(sha256) || !size || size <= 0) {
+      throw new Error('更新清单字段无效');
+    }
+    if (!trustedDesktopSetupUrl(setupUrl)) {
+      throw new Error('不受信任的更新地址');
+    }
+    const downloadUrls = [setupUrl];
+    if (fallbackRaw && trustedDesktopSetupUrl(fallbackRaw) && fallbackRaw !== setupUrl) {
+      downloadUrls.push(fallbackRaw);
+    }
+    return {
+      schemaVersion: 1,
+      versionCode,
+      versionName,
+      setupUrl,
+      fallbackSetupUrl: downloadUrls[1] || null,
+      downloadUrls,
+      sha256,
+      size,
+      notes
+    };
+  }
+
+  const CURRENT_VERSION = '0.5.0';
+  const CURRENT_VERSION_CODE = 50;
+
   return {
+    CURRENT_VERSION,
+    CURRENT_VERSION_CODE,
     RenderKind,
     detectRenderKind,
     hasFencedBlock,
@@ -635,6 +718,9 @@
     parseXmlStructure,
     buildXmlInspectorHtml,
     buildThumbnailMarkup,
-    buildPreviewDocument
+    buildPreviewDocument,
+    detectClipboardSummary,
+    trustedDesktopSetupUrl,
+    parseDesktopUpdateManifest
   };
 });

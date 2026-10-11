@@ -2,30 +2,36 @@
 
 把 AI 给出的代码，变成看得见的作品。提供轻量原生 Android 应用（使用系统 WebView，不打包浏览器内核）与 Windows 电脑版（`desktop/`）。
 
-[下载最新 Android APK (v0.4.0)](https://relay.zhuquan.xyz/dl/code-canvas-0.4.0.apk)（自建源，国内可直连）· [下载 Windows 电脑版 EXE (v0.4.0)](https://github.com/zhuquan7237/code-canvas/releases/download/v0.4.0/CodeCanvas-Desktop-0.4.0-Portable.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
+[下载最新 Android APK (v0.4.0)](https://relay.zhuquan.xyz/dl/code-canvas-0.4.0.apk)（自建源，国内可直连）· [下载 Windows 电脑版安装包 (v0.5.0 · 793KB)](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
 
 ## 怎么用
 
 1. 在 AI 聊天里复制 HTML、SVG 或 XML 代码。
-2. 点 **粘贴并预览**，不必先理解文件后缀。
+2. 点 **粘贴并预览**（Windows 电脑版可直接点击右下角弹出的 **「灵动预览浮窗」** 或在任意窗口按下全局快捷键 **`Alt + V`**），不必先理解文件后缀。
 3. 多段代码分别选择，不擅自拼接 HTML/CSS/JS。
 4. 点作品名称重命名；导出为标准文件，其他编辑器和浏览器也能使用。
 
 已有作品默认打开预览，需要修改时再切「代码」。空白新建仍直接编辑。主页不显示代码片段；缩略图由应用在后台为每个作品渲染（没打开过也会生成），宽 480，随主题变化，临时缓存最多 40 张，系统可清理。在其他应用里打开或分享 `.html/.htm/.svg/.xml/.txt` 文件会直接进预览。
 
-## Windows 电脑版 (`desktop/`)
+## Windows 电脑版 (`desktop/` · v0.5.0 极速原生版)
 
-在桌面端提供与手机版一致的 Atelier 深浅色双主题与三栏工作台（左侧目录筛选抽屉 + 中栏行号代码编辑器 + 右栏实时沙盒预览，支持一键切换「分栏 / 仅代码 / 仅预览」）：
+采用 **原生 C# + 系统内置 Edge WebView2** 架构打造，彻底告别臃肿的 Chromium 打包（安装包从 81.5 MB 缩减至 **793 KB**，缩减 **99%**），实现毫秒级秒开与极低内存占用：
 
-- **直接下载免安装单文件 EXE**：前往 [GitHub Release v0.4.0](https://github.com/zhuquan7237/code-canvas/releases/tag/v0.4.0) 下载 `CodeCanvas-Desktop-0.4.0-Portable.exe` 双击即可运行。
-- **源码运行 / 自行打包**：
-  ```sh
-  cd desktop
-  npm install
-  npm start        # 启动桌面窗口
-  npm run dist:win # 打包 Windows 免安装单文件 EXE (dist/CodeCanvas-Desktop-0.4.0-Portable.exe)
-  ```
-- **浏览器零依赖直开**：直接用桌面浏览器打开 `desktop/src/index.html` 即可离线使用（自动切换至本地存储兜底）。
+- **下载标准安装包（自动创建桌面快捷方式）**：
+  - 国内高速直连：[CodeCanvas-Setup-0.5.0.exe (793 KB)](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe)
+  - GitHub Release：[GitHub Release v0.5.0](https://github.com/zhuquan7237/code-canvas/releases/tag/v0.5.0)
+- **3 合 1 零摩擦快速打开（免回桌面双击图标）**：
+  1. **右下角「灵动预览浮窗」**：在浏览器或聊天软件中复制 AI 生成的 HTML/SVG/XML 代码时，屏幕右下角自动滑出胶囊轻提示（不抢焦点，普通聊天文本不触发），点击一下立即打开代码画布并渲染预览。
+  2. **全局快捷键 `Alt + V`（及 `Ctrl + Shift + V`）**：在任意软件界面按下 `Alt + V`，主窗口 0 秒闪现到前台并自动提取渲染剪贴板代码。
+  3. **系统托盘常驻 + 开机自启**：关闭主窗口时自动最小化至右下角系统托盘待命，随时瞬开。
+- **设置内一键同步更新**：支持启动自动检测或手动点击「检查更新」，与 `relay.zhuquan.xyz` 国内镜像及 GitHub Release 保持同步，一键下载校验并静默升级。
+
+## v0.5.0 本次更新（Windows 极轻量原生安装包 · 桌面快捷方式 · 灵动浮窗 + Alt+V 零摩擦唤醒 · 折光画架专属图标 · 同步更新）
+
+- **793 KB 极轻量原生安装包 + 桌面快捷方式**：用 Windows 原生 C# + 系统 WebView2 架构替代原本 81.5 MB 的 Electron 便携包，消除每次启动解压 140 MB 临时目录的耗时，冷启动缩短至 0.5 秒内，托盘唤醒 0 秒瞬开；安装向导自动在桌面创建 `代码画布.lnk` 快捷方式及开始菜单入口。
+- **3 合 1 零摩擦快速打开**：内置系统级剪贴板监听与右下角无焦点「灵动预览浮窗」、全局 `Alt + V` / `Ctrl + Shift + V` 快捷键一键唤醒预览、系统托盘常驻与开机自启开关。
+- **全新原创「折光画架 (Prism Canvas)」专属图标**：替换大众化的通用 `</>` 图标，采用代码光束穿过折光棱镜画框化作几何画面的原创标识。
+- **设置与 GitHub 同步更新中心**：左下角新增设置面板，支持一键检查更新、SHA-256 校验与自动覆盖升级。
 
 ## v0.4.0 本次更新（圆角裁切修复 · 抽屉与转场动效 · 齿轮与按钮重塑 · 更新源修复 · Windows 电脑版）
 

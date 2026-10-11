@@ -56,4 +56,37 @@ assert.strictEqual(typeof Core.buildThumbnailMarkup, 'function', 'Core.buildThum
 const svgThumb = Core.buildThumbnailMarkup({ title: 'icon.svg', content: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>' }, Core.RenderKind.SVG);
 assert.ok(svgThumb.includes('<svg'), 'SVG thumbnail must embed miniature SVG artwork');
 
-console.log('✓ All Code Canvas Desktop core unit tests passed (20 assertions).');
+// 7. Smart Clipboard Summary for Floating Quick-Preview Pill
+assert.strictEqual(typeof Core.detectClipboardSummary, 'function', 'Core.detectClipboardSummary must exist');
+assert.strictEqual(Core.detectClipboardSummary('普通微信聊天文字，不含代码').isCode, false);
+const svgSummary = Core.detectClipboardSummary('```svg\n<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40"/></svg>\n```');
+assert.strictEqual(svgSummary.isCode, true);
+assert.strictEqual(svgSummary.kind, Core.RenderKind.SVG);
+assert.ok(svgSummary.label.includes('SVG'));
+
+// 8. Desktop Update Manifest Validation & Trusted Host Check
+assert.strictEqual(typeof Core.parseDesktopUpdateManifest, 'function', 'Core.parseDesktopUpdateManifest must exist');
+const validManifest = Core.parseDesktopUpdateManifest(JSON.stringify({
+  schemaVersion: 1,
+  versionName: '0.5.0',
+  versionCode: 50,
+  setupUrl: 'https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe',
+  fallbackSetupUrl: 'https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.0/CodeCanvas-Setup-0.5.0.exe',
+  sha256: 'a'.repeat(64),
+  size: 512000,
+  notes: 'v0.5.0 轻量原生版'
+}));
+assert.strictEqual(validManifest.versionCode, 50);
+assert.strictEqual(validManifest.downloadUrls.length, 2);
+assert.throws(() => {
+  Core.parseDesktopUpdateManifest(JSON.stringify({
+    schemaVersion: 1,
+    versionName: '0.5.0',
+    versionCode: 50,
+    setupUrl: 'https://evil.example.com/malware.exe',
+    sha256: 'a'.repeat(64),
+    size: 512000
+  }));
+}, /不受信任/);
+
+console.log('✓ All Code Canvas Desktop core unit tests passed (28 assertions).');

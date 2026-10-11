@@ -118,11 +118,16 @@
           theme: 'system',
           viewMode: 'split',
           clipboardAutoDetect: true,
+          clipboardFloatEnabled: true,
+          globalHotkeyEnabled: true,
+          closeToTray: true,
+          launchAtLogin: false,
+          autoCheckUpdate: true,
           alwaysOnTop: false,
           showGrid: false,
           wordWrap: true,
-          fontSize: 12,
-          splitRatio: 0.50,
+          fontSize: 13,
+          splitRatio: 0.46,
           systemDark: window.matchMedia('(prefers-color-scheme: dark)').matches
         };
         try { return Object.assign(defaults, JSON.parse(localStorage.getItem(PREFS_KEY) || '{}')); } catch (e) { return defaults; }
@@ -133,7 +138,30 @@
         try { localStorage.setItem(PREFS_KEY, JSON.stringify(next)); } catch (e) {}
         return next;
       },
-      openStorageDir: async () => {}
+      openStorageDir: async () => {},
+      checkForUpdate: async () => {
+        const urls = [
+          'https://relay.zhuquan.xyz/dl/codecanvas-desktop-latest.json?t=' + Date.now(),
+          'https://raw.githubusercontent.com/zhuquan7237/code-canvas/main/docs/update/desktop-latest.json?t=' + Date.now()
+        ];
+        for (const u of urls) {
+          try {
+            const res = await fetch(u, { cache: 'no-store' });
+            if (res.ok) {
+              const text = await res.text();
+              return Core.parseDesktopUpdateManifest(text, Core.CURRENT_VERSION_CODE);
+            }
+          } catch (e) {}
+        }
+        return { status: 'error', message: '无法连接更新源，请检查网络后重试' };
+      },
+      installUpdate: async (info) => {
+        if (info && info.setupUrl) {
+          window.open(info.setupUrl, '_blank', 'noopener');
+          return { ok: true, mode: 'browser' };
+        }
+        return { ok: false, message: '未找到安装包链接' };
+      }
     };
   }
 
@@ -145,6 +173,11 @@
     theme: 'system',
     viewMode: 'split',
     clipboardAutoDetect: true,
+    clipboardFloatEnabled: true,
+    globalHotkeyEnabled: true,
+    closeToTray: true,
+    launchAtLogin: false,
+    autoCheckUpdate: true,
     alwaysOnTop: false,
     showGrid: false,
     wordWrap: true,
@@ -152,6 +185,7 @@
     splitRatio: 0.46,
     systemDark: true
   };
+  let latestUpdateInfo = null;
   let lastHandledClipHash = '';
   let bannerCandidateText = '';
   let saveTimer = null;
@@ -523,20 +557,198 @@
     });
   }
 
+  // Settings & Sync Update Modal Elements
+  const settingsBackdrop = document.getElementById('settingsBackdrop');
+  const btnOpenSettings = document.getElementById('btnOpenSettings');
+  const btnCloseSettings = document.getElementById('btnCloseSettings');
+  const btnDoneSettings = document.getElementById('btnDoneSettings');
+  const chkClipboardFloat = document.getElementById('chkClipboardFloat');
+  const chkGlobalHotkey = document.getElementById('chkGlobalHotkey');
+  const chkCloseToTray = document.getElementById('chkCloseToTray');
+  const chkLaunchAtLogin = document.getElementById('chkLaunchAtLogin');
+  const chkAutoUpdate = document.getElementById('chkAutoUpdate');
+  const updateStatusTitle = document.getElementById('updateStatusTitle');
+  const updateStatusSub = document.getElementById('updateStatusSub');
+  const btnCheckUpdate = document.getElementById('btnCheckUpdate');
+  const btnInstallUpdate = document.getElementById('btnInstallUpdate');
+  const updateBadgeDot = document.getElementById('updateBadgeDot');
+
+  function syncSettingsUi() {
+    if (!chkClipboardFloat) return;
+    chkClipboardFloat.checked = prefs.clipboardFloatEnabled !== false;
+    chkGlobalHotkey.checked = prefs.globalHotkeyEnabled !== false;
+    chkCloseToTray.checked = prefs.closeToTray !== false;
+    chkLaunchAtLogin.checked = Boolean(prefs.launchAtLogin);
+    chkAutoUpdate.checked = prefs.autoCheckUpdate !== false;
+  }
+
+  function openSettingsModal() {
+    syncSettingsUi();
+    settingsBackdrop.classList.remove('hidden');
+  }
+
+  function closeSettingsModal() {
+    settingsBackdrop.classList.add('hidden');
+  }
+
+  async function runUpdateCheck(silentIfUpToDate) {
+    if (updateStatusSub) updateStatusSub.textContent = '正在同步检查 GitHub 与国内高速镜像更新…';
+    if (btnCheckUpdate) btnCheckUpdate.disabled = true;
+    try {
+      let result = null;
+      if (typeof Bridge.checkForUpdate === 'function') {
+        result = await Bridge.checkForUpdate();
+      }
+      if (!result || result.status === 'error') {
+        const urls = [
+          'https://relay.zhuquan.xyz/dl/codecanvas-desktop-latest.json?t=' + Date.now(),
+          'https://raw.githubusercontent.com/zhuquan7237/code-canvas/main/docs/update/desktop-latest.json?t=' + Date.now()
+        ];
+        for (const u of urls) {
+          try {
+            const res = await fetch(u, { cache: 'no-store' });
+            if (res.ok) {
+              const txt = await res.text();
+              result = Core.parseDesktopUpdateManifest(txt, Core.CURRENT_VERSION_CODE);
+              if (result && result.status === 'ok') break;
+            }
+          } catch (e) {}
+        }
+      }
+      if (!result || result.status !== 'ok') {
+        if (updateStatusTitle) updateStatusTitle.textContent = `当前版本 v${Core.CURRENT_VERSION || '0.5.0'}（原生超轻量引擎）`;
+        if (updateStatusSub) updateStatusSub.textContent = (result && result.message) || '已与 GitHub 保持最新同步';
+        if (btnInstallUpdate) btnInstallUpdate.classList.add('hidden');
+        return;
+      }
+      latestUpdateInfo = result;
+      if (result.hasUpdate) {
+        if (updateBadgeDot) updateBadgeDot.classList.remove('hidden');
+        if (updateStatusTitle) {
+          updateStatusTitle.textContent = `✨ 发现新版本 v${result.versionName} (${Core.formatBytes(result.fileSizeBytes || 0)})`;
+          updateStatusTitle.style.color = 'var(--canvas-primary)';
+        }
+        if (updateStatusSub) {
+          updateStatusSub.textContent = result.changelog || '包含性能与体验优化，点击右侧按钮一键同步升级。';
+        }
+        if (btnInstallUpdate) {
+          btnInstallUpdate.textContent = `一键同步升级 v${result.versionName}`;
+          btnInstallUpdate.classList.remove('hidden');
+        }
+        if (!silentIfUpToDate) openSettingsModal();
+      } else {
+        if (updateBadgeDot) updateBadgeDot.classList.add('hidden');
+        if (updateStatusTitle) {
+          updateStatusTitle.textContent = `✓ 当前已是最新版本 v${Core.CURRENT_VERSION || '0.5.0'}（原生超轻量引擎）`;
+          updateStatusTitle.style.color = '';
+        }
+        if (updateStatusSub) {
+          updateStatusSub.textContent = '已与 GitHub Release 及国内高速源同步一致';
+        }
+        if (btnInstallUpdate) btnInstallUpdate.classList.add('hidden');
+      }
+    } finally {
+      if (btnCheckUpdate) btnCheckUpdate.disabled = false;
+    }
+  }
+
+  async function triggerInstallUpdate() {
+    if (!latestUpdateInfo || !latestUpdateInfo.setupUrl) return;
+    if (btnInstallUpdate) {
+      btnInstallUpdate.disabled = true;
+      btnInstallUpdate.textContent = '正在下载并校验更新包…';
+    }
+    if (updateStatusSub) {
+      updateStatusSub.textContent = '正在高速拉取更新包并准备自动重启升级…';
+    }
+    try {
+      if (typeof Bridge.installUpdate === 'function') {
+        const res = await Bridge.installUpdate(latestUpdateInfo);
+        if (res && res.ok) {
+          if (updateStatusSub) updateStatusSub.textContent = '更新包已就绪，正在启动安装程序…';
+          return;
+        }
+      }
+      window.open(latestUpdateInfo.setupUrl, '_blank', 'noopener');
+      if (updateStatusSub) updateStatusSub.textContent = '已开始下载更新安装包，完成后运行即可覆盖升级。';
+    } finally {
+      if (btnInstallUpdate) {
+        btnInstallUpdate.disabled = false;
+        btnInstallUpdate.textContent = `一键同步升级 v${latestUpdateInfo.versionName}`;
+      }
+    }
+  }
+
+  // Expose hooks for Native C# Host (Global Hotkey Alt+V / Floating Toast Click / Tray Menu)
+  window.__canvasNativeTriggerQuickPaste = (rawText) => {
+    quickPasteAndPreview(rawText);
+  };
+  window.__canvasNativeOpenSettings = () => {
+    openSettingsModal();
+  };
+  window.__canvasNativeCheckUpdate = () => {
+    openSettingsModal();
+    runUpdateCheck(false);
+  };
+
   async function init() {
     prefs = await Bridge.getPrefs();
     allDocs = await Bridge.listDocuments();
     applyViewModeUi(prefs.viewMode || 'split');
     applyThemeUi();
+    syncSettingsUi();
     applyFilters();
     initSplitter();
     if (allDocs.length > 0) {
       selectDocument(allDocs[0]);
     }
     checkClipboardOffer();
+    if (prefs.autoCheckUpdate !== false) {
+      setTimeout(() => runUpdateCheck(true), 1200);
+    }
   }
 
   // Event Listeners
+  if (btnOpenSettings) btnOpenSettings.addEventListener('click', openSettingsModal);
+  if (btnCloseSettings) btnCloseSettings.addEventListener('click', closeSettingsModal);
+  if (btnDoneSettings) btnDoneSettings.addEventListener('click', closeSettingsModal);
+  if (settingsBackdrop) {
+    settingsBackdrop.addEventListener('click', (e) => {
+      if (e.target === settingsBackdrop) closeSettingsModal();
+    });
+  }
+  if (chkClipboardFloat) {
+    chkClipboardFloat.addEventListener('change', async () => {
+      prefs = await Bridge.setPrefs({ clipboardFloatEnabled: chkClipboardFloat.checked });
+    });
+  }
+  if (chkGlobalHotkey) {
+    chkGlobalHotkey.addEventListener('change', async () => {
+      prefs = await Bridge.setPrefs({ globalHotkeyEnabled: chkGlobalHotkey.checked });
+    });
+  }
+  if (chkCloseToTray) {
+    chkCloseToTray.addEventListener('change', async () => {
+      prefs = await Bridge.setPrefs({ closeToTray: chkCloseToTray.checked });
+    });
+  }
+  if (chkLaunchAtLogin) {
+    chkLaunchAtLogin.addEventListener('change', async () => {
+      prefs = await Bridge.setPrefs({ launchAtLogin: chkLaunchAtLogin.checked });
+    });
+  }
+  if (chkAutoUpdate) {
+    chkAutoUpdate.addEventListener('change', async () => {
+      prefs = await Bridge.setPrefs({ autoCheckUpdate: chkAutoUpdate.checked });
+    });
+  }
+  if (btnCheckUpdate) {
+    btnCheckUpdate.addEventListener('click', () => runUpdateCheck(false));
+  }
+  if (btnInstallUpdate) {
+    btnInstallUpdate.addEventListener('click', triggerInstallUpdate);
+  }
+
   codeEditor.addEventListener('input', () => {
     updateGutterAndStats();
     scheduleSaveAndPreview();
@@ -721,6 +933,9 @@
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'v') {
       e.preventDefault();
       quickPasteAndPreview();
+    } else if (e.altKey && !e.ctrlKey && e.key.toLowerCase() === 'v') {
+      e.preventDefault();
+      quickPasteAndPreview();
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
       e.preventDefault();
       const collapsed = sidebar.classList.toggle('collapsed');
@@ -740,6 +955,8 @@
     } else if (e.shiftKey && e.altKey && e.key.toLowerCase() === 'f') {
       e.preventDefault();
       btnFormatCode.click();
+    } else if (e.key === 'Escape' && settingsBackdrop && !settingsBackdrop.classList.contains('hidden')) {
+      closeSettingsModal();
     }
   });
 

@@ -1,0 +1,10 @@
+{
+  "versionCode": 50,
+  "versionName": "0.5.0",
+  "setupUrl": "https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe",
+  "githubUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.0/CodeCanvas-Setup-0.5.0.exe",
+  "sha256": "f917a401c0eeafa903f4d03206a18b6a8b437fb37652db14e5edb0005dc42db2",
+  "fileSizeBytes": 812032,
+  "publishedAt": "2026-10-11T20:30:00+08:00",
+  "changelog": "1. 全新 Windows 极速原生安装包 (体积从 81.5MB 缩减至 792KB，毫秒级秒开，自动创建桌面快捷方式)\n2. 新增 3 合 1 零摩擦唤起：复制 AI 代码右下角弹出【灵动预览浮窗】+ 全局快捷键 Alt+V 一键唤醒 + 系统托盘常驻\n3. 全新原创【折光画架】专属图标与设置内一键同步更新功能"
+}

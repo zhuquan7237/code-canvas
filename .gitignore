@@ -26,3 +26,6 @@ app/build/
 /*.log
 desktop/node_modules/
 desktop/dist/
+desktop/native/stage/
+desktop/native/lib/
+desktop/assets/*.png
