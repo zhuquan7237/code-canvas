@@ -45,7 +45,7 @@ public class PreviewTransitionAndToolbarTest extends InstrumentationTestCase {
    EditText query=(EditText)findByDescription(box,"查找内容"),replacement=(EditText)findByDescription(box,"替换为");
    assertNotNull("查找框必须真实存在",query);assertNotNull("替换框必须真实存在",replacement);
    query.setText("alpha");replacement.setText("OMEGA");
-   dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+   com.nous.codecanvas.ui.CanvasConfirmDialog.confirmButton(dialog).performClick();
   });
   getInstrumentation().waitForIdleSync();
   runTestOnUiThread(()->assertEquals("全部替换必须真实生效","OMEGA beta OMEGA",((EditText)editor.findViewById(R.id.edit_code)).getText().toString()));

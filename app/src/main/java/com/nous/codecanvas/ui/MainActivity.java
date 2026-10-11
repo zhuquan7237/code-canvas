@@ -2,11 +2,13 @@ package com.nous.codecanvas.ui;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
@@ -19,6 +21,7 @@ import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -26,21 +29,25 @@ import android.widget.Toast;
 import com.nous.codecanvas.R;
 import com.nous.codecanvas.data.DocumentRepository;
 import com.nous.codecanvas.model.CanvasDocument;
-import com.nous.codecanvas.provider.CanvasFileProvider;
+import com.nous.codecanvas.util.AiCodeExtractor;
+import com.nous.codecanvas.util.CanvasPrefs;
+import com.nous.codecanvas.util.ClipboardCodeOffer;
 import com.nous.codecanvas.util.FileUtils;
+import com.nous.codecanvas.util.PreviewKey;
 import com.nous.codecanvas.util.RenderKind;
 import com.nous.codecanvas.util.RenderKindDetector;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 public class MainActivity extends Activity {
@@ -49,9 +56,17 @@ public class MainActivity extends Activity {
     /** Exporting straight from the list, so a card does not have to be opened in the editor first. */
     private static final int REQ_EXPORT_DOCUMENT = 1002;
 
+    /** Crossfade for a thumbnail that had to be generated during this visit. */
+    private static final int THUMB_FADE_MS = 180;
+    /** Key under which a row records the thumbnail it is currently showing. */
+    private static final int TAG_THUMB_BOUND = 0x7f0f0001;
+
     private final java.util.concurrent.ExecutorService thumbnailExecutor = java.util.concurrent.Executors.newFixedThreadPool(2);
+    /** Single worker for the clipboard read, so a slow clip can never stall the UI thread. */
+    private final java.util.concurrent.ExecutorService clipboardReadExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
     private DocumentRepository repository;
     private AlertDialog activeDialog;
+    private Dialog activeSheet;
     private ListView listDocuments;
     private android.widget.GridView gridDocuments;
     private com.nous.codecanvas.update.AppUpdater updater;
@@ -64,6 +79,30 @@ public class MainActivity extends Activity {
     private Button btnQuickPaste;
     private ImageButton btnNew;
     private ImageButton btnImport;
+
+    // --- clipboard auto-detect banner -----------------------------------------------------------
+    private View bannerClipboard;
+    private TextView bannerSnippet;
+    /** Content currently offered by the banner; null while the banner is hidden. */
+    private String bannerClipContent;
+    /** Hash of the last clip the user dismissed or imported, so it is not offered twice. */
+    private int lastHandledClipHash;
+
+    // --- multi-select ----------------------------------------------------------------------------
+    private final Set<String> selectedIds = new LinkedHashSet<>();
+    private boolean selectionMode;
+    private View selectionBar;
+    private TextView txtSelectionCount;
+
+    // --- catalog drawer ---------------------------------------------------------------------------
+    private View drawerRoot;
+    private View drawerPanel;
+    private ListView drawerList;
+    private TextView drawerSubtitle;
+    private LinearLayout drawerFilters;
+    private DrawerAdapter drawerAdapter;
+    /** null = 全部, otherwise a RenderKind name. */
+    private String typeFilter;
 
     private final List<CanvasDocument> allDocuments = new ArrayList<>();
     private final List<CanvasDocument> filteredDocuments = new ArrayList<>();
@@ -84,19 +123,19 @@ public class MainActivity extends Activity {
         final String sizeText;
         final RenderKind kind;
         DocumentPresentation(CanvasDocument doc, boolean dark) {
-            String content=doc.getContent();
-            previewKey=com.nous.codecanvas.util.PreviewKey.forDocument(doc.getId(),content,dark);
-            kind=RenderKindDetector.detect(doc.getTitle(),content);
-            int bytes=content.getBytes(StandardCharsets.UTF_8).length;
-            String size=bytes<1024 ? bytes+" B" : String.format(Locale.getDefault(),"%.1f KB",bytes/1024.0f);
-            int lines=content.isEmpty() ? 0 : content.split("\r\n|\r|\n",-1).length;
-            sizeText=size+" · "+lines+" 行";
+            String content = doc.getContent();
+            previewKey = PreviewKey.forDocument(doc.getId(), content, dark);
+            kind = RenderKindDetector.detect(doc.getTitle(), content);
+            int bytes = content.getBytes(StandardCharsets.UTF_8).length;
+            String size = bytes < 1024 ? bytes + " B" : String.format(Locale.getDefault(), "%.1f KB", bytes / 1024.0f);
+            int lines = content.isEmpty() ? 0 : content.split("\r\n|\r|\n", -1).length;
+            sizeText = size + " · " + lines + " 行";
         }
     }
 
-    private java.util.Map<String,DocumentPresentation> preparePresentations(List<CanvasDocument> docs, boolean dark) {
-        java.util.Map<String,DocumentPresentation> result=new java.util.HashMap<>();
-        for(CanvasDocument doc:docs) result.put(doc.getId(),new DocumentPresentation(doc,dark));
+    private java.util.Map<String, DocumentPresentation> preparePresentations(List<CanvasDocument> docs, boolean dark) {
+        java.util.Map<String, DocumentPresentation> result = new java.util.HashMap<>();
+        for (CanvasDocument doc : docs) result.put(doc.getId(), new DocumentPresentation(doc, dark));
         return result;
     }
 
@@ -128,7 +167,6 @@ public class MainActivity extends Activity {
 
         repository = new DocumentRepository(this);
         appearanceAtCreate = com.nous.codecanvas.util.AppearanceManager.getMode(this);
-        // Seed default sample documents if cold start on new device
         try {
             repository.seedDefaultTemplatesIfEmpty();
         } catch (Exception e) {
@@ -156,21 +194,15 @@ public class MainActivity extends Activity {
         String action = intent.getAction();
         Uri data = intent.getData();
         if (Intent.ACTION_VIEW.equals(action) && data != null) {
-            // Hold on to the grant: the Uri is handed to us once, but the import finishes later and
-            // survives a recreation. Without this the read can fail for no visible reason.
             try {
                 getContentResolver().takePersistableUriPermission(data, Intent.FLAG_GRANT_READ_URI_PERMISSION);
             } catch (Exception ignored) {
-                // Most providers do not offer a persistable grant; the transient one still works.
             }
             String key = data.toString();
-            if (key.equals(handledIncomingUri)) return;   // a recreation must not import twice
+            if (key.equals(handledIncomingUri)) return;
             handledIncomingUri = key;
             importFromUri(data);
         } else if (Intent.ACTION_SEND.equals(action)) {
-            // A shared file ("分享" -> 代码画布) arrives as EXTRA_STREAM, not as text. Chat apps do
-            // this for generated .html/.svg attachments, which is the whole point of being in the
-            // share sheet — reading only EXTRA_TEXT dropped those on the floor.
             Uri stream = intent.getParcelableExtra(Intent.EXTRA_STREAM);
             if (stream != null) {
                 try {
@@ -187,10 +219,7 @@ public class MainActivity extends Activity {
             String shared = intent.getStringExtra(Intent.EXTRA_TEXT);
             if (shared != null && !shared.trim().isEmpty()) {
                 pendingSharedText = shared;
-                // Another app handing us code should land in the same place as the paste button:
-                // extracted, named, and opened for preview.
-                java.util.List<com.nous.codecanvas.util.AiCodeExtractor.CodeBlock> blocks =
-                        com.nous.codecanvas.util.AiCodeExtractor.extract(shared);
+                List<AiCodeExtractor.CodeBlock> blocks = AiCodeExtractor.extract(shared);
                 if (blocks.isEmpty()) {
                     createAndLaunchQuickPaste(shared, "");
                 } else {
@@ -210,15 +239,27 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Appearance can change while the settings screen is on top. This Activity pinned its own
-        // uiMode at onCreate, so a changed preference needs a full recreate to re-resolve
-        // res/values-night/* - reloading the list alone would leave the old palette in place.
         if (appearanceAtCreate != com.nous.codecanvas.util.AppearanceManager.getMode(this)) {
             recreate();
             return;
         }
         loadDocuments();
-        if(updater!=null) updater.onResume();
+        if (updater != null) updater.onResume();
+        // The visit almost always starts with code already on the clipboard; ask once, politely.
+        maybeOfferClipboardBanner();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (selectionMode) {
+            exitSelectionMode();
+            return;
+        }
+        if (drawerRoot != null && drawerRoot.getVisibility() == View.VISIBLE) {
+            closeDrawer();
+            return;
+        }
+        super.onBackPressed();
     }
 
     private void initViews() {
@@ -227,7 +268,6 @@ public class MainActivity extends Activity {
         viewEmpty = findViewById(R.id.view_empty);
         editSearch = findViewById(R.id.edit_search);
         btnQuickPaste = findViewById(R.id.btn_quick_paste_preview);
-        // 空态里的两个入口走的是同一条路径，不另起一套逻辑
         View emptyPaste = findViewById(R.id.btn_empty_paste);
         if (emptyPaste != null) emptyPaste.setOnClickListener(v -> performQuickPasteAndPreview());
         View emptyImport = findViewById(R.id.btn_empty_import);
@@ -235,48 +275,50 @@ public class MainActivity extends Activity {
         btnNew = findViewById(R.id.btn_new);
         btnImport = findViewById(R.id.btn_import);
 
+        bannerClipboard = findViewById(R.id.banner_clipboard);
+        bannerSnippet = findViewById(R.id.banner_snippet);
+        findViewById(R.id.btn_banner_import).setOnClickListener(v -> importBannerClip());
+        findViewById(R.id.btn_banner_dismiss).setOnClickListener(v -> dismissClipboardBanner(true));
+
+        selectionBar = findViewById(R.id.selection_bar);
+        txtSelectionCount = findViewById(R.id.txt_selection_count);
+        findViewById(R.id.btn_selection_close).setOnClickListener(v -> exitSelectionMode());
+        findViewById(R.id.btn_selection_all).setOnClickListener(v -> toggleSelectAll());
+        findViewById(R.id.btn_selection_share).setOnClickListener(v -> shareSelection());
+        findViewById(R.id.btn_selection_delete).setOnClickListener(v -> confirmDeleteSelection());
+
+        setupDrawer();
+
         adapter = new DocumentAdapter();
         listDocuments.setAdapter(adapter);
         gridAdapter = new DocumentAdapter();
         gridDocuments.setAdapter(gridAdapter);
-        setGrid(getPreferences(0).getBoolean("grid",false));
+        setGrid(getPreferences(0).getBoolean("grid", false));
         findViewById(R.id.btn_layout_list).setOnClickListener(v -> setGrid(false));
         findViewById(R.id.btn_layout_grid).setOnClickListener(v -> setGrid(true));
-        updater = new com.nous.codecanvas.update.AppUpdater(this,(Button)findViewById(R.id.btn_check_update));
+        updater = new com.nous.codecanvas.update.AppUpdater(this, (Button) findViewById(R.id.btn_check_update));
 
-        // Documents the user has never opened have no thumbnail, which is why a fresh list showed
-        // only type covers. Fill those in quietly, after the list is already on screen.
         backfiller = new ThumbnailBackfiller(this, () -> {
             if (adapter != null) adapter.notifyDataSetChanged();
             if (gridAdapter != null) gridAdapter.notifyDataSetChanged();
         });
 
-        listDocuments.setOnItemClickListener((parent, view, position, id) -> {
-            CanvasDocument doc = filteredDocuments.get(position);
-            openEditor(doc.getId(), true);
-        });
-        // Long-press has to be registered on the ListView itself: an item's own
-        // setOnLongClickListener never fires, because the AbsListView consumes the long press for
-        // its own onItemLongClick dispatch first.
+        listDocuments.setOnItemClickListener((parent, view, position, id) -> onRowTapped(position));
+        gridDocuments.setOnItemClickListener((parent, view, position, id) -> onRowTapped(position));
         listDocuments.setOnItemLongClickListener((parent, view, position, id) -> {
-            if (position >= 0 && position < filteredDocuments.size()) {
-                showDocumentActions(filteredDocuments.get(position));
-            }
+            onRowLongPressed(position);
             return true;
         });
         gridDocuments.setOnItemLongClickListener((parent, view, position, id) -> {
-            if (position >= 0 && position < filteredDocuments.size()) {
-                showDocumentActions(filteredDocuments.get(position));
-            }
+            onRowLongPressed(position);
             return true;
         });
     }
 
     private void setGrid(boolean grid) {
-        getPreferences(0).edit().putBoolean("grid",grid).apply();
-        listDocuments.setVisibility(grid?View.GONE:View.VISIBLE);gridDocuments.setVisibility(grid?View.VISIBLE:View.GONE);
-        // The toggle is one primary pill that moves, driven by the selected state
-        // of each button's own selector - not two different drawables.
+        getPreferences(0).edit().putBoolean("grid", grid).apply();
+        listDocuments.setVisibility(grid ? View.GONE : View.VISIBLE);
+        gridDocuments.setVisibility(grid ? View.VISIBLE : View.GONE);
         findViewById(R.id.btn_layout_list).setSelected(!grid);
         findViewById(R.id.btn_layout_grid).setSelected(grid);
     }
@@ -292,31 +334,32 @@ public class MainActivity extends Activity {
         }
 
         editSearch.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
                 filterDocuments(s.toString());
             }
-
-            @Override
-            public void afterTextChanged(Editable s) {}
+            @Override public void afterTextChanged(Editable s) {}
         });
     }
 
     private void loadDocuments() {
-        final boolean dark=(getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        final boolean dark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
         new Thread(() -> {
             try {
                 List<CanvasDocument> docs = repository.getAllDocuments();
-                java.util.Map<String,DocumentPresentation> prepared=preparePresentations(docs,dark);
+                java.util.Map<String, DocumentPresentation> prepared = preparePresentations(docs, dark);
                 runOnUiThread(() -> {
-                    if(isDestroyed() || isFinishing()) return;
+                    if (isDestroyed() || isFinishing()) return;
                     presentations.clear();
                     presentations.putAll(prepared);
                     allDocuments.clear();
                     allDocuments.addAll(docs);
+                    // Drop selections whose documents no longer exist.
+                    Set<String> alive = new HashSet<>();
+                    for (CanvasDocument d : docs) alive.add(d.getId());
+                    selectedIds.retainAll(alive);
+                    if (selectionMode && selectedIds.isEmpty()) exitSelectionMode();
                     filterDocuments(editSearch.getText().toString());
                     backfiller.enqueue(ThumbnailBackfiller.missingThumbnails(MainActivity.this, docs));
                 });
@@ -327,22 +370,299 @@ public class MainActivity extends Activity {
     }
 
     private void filterDocuments(String query) {
-        filteredDocuments.clear();
+        applyFilters();
+    }
+
+    /**
+     * One filter pipeline for both surfaces: the search box, the drawer's type pills, and the list
+     * all read the same {@code filteredDocuments}, so the count in the header, the index in the
+     * drawer and the gallery can never disagree.
+     */
+    private void applyFilters() {
+        String query = editSearch != null ? editSearch.getText().toString() : "";
         String q = query != null ? query.trim().toLowerCase(Locale.ROOT) : "";
-        if (q.isEmpty()) {
-            filteredDocuments.addAll(allDocuments);
-        } else {
-            for (CanvasDocument doc : allDocuments) {
-                if (doc.getTitle().toLowerCase(Locale.ROOT).contains(q) ||
-                    doc.getContent().toLowerCase(Locale.ROOT).contains(q)) {
-                    filteredDocuments.add(doc);
-                }
+        filteredDocuments.clear();
+        for (CanvasDocument doc : allDocuments) {
+            if (typeFilter != null) {
+                RenderKind kind = RenderKindDetector.detect(doc.getTitle(), doc.getContent());
+                if (!kind.name().equals(typeFilter)) continue;
             }
+            if (!q.isEmpty()
+                    && !doc.getTitle().toLowerCase(Locale.ROOT).contains(q)
+                    && !doc.getContent().toLowerCase(Locale.ROOT).contains(q)) {
+                continue;
+            }
+            filteredDocuments.add(doc);
         }
         adapter.notifyDataSetChanged();
-        ((BaseAdapter)gridDocuments.getAdapter()).notifyDataSetChanged();
-        ((TextView)findViewById(R.id.txt_file_count)).setText("我的文件 · "+filteredDocuments.size());
+        ((BaseAdapter) gridDocuments.getAdapter()).notifyDataSetChanged();
+        if (drawerAdapter != null) drawerAdapter.notifyDataSetChanged();
+        ((TextView) findViewById(R.id.txt_file_count)).setText(
+                (typeFilter == null ? "我的文件" : filterLabel(typeFilter)) + " · " + filteredDocuments.size());
+        if (drawerSubtitle != null) {
+            drawerSubtitle.setText(typeFilter == null
+                    ? "全部作品 · " + filteredDocuments.size()
+                    : filterLabel(typeFilter) + " · " + filteredDocuments.size());
+        }
         viewEmpty.setVisibility(filteredDocuments.isEmpty() ? View.VISIBLE : View.GONE);
+    }
+
+    private static String filterLabel(String kind) {
+        if (RenderKind.HTML.name().equals(kind)) return "HTML 画布";
+        if (RenderKind.SVG.name().equals(kind)) return "SVG 矢量图";
+        if (RenderKind.XML.name().equals(kind)) return "XML 文档";
+        if (RenderKind.RAW.name().equals(kind)) return "其它文本";
+        return "我的文件";
+    }
+
+    // --- catalog drawer ---------------------------------------------------------------------------
+
+    private void setupDrawer() {
+        drawerRoot = findViewById(R.id.drawer_root);
+        drawerPanel = findViewById(R.id.drawer_panel);
+        drawerList = findViewById(R.id.drawer_list);
+        drawerSubtitle = findViewById(R.id.drawer_subtitle);
+        drawerFilters = findViewById(R.id.drawer_filters);
+
+        drawerAdapter = new DrawerAdapter();
+        drawerList.setAdapter(drawerAdapter);
+        drawerList.setOnItemClickListener((p, v, pos, id) -> {
+            CanvasDocument doc = drawerAdapter.getItem(pos);
+            closeDrawer();
+            openEditor(doc.getId(), true);
+        });
+        drawerList.setOnItemLongClickListener((p, v, pos, id) -> {
+            CanvasDocument doc = drawerAdapter.getItem(pos);
+            closeDrawer();
+            // Long-press in the index jumps straight to that file's action sheet.
+            drawerList.postDelayed(() -> showDocumentActions(doc), 180);
+            return true;
+        });
+
+        findViewById(R.id.drawer_scrim).setOnClickListener(v -> closeDrawer());
+        findViewById(R.id.drawer_settings).setOnClickListener(v -> {
+            closeDrawer();
+            startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+        });
+        findViewById(R.id.btn_drawer).setOnClickListener(v -> openDrawer());
+        findViewById(R.id.btn_drawer_close).setOnClickListener(v -> closeDrawer());
+
+        buildFilterChips();
+    }
+
+    /** 全部 / HTML / SVG / XML / 其它 — one pill row, single-select. */
+    private void buildFilterChips() {
+        drawerFilters.removeAllViews();
+        String[][] options = {
+                {"全部", null},
+                {"HTML", RenderKind.HTML.name()},
+                {"SVG", RenderKind.SVG.name()},
+                {"XML", RenderKind.XML.name()},
+                {"其它", RenderKind.RAW.name()},
+        };
+        LayoutInflater inflater = LayoutInflater.from(this);
+        for (String[] option : options) {
+            View chip = inflater.inflate(R.layout.item_drawer_filter, drawerFilters, false);
+            boolean active = option[1] == null ? typeFilter == null : option[1].equals(typeFilter);
+            chip.setSelected(active);
+            TextView label = chip.findViewById(R.id.filter_label);
+            label.setText(option[0]);
+            label.setSelected(active);
+            chip.setOnClickListener(v -> {
+                typeFilter = option[1];
+                buildFilterChips();
+                applyFilters();
+            });
+            drawerFilters.addView(chip);
+        }
+    }
+
+    private void openDrawer() {
+        drawerAdapter.notifyDataSetChanged();
+        drawerRoot.setVisibility(View.VISIBLE);
+        drawerPanel.setTranslationX(-drawerPanel.getWidth() > 0
+                ? -drawerPanel.getWidth() : -dp(294));
+        drawerPanel.animate().translationX(0f).setDuration(220)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+    }
+
+    private void closeDrawer() {
+        drawerPanel.animate().translationX(-drawerPanel.getWidth())
+                .setDuration(180)
+                .setInterpolator(new android.view.animation.AccelerateInterpolator())
+                .withEndAction(() -> drawerRoot.setVisibility(View.GONE))
+                .start();
+    }
+
+    private int dp(int v) {
+        return Math.round(v * getResources().getDisplayMetrics().density);
+    }
+
+    private class DrawerAdapter extends BaseAdapter {
+        @Override public int getCount() { return filteredDocuments.size(); }
+        @Override public CanvasDocument getItem(int position) { return filteredDocuments.get(position); }
+        @Override public long getItemId(int position) { return position; }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            if (convertView == null) {
+                convertView = LayoutInflater.from(MainActivity.this)
+                        .inflate(R.layout.item_drawer_document, parent, false);
+            }
+            CanvasDocument doc = getItem(position);
+            DocumentPresentation presentation = presentations.get(doc.getId());
+            TextView title = convertView.findViewById(R.id.drawer_item_title);
+            TextView meta = convertView.findViewById(R.id.drawer_item_meta);
+            android.widget.ImageView thumb = convertView.findViewById(R.id.drawer_item_thumb);
+
+            title.setText(doc.getTitle());
+            if (presentation != null) {
+                meta.setText(presentation.kind.name() + " · " + presentation.sizeText);
+                String key = presentation.previewKey;
+                thumb.setTag(key);
+                thumb.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+                thumb.setImageResource(presentation.kind == RenderKind.HTML ? R.drawable.cover_web
+                        : presentation.kind == RenderKind.SVG ? R.drawable.cover_vector
+                        : R.drawable.cover_document);
+                android.graphics.Bitmap cached = ThumbnailBackfiller.memoryGet(key);
+                if (cached != null && !cached.isRecycled()) {
+                    thumb.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                    thumb.setImageBitmap(cached);
+                }
+            } else {
+                meta.setText("");
+            }
+            return convertView;
+        }
+    }
+
+    // --- row interaction: tap opens (or selects), long-press starts selection ---------------------
+
+    private void onRowTapped(int position) {
+        if (position < 0 || position >= filteredDocuments.size()) return;
+        CanvasDocument doc = filteredDocuments.get(position);
+        if (selectionMode) {
+            toggleSelection(doc.getId());
+        } else {
+            openEditor(doc.getId(), true);
+        }
+    }
+
+    private void onRowLongPressed(int position) {
+        if (position < 0 || position >= filteredDocuments.size()) return;
+        CanvasDocument doc = filteredDocuments.get(position);
+        // The gesture crossed the platform's long-press threshold; say so the way the platform
+        // does, so entering selection reads as a deliberate mode rather than a stuck tap.
+        View row = listDocuments.getChildAt(position - listDocuments.getFirstVisiblePosition());
+        if (row == null) row = gridDocuments.getChildAt(position - gridDocuments.getFirstVisiblePosition());
+        if (row != null) {
+            row.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+        }
+        if (!selectionMode) {
+            enterSelectionMode(doc.getId());
+        } else {
+            toggleSelection(doc.getId());
+        }
+    }
+
+    private void enterSelectionMode(String firstId) {
+        selectionMode = true;
+        selectedIds.clear();
+        selectedIds.add(firstId);
+        selectionBar.setVisibility(View.VISIBLE);
+        refreshSelectionUi();
+    }
+
+    private void exitSelectionMode() {
+        selectionMode = false;
+        selectedIds.clear();
+        selectionBar.setVisibility(View.GONE);
+        adapter.notifyDataSetChanged();
+        gridAdapter.notifyDataSetChanged();
+    }
+
+    private void toggleSelection(String id) {
+        if (selectedIds.contains(id)) selectedIds.remove(id);
+        else selectedIds.add(id);
+        if (selectedIds.isEmpty()) {
+            exitSelectionMode();
+            return;
+        }
+        refreshSelectionUi();
+    }
+
+    private void toggleSelectAll() {
+        if (selectedIds.size() == filteredDocuments.size()) {
+            exitSelectionMode();
+            return;
+        }
+        for (CanvasDocument d : filteredDocuments) selectedIds.add(d.getId());
+        refreshSelectionUi();
+    }
+
+    private void refreshSelectionUi() {
+        String label = "已选 " + selectedIds.size() + " 项";
+        txtSelectionCount.setText(label);
+        // Selection is a mode, not a visual detail: announce it for screen readers.
+        txtSelectionCount.announceForAccessibility(label);
+        adapter.notifyDataSetChanged();
+        gridAdapter.notifyDataSetChanged();
+    }
+
+    // --- batch actions ----------------------------------------------------------------------------
+
+    private List<CanvasDocument> selectedDocuments() {
+        List<CanvasDocument> out = new ArrayList<>();
+        for (CanvasDocument d : filteredDocuments) {
+            if (selectedIds.contains(d.getId())) out.add(d);
+        }
+        return out;
+    }
+
+    private void confirmDeleteSelection() {
+        int count = selectedIds.size();
+        if (count == 0) return;
+        activeDialog = CanvasConfirmDialog.show(this,
+                "删除 " + count + " 个画布",
+                "这些文件会从本机移除，无法撤销。",
+                "删除", true,
+                () -> new Thread(() -> {
+                    try {
+                        for (String id : new ArrayList<>(selectedIds)) {
+                            repository.deleteDocument(id);
+                        }
+                        runOnUiThread(() -> {
+                            exitSelectionMode();
+                            loadDocuments();
+                            Toast.makeText(MainActivity.this, "已删除 " + count + " 个画布", Toast.LENGTH_SHORT).show();
+                        });
+                    } catch (Exception e) {
+                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "删除失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                    }
+                }).start());
+    }
+
+    /** Share the selected sources concatenated as one text block. */
+    private void shareSelection() {
+        List<CanvasDocument> docs = selectedDocuments();
+        if (docs.isEmpty()) return;
+        new Thread(() -> {
+            try {
+                StringBuilder sb = new StringBuilder();
+                for (CanvasDocument d : docs) {
+                    if (sb.length() > 0) sb.append("\n\n");
+                    sb.append(d.getContent());
+                }
+                String authority = getPackageName() + com.nous.codecanvas.provider.CanvasFileProvider.AUTHORITY_SUFFIX;
+                String name = docs.size() == 1 ? docs.get(0).getTitle() : "code-canvas-" + docs.size() + "-files.txt";
+                com.nous.codecanvas.util.ShareExporter.Staged staged =
+                        com.nous.codecanvas.util.ShareExporter.stage(this, authority, name, sb.toString());
+                runOnUiThread(() -> startActivity(
+                        com.nous.codecanvas.util.ShareExporter.chooserIntent(staged, "分享源码")));
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "分享失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
     }
 
     private void openEditor(String docId, boolean startPreview) {
@@ -352,14 +672,82 @@ public class MainActivity extends Activity {
         startActivity(intent);
     }
 
+    // --- clipboard auto-detect ---------------------------------------------------------------------
+
+    /**
+     * Offer the clipboard's content once per distinct clip — off the main thread.
+     *
+     * <p>{@code ClipboardManager.getPrimaryClip()} and {@code ClipData.coerceToText()} are binder
+     * calls: with a {@code content://} clip whose provider is slow or gone, they block the calling
+     * thread. Reading them in {@code onResume} on the UI thread is an ANR waiting to happen, so the
+     * read happens on a worker and only the visibility change comes back to the main thread. The
+     * check is deliberately strict — the banner appears only when the clip really is renderable
+     * markup — so the app never nags about a copied phone number.</p>
+     */
+    private void maybeOfferClipboardBanner() {
+        if (!CanvasPrefs.clipboardAutoDetect(this)) return;
+        final java.util.concurrent.ExecutorService worker = clipboardReadExecutor;
+        worker.execute(() -> {
+            String text = null;
+            try {
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard != null && clipboard.hasPrimaryClip()) {
+                    ClipData clip = clipboard.getPrimaryClip();
+                    if (clip != null && clip.getItemCount() > 0) {
+                        CharSequence raw = clip.getItemAt(0).coerceToText(this);
+                        if (raw != null) text = raw.toString();
+                    }
+                }
+            } catch (Exception ignored) {
+                return; // an unreadable clipboard is simply not offered
+            }
+            if (text == null) return;
+            final String clipText = text;
+            if (clipText.hashCode() == lastHandledClipHash) return;
+            if (!ClipboardCodeOffer.looksLikeCode(clipText)) return;
+            final String oneLine = clipText.replace('\n', ' ').trim();
+            runOnUiThread(() -> {
+                if (isDestroyed() || isFinishing()) return;
+                if (clipText.hashCode() == lastHandledClipHash) return;
+                bannerClipContent = clipText;
+                bannerSnippet.setText(oneLine.length() > 60 ? oneLine.substring(0, 60) + "…" : oneLine);
+                bannerClipboard.setVisibility(View.VISIBLE);
+            });
+        });
+    }
+
+    private void importBannerClip() {
+        String content = bannerClipContent;
+        dismissClipboardBanner(true);
+        if (content == null) return;
+        List<AiCodeExtractor.CodeBlock> blocks = AiCodeExtractor.extract(content);
+        if (blocks.size() == 1) {
+            createAndLaunchQuickPaste(blocks.get(0).code, blocks.get(0).language);
+        } else if (blocks.size() > 1) {
+            showMultiBlockSheet(blocks, content);
+        } else {
+            createAndLaunchQuickPaste(content, "");
+        }
+    }
+
+    private void dismissClipboardBanner(boolean remember) {
+        if (remember && bannerClipContent != null) {
+            lastHandledClipHash = bannerClipContent.hashCode();
+        }
+        bannerClipContent = null;
+        bannerClipboard.setVisibility(View.GONE);
+    }
+
+    // --- quick paste --------------------------------------------------------------------------------
+
     private void performQuickPasteAndPreview() {
-        android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         if (clipboard == null || !clipboard.hasPrimaryClip()) {
             Toast.makeText(this, "剪贴板为空，请先复制代码", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        android.content.ClipData clip = clipboard.getPrimaryClip();
+        ClipData clip = clipboard.getPrimaryClip();
         if (clip == null || clip.getItemCount() == 0) {
             Toast.makeText(this, "剪贴板为空", Toast.LENGTH_SHORT).show();
             return;
@@ -371,59 +759,65 @@ public class MainActivity extends Activity {
             return;
         }
 
-        if (rawText.length() > 2 * 1024 * 1024) { // 2MB Cap
+        if (rawText.length() > 2 * 1024 * 1024) {
             Toast.makeText(this, "剪贴板代码过大 (超过 2MB 限制)", Toast.LENGTH_LONG).show();
             return;
         }
 
         final String rawString = rawText.toString();
-        java.util.List<com.nous.codecanvas.util.AiCodeExtractor.CodeBlock> blocks =
-                com.nous.codecanvas.util.AiCodeExtractor.extract(rawString);
+        lastHandledClipHash = rawString.hashCode();
+        List<AiCodeExtractor.CodeBlock> blocks = AiCodeExtractor.extract(rawString);
 
         if (blocks.size() > 1) {
-            // Multi-block picker dialog
-            String[] items = new String[blocks.size() + 1];
-            for (int i = 0; i < blocks.size(); i++) {
-                com.nous.codecanvas.util.AiCodeExtractor.CodeBlock b = blocks.get(i);
-                String label = (b.language.isEmpty() ? "代码块 " + (i + 1) : b.language.toUpperCase(Locale.ROOT) + " 块 " + (i + 1));
-                String snippet = b.code.length() > 30 ? b.code.substring(0, 30).replace("\n", " ") + "..." : b.code.replace("\n", " ");
-                items[i] = label + " (" + snippet + ")";
-            }
-            items[blocks.size()] = "完整原始剪贴板文本";
-
-            activeDialog = new AlertDialog.Builder(this)
-                    .setTitle("检测到多段代码块，请选择预览项")
-                    .setItems(items, (dialog, which) -> {
-                        if (which < blocks.size()) {
-                            createAndLaunchQuickPaste(blocks.get(which).code, blocks.get(which).language);
-                        } else {
-                            createAndLaunchQuickPaste(rawString, "");
-                        }
-                    })
-                    .setNegativeButton("取消", null)
-                    .show();
+            showMultiBlockSheet(blocks, rawString);
         } else {
-            // No fence was used. If the paste is prose wrapped around markup, the extracted region
-            // is a guess — let the user pick instead of silently saving the whole reply.
-            String region = blocks.isEmpty() ? com.nous.codecanvas.util.AiCodeExtractor.markupRegion(rawString) : null;
+            String region = blocks.isEmpty() ? AiCodeExtractor.markupRegion(rawString) : null;
             if (region != null) {
                 final String markup = region;
-                java.util.List<String> labels = new java.util.ArrayList<>();
-                labels.add("只保存识别到的代码（推荐）");
-                labels.add("保存全文（" + rawString.length() + " 字符）");
-                activeDialog = new AlertDialog.Builder(this)
-                        .setTitle("这段内容里既有说明文字也有代码")
-                        .setMessage("没有找到代码围栏，我按“第一个尖括号到最后一行”截了一段。选错了可以直接重来。")
-                        .setItems(labels.toArray(new String[0]), (dialog, which) ->
-                                createAndLaunchQuickPaste(which == 0 ? markup : rawString, ""))
-                        .setNegativeButton("取消", null)
-                        .show();
+                CanvasBottomSheet.Action[] actions = new CanvasBottomSheet.Action[]{
+                        new CanvasBottomSheet.Action(0, R.drawable.ic_paste, "只保存识别到的代码（推荐）",
+                                "按第一个尖括号到最后一行截取", false),
+                        new CanvasBottomSheet.Action(1, R.drawable.ic_copy, "保存全文",
+                                rawString.length() + " 字符", false),
+                };
+                activeSheet = CanvasBottomSheet.show(this,
+                        "这段内容里既有说明文字也有代码",
+                        "没有找到代码围栏，截取规则选错了可以直接重来",
+                        actions,
+                        id -> createAndLaunchQuickPaste(id == 0 ? markup : rawString, ""));
                 return;
             }
             String code = blocks.isEmpty() ? rawString : blocks.get(0).code;
             String lang = blocks.isEmpty() ? "" : blocks.get(0).language;
             createAndLaunchQuickPaste(code, lang);
         }
+    }
+
+    /** Multi-block pick: one sheet, one row per block, full text as the last row. */
+    private void showMultiBlockSheet(List<AiCodeExtractor.CodeBlock> blocks, String rawString) {
+        CanvasBottomSheet.Action[] actions = new CanvasBottomSheet.Action[blocks.size() + 1];
+        for (int i = 0; i < blocks.size(); i++) {
+            AiCodeExtractor.CodeBlock b = blocks.get(i);
+            String label = b.language.isEmpty()
+                    ? "代码块 " + (i + 1)
+                    : b.language.toUpperCase(Locale.ROOT) + " 块 " + (i + 1);
+            String snippet = b.code.length() > 34 ? b.code.substring(0, 34).replace("\n", " ") + "…"
+                    : b.code.replace("\n", " ");
+            actions[i] = new CanvasBottomSheet.Action(i, R.drawable.ic_paste, label, snippet, false);
+        }
+        actions[blocks.size()] = new CanvasBottomSheet.Action(blocks.size(), R.drawable.ic_copy,
+                "完整原始剪贴板文本", rawString.length() + " 字符", false);
+        activeSheet = CanvasBottomSheet.show(this,
+                "检测到 " + blocks.size() + " 段代码块",
+                "选择一段创建画布",
+                actions,
+                id -> {
+                    if (id < blocks.size()) {
+                        createAndLaunchQuickPaste(blocks.get(id).code, blocks.get(id).language);
+                    } else {
+                        createAndLaunchQuickPaste(rawString, "");
+                    }
+                });
     }
 
     private void createAndLaunchQuickPaste(String code, String lang) {
@@ -488,75 +882,37 @@ public class MainActivity extends Activity {
                     }).start();
                 }
         );
-        activeDialog=dialog;
+        activeDialog = dialog;
         dialog.show();
     }
 
-    /**
-     * Long-press actions for a document card.
-     *
-     * <p>The card's two glyphs cover the common cases (share, delete), but renaming meant opening
-     * the editor and exporting meant going through the editor too. Long-press is where these
-     * actions belong on a list, and it costs no chrome on the row itself.</p>
-     */
+    // --- per-document actions (single-item sheet, reachable from the ⋮ glyph) -----------------------
+
+    /** The ⋮ glyph's menu — the same bottom sheet as everywhere else. */
     private void showDocumentActions(final CanvasDocument doc) {
         if (doc == null) return;
-        final String[] actions = {"打开", "重命名", "复制全部代码", "导出到文件", "分享源码", "删除"};
-        activeDialog = new AlertDialog.Builder(this)
-                .setTitle(doc.getTitle())
-                .setAdapter(destructiveAwareAdapter(actions, actions.length - 1), (d, which) -> {
-                    switch (which) {
-                        case 0:
-                            openEditor(doc.getId(), true);
-                            break;
-                        case 1:
-                            renameDocument(doc);
-                            break;
-                        case 2:
-                            copyDocumentCode(doc);
-                            break;
-                        case 3:
-                            exportDocument(doc);
-                            break;
-                        case 4:
-                            shareDocument(doc);
-                            break;
-                        case 5:
-                            confirmDeleteDocument(doc);
-                            break;
-                    }
-                })
-                .show();
-    }
-
-    /**
-     * A plain text list, except the destructive entry is tinted with {@code canvas_danger}.
-     *
-     * <p>Deleting is the one action here that cannot be undone, and leaving it in the same grey as
-     * "复制全部代码" makes the menu read as six equal choices. The tint is the whole affordance —
-     * no icon, no extra chrome, which keeps the thin-line look of the rest of the app.</p>
-     */
-    private android.widget.ListAdapter destructiveAwareAdapter(final String[] labels, final int destructiveIndex) {
-        return new android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, labels) {
-            @Override
-            public View getView(int position, View convertView, ViewGroup parent) {
-                View row = super.getView(position, convertView, parent);
-                TextView text = row.findViewById(android.R.id.text1);
-                if (text != null) {
-                    boolean destructive = position == destructiveIndex;
-                    int color = getResources().getColor(
-                            destructive ? R.color.canvas_danger : R.color.canvas_ink_primary);
-                    text.setTextColor(color);
-                    text.setTextSize(16f);
-                    text.setPadding(text.getPaddingLeft(), dp(13), text.getPaddingRight(), dp(13));
-                }
-                return row;
-            }
+        CanvasBottomSheet.Action[] actions = new CanvasBottomSheet.Action[]{
+                new CanvasBottomSheet.Action(0, R.drawable.ic_open, "打开预览", null, false),
+                new CanvasBottomSheet.Action(1, R.drawable.ic_edit, "重命名", null, false),
+                new CanvasBottomSheet.Action(2, R.drawable.ic_copy, "复制全部代码", null, false),
+                new CanvasBottomSheet.Action(3, R.drawable.ic_export, "导出到文件", null, false),
+                new CanvasBottomSheet.Action(4, R.drawable.ic_share, "分享源码", null, false),
+                new CanvasBottomSheet.Action(5, R.drawable.ic_delete, "删除", "无法撤销", true),
         };
-    }
-
-    private int dp(int value) {
-        return Math.round(value * getResources().getDisplayMetrics().density);
+        activeSheet = CanvasBottomSheet.show(this,
+                doc.getTitle(),
+                null,
+                actions,
+                id -> {
+                    switch (id) {
+                        case 0: openEditor(doc.getId(), true); break;
+                        case 1: renameDocument(doc); break;
+                        case 2: copyDocumentCode(doc); break;
+                        case 3: exportDocument(doc); break;
+                        case 4: shareDocument(doc); break;
+                        case 5: confirmDeleteDocument(doc); break;
+                    }
+                });
     }
 
     private void renameDocument(final CanvasDocument doc) {
@@ -622,7 +978,6 @@ public class MainActivity extends Activity {
                 importFromUri(uri);
             }
         } else if (requestCode == REQ_EXPORT_DOCUMENT) {
-            // Whatever happens, the pending reference must not survive to the next export.
             CanvasDocument doc = pendingExportDocument;
             pendingExportDocument = null;
             if (resultCode == RESULT_OK && data != null && data.getData() != null && doc != null) {
@@ -701,8 +1056,6 @@ public class MainActivity extends Activity {
                 }
                 String content = new String(buffer.toByteArray(), StandardCharsets.UTF_8);
                 if (content.trim().isEmpty()) {
-                    // An empty stream used to be stored as an empty document and reported as a
-                    // successful import, which reads as "the app lost my file".
                     throw new IllegalStateException("文件是空的，没有可导入的内容");
                 }
 
@@ -726,108 +1079,145 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    // --- list adapter --------------------------------------------------------------------------------
+
     private class DocumentAdapter extends BaseAdapter {
         private final SimpleDateFormat dateFormat = new SimpleDateFormat("MM-dd HH:mm", Locale.getDefault());
 
-        @Override
-        public int getCount() {
-            return filteredDocuments.size();
-        }
-
-        @Override
-        public CanvasDocument getItem(int position) {
-            return filteredDocuments.get(position);
-        }
-
-        @Override
-        public long getItemId(int position) {
-            return position;
-        }
+        @Override public int getCount() { return filteredDocuments.size(); }
+        @Override public CanvasDocument getItem(int position) { return filteredDocuments.get(position); }
+        @Override public long getItemId(int position) { return position; }
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
             if (convertView == null) {
-                convertView = LayoutInflater.from(MainActivity.this).inflate(parent==gridDocuments ? R.layout.item_document_card : R.layout.item_document_list, parent, false);
+                convertView = LayoutInflater.from(MainActivity.this).inflate(
+                        parent == gridDocuments ? R.layout.item_document_card : R.layout.item_document_list,
+                        parent, false);
             }
 
             CanvasDocument doc = getItem(position);
             TextView txtTag = convertView.findViewById(R.id.txt_doc_tag);
             TextView txtTitle = convertView.findViewById(R.id.txt_doc_title);
             TextView txtTime = convertView.findViewById(R.id.txt_doc_time);
-            TextView txtSnippet = convertView.findViewById(R.id.txt_doc_snippet);
             TextView txtSize = convertView.findViewById(R.id.txt_doc_size);
             View contentContainer = convertView.findViewById(R.id.card_content_container);
-            ImageButton btnShare = convertView.findViewById(R.id.btn_card_share);
-            ImageButton btnDelete = convertView.findViewById(R.id.btn_card_delete);
+            ImageButton btnMore = convertView.findViewById(R.id.btn_card_more);
+            android.widget.ImageView checkBadge = convertView.findViewById(R.id.img_check_badge);
 
             android.widget.ImageView cover = convertView.findViewById(R.id.img_doc_preview);
-            DocumentPresentation presentation=presentations.get(doc.getId());
-            if(presentation==null) throw new IllegalStateException("Missing prepared document metadata");
-            String key=presentation.previewKey;
-            cover.setTag(key);
-            cover.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+            DocumentPresentation presentation = presentations.get(doc.getId());
+            if (presentation == null) throw new IllegalStateException("Missing prepared document metadata");
+            String key = presentation.previewKey;
             RenderKind coverKind = presentation.kind;
-            cover.setImageResource(coverKind==RenderKind.HTML ? R.drawable.cover_web : coverKind==RenderKind.SVG ? R.drawable.cover_vector : R.drawable.cover_document);
+            Drawable typeCover = getResources().getDrawable(
+                    coverKind == RenderKind.HTML ? R.drawable.cover_web
+                            : coverKind == RenderKind.SVG ? R.drawable.cover_vector
+                            : R.drawable.cover_document);
+
+            cover.setTag(key);
             cover.setContentDescription("作品缩略图；还没生成好时显示文件类型封面");
-            // The home screen reads this preference on every bind, so turning it off takes effect
-            // immediately (and stops the backfiller from generating more) without a restart.
-            if (com.nous.codecanvas.util.CanvasPrefs.thumbnailsEnabled(MainActivity.this)) {
-                thumbnailExecutor.execute(() -> {
-                    android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(PreviewThumbnailCache.file(getApplicationContext(),key).getAbsolutePath());
-                    // A stored capture that painted nothing is discarded rather than shown; the cover
-                    // already on the row is the honest fallback.
-                    if(bitmap!=null && PreviewThumbnailCache.looksBlank(bitmap)){ bitmap.recycle(); PreviewThumbnailCache.file(getApplicationContext(),key).delete(); bitmap=null; }
-                    final android.graphics.Bitmap loaded = bitmap;
-                    runOnUiThread(() -> {
-                        if(key.equals(cover.getTag()) && loaded!=null){ cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP); cover.setImageBitmap(loaded); cover.setContentDescription("作品预览缩略图"); }
-                        else if(loaded!=null) loaded.recycle();
-                    });
-                });
+            bindThumbnail(cover, key, typeCover);
+
+            if (txtTitle != null) txtTitle.setText(doc.getTitle());
+            if (txtTime != null) txtTime.setText(dateFormat.format(new Date(doc.getUpdatedAt())));
+            if (txtTag != null) txtTag.setText(coverKind.name());
+            if (txtSize != null) txtSize.setText(presentation.sizeText);
+
+            // Selection chrome: badge + row tint; type cover stays under the badge.
+            boolean selected = selectionMode && selectedIds.contains(doc.getId());
+            if (checkBadge != null) {
+                checkBadge.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
+                checkBadge.setSelected(selected);
             }
-            if(txtTitle!=null) txtTitle.setText(doc.getTitle());
-            if(txtTime!=null) txtTime.setText(dateFormat.format(new Date(doc.getUpdatedAt())));
+            convertView.setBackgroundResource(selected
+                    ? R.drawable.bg_row_selected
+                    : R.drawable.bg_card);
 
-            // Type summary instead of raw code snippets
-            TextView txtSummary = convertView.findViewById(R.id.txt_doc_summary);
-            RenderKind kind = presentation.kind;
-            if(txtTag!=null) txtTag.setText(kind.name());
-
-            if (txtSummary != null) {
-                if (kind == RenderKind.HTML) {
-                    txtSummary.setText("网页 / HTML 画布 · 点击预览");
-                } else if (kind == RenderKind.SVG) {
-                    txtSummary.setText("SVG 矢量图 · 点击预览");
-                } else if (kind == RenderKind.XML) {
-                    txtSummary.setText("XML 结构文档 · 点击校验");
-                } else {
-                    txtSummary.setText("代码画布 · 点击查看");
-                }
-            }
-
-            if(txtSize!=null) txtSize.setText(presentation.sizeText);
-
-            // Row taps go through the ListView's own onItemClick / onItemLongClick so the long press
-            // reaches the list instead of being swallowed by a clickable child.
             if (contentContainer != null) {
                 contentContainer.setClickable(false);
                 contentContainer.setFocusable(false);
             }
             convertView.setLongClickable(true);
-            // Kept so a direct performClick() on the row still opens the editor (the regression
-            // suite drives the list that way). Touch input follows the ListView's item listeners.
-            convertView.setOnClickListener(v -> openEditor(doc.getId(), true));
-
-            if(btnShare!=null)btnShare.setOnClickListener(v -> shareDocument(doc));
-            if(btnDelete!=null)btnDelete.setOnClickListener(v -> confirmDeleteDocument(doc));
-            View btnMore=convertView.findViewById(R.id.btn_card_more);
-            if(btnMore!=null) btnMore.setOnClickListener(v -> {
-                android.widget.PopupMenu menu=new android.widget.PopupMenu(MainActivity.this,v);
-                menu.getMenu().add("编辑代码");menu.getMenu().add("分享");menu.getMenu().add("删除文件");
-                menu.setOnMenuItemClickListener(item -> {String a=item.getTitle().toString();if(a.equals("分享"))shareDocument(doc);else if(a.equals("删除文件"))confirmDeleteDocument(doc);else openEditor(doc.getId(),false);return true;});menu.show();
+            convertView.setOnClickListener(v -> {
+                int pos = positionOf(doc.getId());
+                if (pos >= 0) onRowTapped(pos);
             });
+
+            if (btnMore != null) {
+                btnMore.setVisibility(selectionMode ? View.GONE : View.VISIBLE);
+                btnMore.setOnClickListener(v -> showDocumentActions(doc));
+            }
 
             return convertView;
         }
+
+        private int positionOf(String id) {
+            for (int i = 0; i < filteredDocuments.size(); i++) {
+                if (filteredDocuments.get(i).getId().equals(id)) return i;
+            }
+            return -1;
+        }
+    }
+
+    /**
+     * The flicker fix. Every bind used to slam the type cover in first and swap the bitmap in
+     * later — two paints, one visible flash, every time the row entered the screen. Now:
+     * a memory cache hit lands the bitmap immediately with no intermediate state; only a true
+     * miss (thumbnail still being rendered) shows the type cover, and the finished capture
+     * crossfades in when the backfiller stores it.
+     */
+    private void bindThumbnail(android.widget.ImageView cover, String key, Drawable typeCover) {
+        if (!CanvasPrefs.thumbnailsEnabled(MainActivity.this)) {
+            cover.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+            cover.setImageDrawable(typeCover);
+            return;
+        }
+        android.graphics.Bitmap cached = ThumbnailBackfiller.memoryGet(key);
+        if (cached != null && !cached.isRecycled()) {
+            // A memory hit lands in the same frame, with no animation and no intermediate paint —
+            // animating a cache hit is the other half of what makes a list flicker.
+            cover.setAlpha(1f);
+            cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+            cover.setImageBitmap(cached);
+            cover.setContentDescription("作品预览缩略图");
+            cover.setTag(TAG_THUMB_BOUND, key);
+            return;
+        }
+        boolean alreadyShowingThis = key.equals(cover.getTag(TAG_THUMB_BOUND));
+        cover.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+        cover.setImageDrawable(typeCover);
+        if (!alreadyShowingThis) cover.setAlpha(1f);
+        thumbnailExecutor.execute(() -> {
+            android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(
+                    PreviewThumbnailCache.file(getApplicationContext(), key).getAbsolutePath());
+            if (bitmap != null && PreviewThumbnailCache.looksBlank(bitmap)) {
+                bitmap.recycle();
+                PreviewThumbnailCache.file(getApplicationContext(), key).delete();
+                bitmap = null;
+            }
+            if (bitmap != null) ThumbnailBackfiller.memoryPut(key, bitmap);
+            final android.graphics.Bitmap loaded = bitmap;
+            final boolean fadeIn = !alreadyShowingThis;
+            runOnUiThread(() -> {
+                if (key.equals(cover.getTag()) && loaded != null && !loaded.isRecycled()) {
+                    cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                    cover.setImageBitmap(loaded);
+                    cover.setContentDescription("作品预览缩略图");
+                    cover.setTag(TAG_THUMB_BOUND, key);
+                    if (fadeIn) {
+                        // Only a capture generated during this visit fades in; a row that already
+                        // showed its thumbnail simply stays put.
+                        cover.setAlpha(0f);
+                        cover.animate().alpha(1f).setDuration(THUMB_FADE_MS)
+                                .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                                .start();
+                    } else {
+                        cover.setAlpha(1f);
+                    }
+                }
+            });
+        });
     }
 
     private void shareDocument(CanvasDocument doc) {
@@ -848,45 +1238,64 @@ public class MainActivity extends Activity {
     }
 
     private void confirmDeleteDocument(CanvasDocument doc) {
-        activeDialog = new AlertDialog.Builder(this)
-                .setTitle("确认删除")
-                .setMessage("确定删除画布「" + doc.getTitle() + "」吗？")
-                .setPositiveButton("删除", (dialog, which) -> {
-                    new Thread(() -> {
-                        try {
-                            repository.deleteDocument(doc.getId());
-                            runOnUiThread(this::loadDocuments);
-                        } catch (Exception e) {
-                            runOnUiThread(() -> Toast.makeText(MainActivity.this, "删除失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-                        }
-                    }).start();
-                })
-                .setNegativeButton("取消", null)
-                .show();
+        activeDialog = CanvasConfirmDialog.show(this,
+                "删除画布",
+                "「" + doc.getTitle() + "」会从本机移除，无法撤销。",
+                "删除", true,
+                () -> new Thread(() -> {
+                    try {
+                        repository.deleteDocument(doc.getId());
+                        runOnUiThread(this::loadDocuments);
+                    } catch (Exception e) {
+                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "删除失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                    }
+                }).start());
     }
 
     public AlertDialog getActiveDialogForTest() { return activeDialog; }
+    public Dialog getActiveSheetForTest() { return activeSheet; }
+    public boolean isSelectionModeForTest() { return selectionMode; }
+    public int getSelectionCountForTest() { return selectedIds.size(); }
+    public boolean isClipboardBannerShowingForTest() {
+        return bannerClipboard != null && bannerClipboard.getVisibility() == View.VISIBLE;
+    }
+    /** Test hook: run the clipboard offer without waiting for a real resume. */
+    public void offerClipboardForTest() { maybeOfferClipboardBanner(); }
+
+    /** Test hook: block until the asynchronous clipboard read has had its chance to land. */
+    public void awaitClipboardReadForTest() {
+        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        clipboardReadExecutor.execute(latch::countDown);
+        try {
+            latch.await(3, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+    }
 
     @Override protected void onStop() {
-        // Rendering every document is not worth doing while the user is elsewhere.
         if (backfiller != null) backfiller.stop();
         super.onStop();
     }
 
     @Override protected void onDestroy() {
         if (backfiller != null) backfiller.stop();
-        if(activeDialog!=null && activeDialog.isShowing()) activeDialog.dismiss();
+        if (activeDialog != null && activeDialog.isShowing()) activeDialog.dismiss();
+        if (activeSheet != null && activeSheet.isShowing()) activeSheet.dismiss();
         super.onDestroy();
         thumbnailExecutor.shutdown();
-        if(updater!=null)updater.close();
+        clipboardReadExecutor.shutdown();
+        if (updater != null) updater.close();
     }
 
     public void loadDocumentsForTest() {
         try {
             allDocuments.clear();
             allDocuments.addAll(repository.getAllDocuments());
-            boolean dark=(getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_YES;
-            presentations.clear(); presentations.putAll(preparePresentations(allDocuments,dark));
+            boolean dark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                    == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+            presentations.clear();
+            presentations.putAll(preparePresentations(allDocuments, dark));
             filterDocuments(editSearch != null ? editSearch.getText().toString() : "");
         } catch (Exception e) {
             e.printStackTrace();

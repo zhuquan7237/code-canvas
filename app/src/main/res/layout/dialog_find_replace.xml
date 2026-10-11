@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 查找与替换：与"新建/重命名"用同一块面板（20dp 圆角、24dp 内边距、
+     同一套按钮），不再用裸 LinearLayout 在代码里拼界面。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/bg_dialog_surface">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="查找与替换"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="@color/canvas_ink_primary" />
+
+    <EditText
+        android:id="@+id/find_query"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:minHeight="44dp"
+        android:background="@drawable/bg_input_field"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp"
+        android:hint="查找内容（按原文匹配）"
+        android:textSize="14sp"
+        android:singleLine="true"
+        android:textColor="@color/canvas_ink_primary"
+        android:textColorHint="@color/canvas_ink_tertiary"
+        android:textColorHighlight="@color/canvas_selection"
+        android:textCursorDrawable="@null"
+        android:importantForAutofill="no" />
+
+    <EditText
+        android:id="@+id/find_replacement"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:minHeight="44dp"
+        android:background="@drawable/bg_input_field"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp"
+        android:hint="替换为"
+        android:textSize="14sp"
+        android:singleLine="true"
+        android:textColor="@color/canvas_ink_primary"
+        android:textColorHint="@color/canvas_ink_tertiary"
+        android:textColorHighlight="@color/canvas_selection"
+        android:textCursorDrawable="@null"
+        android:importantForAutofill="no" />
+
+    <TextView
+        android:id="@+id/find_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textSize="12sp"
+        android:textColor="@color/canvas_ink_secondary" />
+
+    <!-- 三个行内动作：定位与单次替换不需要离开对话框。 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/find_prev"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:minWidth="0dp"
+            android:background="@drawable/bg_button_subtle"
+            android:text="上一处"
+            android:textSize="13sp"
+            android:textColor="@color/canvas_primary" />
+
+        <Button
+            android:id="@+id/find_next"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:minWidth="0dp"
+            android:background="@drawable/bg_button_subtle"
+            android:text="下一处"
+            android:textSize="13sp"
+            android:textColor="@color/canvas_primary" />
+
+        <Button
+            android:id="@+id/find_replace_one"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:minWidth="0dp"
+            android:background="@drawable/bg_button_subtle"
+            android:text="替换"
+            android:textSize="13sp"
+            android:textColor="@color/canvas_primary" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/dialog_btn_negative"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:minWidth="72dp"
+            android:background="@drawable/bg_button_subtle"
+            android:text="关闭"
+            android:textColor="@color/canvas_ink_secondary"
+            android:textSize="14sp"
+            android:paddingHorizontal="16dp"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/dialog_btn_positive"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:minWidth="72dp"
+            android:background="@drawable/bg_button_primary"
+            android:text="全部替换"
+            android:textColor="@color/text_on_primary_button"
+            android:textSize="14sp"
+            android:paddingHorizontal="18dp" />
+    </LinearLayout>
+</LinearLayout>

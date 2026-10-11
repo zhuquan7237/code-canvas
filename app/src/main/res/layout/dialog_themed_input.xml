@@ -35,7 +35,7 @@
         android:textColor="@color/canvas_ink_primary"
         android:textColorHint="@color/canvas_ink_tertiary"
         android:textCursorDrawable="@null"
-        android:textColorHighlight="@color/canvas_teal_light"
+        android:textColorHighlight="@color/canvas_selection"
         android:textSize="14sp"
         android:singleLine="true" />
 

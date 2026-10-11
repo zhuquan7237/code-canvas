@@ -107,15 +107,17 @@ public final class AppUpdater {
             }
         });
         button.setOnLongClickListener(v -> {
-            new AlertDialog.Builder(activity)
-                    .setTitle("更新设置")
-                    .setMessage("检查只读取一个公开的版本清单，不上传任何文件内容。下载和安装都需要你确认。\n\n"
-                            + "主源：relay.zhuquan.xyz（国内可直连）\n备源：GitHub")
-                    .setMultiChoiceItems(new String[]{"启动时自动检查（每 6 小时）"},
-                            new boolean[]{prefs.getBoolean(KEY_AUTO, true)},
-                            (d, i, on) -> prefs.edit().putBoolean(KEY_AUTO, on).apply())
-                    .setPositiveButton("确定", null)
-                    .show();
+            android.widget.CheckBox auto = new android.widget.CheckBox(activity);
+            auto.setText("启动时自动检查（每 6 小时）");
+            auto.setChecked(prefs.getBoolean(KEY_AUTO, true));
+            auto.setTextColor(activity.getResources().getColor(R.color.canvas_ink_primary));
+            auto.setTextSize(14f);
+            auto.setOnCheckedChangeListener((b, on) -> prefs.edit().putBoolean(KEY_AUTO, on).apply());
+            com.nous.codecanvas.ui.CanvasConfirmDialog.showCustom(activity,
+                    "更新设置",
+                    "检查只读取一个公开的版本清单，不上传任何文件内容。下载和安装都需要你确认。\n\n"
+                            + "主源：relay.zhuquan.xyz（国内可直连）\n备源：GitHub",
+                    auto, "确定", null, false, null, null);
             return true;
         });
     }
@@ -189,13 +191,11 @@ public final class AppUpdater {
                 ui(() -> {
                     showIdleLabel();
                     if (manual) {
-                        new AlertDialog.Builder(activity)
-                                .setTitle("检查更新失败")
-                                .setMessage("所有源都取不到版本清单。\n\n" + detail
-                                        + "\n\n稍后会自动重试，也可以直接去下载页手动安装。")
-                                .setPositiveButton("重试", (d, w) -> check(true))
-                                .setNegativeButton("关闭", null)
-                                .show();
+                        com.nous.codecanvas.ui.CanvasConfirmDialog.show(activity,
+                                "检查更新失败",
+                                "所有源都取不到版本清单。\n\n" + detail
+                                        + "\n\n稍后会自动重试，也可以直接去下载页手动安装。",
+                                "重试", "关闭", false, () -> check(true));
                     }
                 });
                 return;
@@ -228,16 +228,15 @@ public final class AppUpdater {
     // ---------------------------------------------------------------- downloading
 
     private void offer(final UpdateManifest m) {
-        new AlertDialog.Builder(activity)
-                .setTitle("更新到 " + m.versionName)
-                .setMessage(m.notes + "\n\n下载 " + m.size + " 字节。校验通过后交给系统安装，已有文件会保留。")
-                .setPositiveButton("下载并安装", (d, w) -> download(m))
-                .setNegativeButton("稍后", null)
-                .setNeutralButton("重新检查", (d, w) -> {
+        com.nous.codecanvas.ui.CanvasConfirmDialog.show(activity,
+                "更新到 " + m.versionName,
+                m.notes + "\n\n下载 " + m.size + " 字节。校验通过后交给系统安装，已有文件会保留。",
+                "下载并安装", "稍后", false,
+                () -> download(m),
+                () -> {
                     available = null;
                     check(true);
-                })
-                .show();
+                });
     }
 
     private void download(final UpdateManifest m) {
@@ -252,12 +251,10 @@ public final class AppUpdater {
         box.setPadding(pad, pad, pad, pad);
         box.addView(progress, new LinearLayout.LayoutParams(-1, -2));
 
-        dialog = new AlertDialog.Builder(activity)
-                .setTitle("正在下载更新")
-                .setView(box)
-                .setNegativeButton("取消", (d, w) -> cancelDownload())
-                .setOnCancelListener(d -> cancelDownload())
-                .show();
+        dialog = com.nous.codecanvas.ui.CanvasConfirmDialog.showCustom(activity,
+                "正在下载更新", null, box, "取消", null, false,
+                null, () -> cancelDownload());
+        dialog.setOnCancelListener(d -> cancelDownload());
 
         io.execute(() -> {
             final File part = new File(activity.getCacheDir(), "updates/update.part");
@@ -309,13 +306,12 @@ public final class AppUpdater {
                     dismissDialog();
                     downloading = null;
                     if (!cancelled) {
-                        new AlertDialog.Builder(activity)
-                                .setTitle("更新下载失败")
-                                .setMessage(describe(e) + "\n\n两个地址都没成时，可以自己去下载页拿安装包。")
-                                .setPositiveButton("重试", (d, w) -> download(m))
-                                .setNeutralButton("手动下载", (d, w) -> openInBrowser(m.apkUrl))
-                                .setNegativeButton("关闭", null)
-                                .show();
+                        com.nous.codecanvas.ui.CanvasConfirmDialog.show(activity,
+                                "更新下载失败",
+                                describe(e) + "\n\n两个地址都没成时，可以自己去下载页拿安装包。",
+                                "重试", "关闭", false,
+                                () -> download(m),
+                                () -> openInBrowser(m.apkUrl));
                     }
                 });
             }
@@ -420,20 +416,19 @@ public final class AppUpdater {
         }
         if (!activity.getPackageManager().canRequestPackageInstalls()) {
             awaitingInstallPermission = true;
-            new AlertDialog.Builder(activity)
-                    .setTitle("允许安装更新")
-                    .setMessage("安装包已校验。请在系统设置里允许代码画布安装应用，然后回到这里继续。"
-                            + "这不会改动其他安全设置。")
-                    .setPositiveButton("去设置", (d, w) -> {
+            com.nous.codecanvas.ui.CanvasConfirmDialog.show(activity,
+                    "允许安装更新",
+                    "安装包已校验。请在系统设置里允许代码画布安装应用，然后回到这里继续。"
+                            + "这不会改动其他安全设置。",
+                    "去设置", "稍后", false,
+                    () -> {
                         try {
                             activity.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                                     Uri.parse("package:" + activity.getPackageName())));
                         } catch (Exception e) {
                             Toast.makeText(activity, "请在系统设置中允许安装应用", Toast.LENGTH_LONG).show();
                         }
-                    })
-                    .setNegativeButton("稍后", null)
-                    .show();
+                    });
             return;
         }
         Uri uri = new Uri.Builder()

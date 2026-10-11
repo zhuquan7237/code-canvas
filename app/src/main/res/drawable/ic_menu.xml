@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 目录入口：三条渐短横线，与整套图标共用 24 网格 / 1.8 描边 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M4.5,7 L19.5,7 M4.5,12 L19.5,12 M4.5,17 L13,17"
+        android:strokeColor="@color/canvas_icon_on_subtle"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+</vector>

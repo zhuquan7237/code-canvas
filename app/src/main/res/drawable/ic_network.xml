@@ -1,22 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <!-- Global / wide-web: a human-recognisable network mark distinct from share -->
-    <path
-        android:fillColor="#00000000"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <!-- 地球：外圈 + 一条经线 + 两条纬线，表示"联网加载"。 -->
+    <path android:pathData="M4.5,12 A7.5,7.5 0 1,1 19.5,12 A7.5,7.5 0 1,1 4.5,12 Z"
         android:strokeColor="@color/canvas_warning"
         android:strokeWidth="1.8"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M12,3 a9,9 0,0 1,9 9 a9,9 0,0 1,-9 9 a9,9 0,0 1,-9 -9 a9,9 0,0 1,9 -9 Z" />
-    <path
-        android:fillColor="#00000000"
+        android:fillColor="#00000000" />
+    <path android:pathData="M12,4.5 A4.1,7.5 0 1,0 12,19.5 A4.1,7.5 0 1,0 12,4.5 Z"
         android:strokeColor="@color/canvas_warning"
         android:strokeWidth="1.8"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M3,12 h18 M12,3 C15,6 15,18 12,21 M12,3 C9,6 9,18 12,21" />
+        android:fillColor="#00000000" />
+    <path android:pathData="M5.1,9.4 L18.9,9.4 M5.1,14.6 L18.9,14.6"
+        android:strokeColor="@color/canvas_warning"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
 </vector>

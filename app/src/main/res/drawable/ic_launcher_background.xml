@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 图标背景层：墨色底 + 极淡的「画布网格」，呼应应用内预览区的网格底纹 -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path android:fillColor="#141C2B" android:pathData="M0,0h108v108h-108z" />
-    <path android:strokeColor="#22304A" android:strokeWidth="1"
-        android:pathData="M18,0V108 M36,0V108 M54,0V108 M72,0V108 M90,0V108" />
-    <path android:strokeColor="#22304A" android:strokeWidth="1"
-        android:pathData="M0,18H108 M0,36H108 M0,54H108 M0,72H108 M0,90H108" />
-</vector>
+<!--
+  图标背景层：硬编码墨色，刻意不引用 @color/canvas_bg。
+
+  图标资源会按"启动器当前的主题"解析颜色，而启动器并不总是跟着应用的深浅色走：
+  引用主题色时，浅色启动器上这一层会变成 #F5F7FA 的浅底板，白色的括号压在上面
+  直接消失，整个图标看起来只剩一块绿色。图标必须与主题解耦。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#0D1420" />
+</shape>

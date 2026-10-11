@@ -2,36 +2,41 @@
 <resources>
 
     <!--
-      A. Night (dark) semantic palette.
-      Same token names as the day palette. No value here is inherited from the
-      light theme, so no icon keeps a hardcoded dark stroke in dark mode.
+      A. Night (dark) semantic palette — v0.3.0 "Atelier" refresh.
+      Same token names as the day palette. No value is inherited from the light
+      theme: functional icon ink is bright enough to read on the darkest surface
+      (the v0.2.x ghost-gear defect was a dark stroke on a near-black top bar).
       Ordinary text >= 4.5:1, functional icons, strokes and indicators >= 3:1.
       The numeric table at the bottom is parsed by ColorContrastTest and mirrors
       the values above exactly.
     -->
 
     <!-- Surfaces -->
-    <color name="canvas_bg">#101722</color>
-    <color name="canvas_surface">#171F2B</color>
-    <color name="canvas_surface_subtle">#212B3A</color>
-    <color name="canvas_border">#37455A</color>
+    <color name="canvas_bg">#0D1420</color>
+    <color name="canvas_surface">#151E2C</color>
+    <color name="canvas_surface_subtle">#1E2939</color>
+    <color name="canvas_surface_elevated">#202D40</color>
+    <color name="canvas_border">#2E3D52</color>
     <color name="canvas_line_number">#8B96A8</color>
     <color name="canvas_border_strong">#63768F</color>
     <color name="canvas_card_shadow">#66000000</color>
+    <color name="canvas_scrim">#B3000000</color>
 
     <!-- Neutral ink -->
-    <color name="canvas_ink_primary">#F2F5FA</color>
-    <color name="canvas_ink_secondary">#B5C2D5</color>
+    <color name="canvas_ink_primary">#F2F6FB</color>
+    <color name="canvas_ink_secondary">#B4C1D4</color>
+    <color name="canvas_ink_tertiary">#93A1B5</color>
 
     <!-- Functional / interactive ink used for thin-line icons and controls -->
-    <color name="canvas_icon">#C4D0E2</color>
-    <color name="canvas_icon_on_surface">#C4D0E2</color>
-    <color name="canvas_icon_on_subtle">#CCD7E6</color>
+    <color name="canvas_icon">#C8D4E4</color>
+    <color name="canvas_icon_on_surface">#C8D4E4</color>
+    <color name="canvas_icon_on_subtle">#C8D4E4</color>
 
-    <!-- Primary action (blue) -->
+    <!-- Primary action (indigo) -->
     <color name="canvas_primary">#8EB4FF</color>
     <color name="canvas_primary_pressed">#6E9BF0</color>
-    <color name="canvas_on_primary">#0B1220</color>
+    <color name="canvas_on_primary">#0B1424</color>
+    <color name="canvas_selection">#24364F</color>
 
     <!-- Success / save (jade) -->
     <color name="canvas_success">#72DFC0</color>
@@ -53,28 +58,19 @@
     <!-- Destructive (red) -->
     <color name="canvas_danger">#FF9E9E</color>
     <color name="canvas_on_danger">#3A0F10</color>
+    <color name="canvas_danger_surface">#3A1D1E</color>
 
     <!-- Disabled state: muted fill, still-readable muted ink on top. -->
     <color name="canvas_disabled_fill">#2C394C</color>
     <color name="canvas_disabled_ink">#C4D0E2</color>
 
-    <!-- XML/plain code surface. The code area paints this, and the syntax
-         colours are measured against it. -->
-    <color name="canvas_code_surface">#101722</color>
-    <!-- Readable body text on the dark code surface. This used to be #0F172A —
-         near-black on a near-black surface, which made every non-highlighted
-         character (CSS, Chinese prose, plain text) effectively invisible. -->
+    <!-- Code surface: one step above bg so the editing well reads as a surface. -->
+    <color name="canvas_code_surface">#111A28</color>
     <color name="canvas_code_ink">#DDE7F5</color>
 
     <!-- Segment / tab chrome + selected chip ink -->
-    <color name="canvas_segment_track">#212B3A</color>
-    <color name="canvas_on_segment_selected">#0B1220</color>
-
-    <!-- Backward-compatible aliases -->
-    <color name="canvas_ink_tertiary">@color/canvas_ink_secondary</color>
-    <color name="canvas_teal_primary">@color/canvas_primary</color>
-    <color name="canvas_teal_light">@color/canvas_surface_subtle</color>
-    <color name="canvas_teal_dark">@color/canvas_success</color>
+    <color name="canvas_segment_track">#1E2939</color>
+    <color name="canvas_on_segment_selected">#0B1424</color>
 
     <!-- Syntax highlighting (night) - measured against canvas_code_surface -->
     <color name="syntax_tag">#5FD3C0</color>
@@ -85,17 +81,20 @@
     <!--
       B. Machine-readable palette table (night).
       drumroll:p1:palette-night
-        bg                       #101722
-        surface                  #171F2B
-        surface_subtle           #212B3A
-        border                   #37455A
+        bg                       #0D1420
+        surface                  #151E2C
+        surface_subtle           #1E2939
+        surface_elevated         #202D40
+        border                   #2E3D52
         border_strong            #63768F
-        ink_primary              #F2F5FA
-        ink_secondary            #B5C2D5
-        icon_on_surface          #C4D0E2
-        icon_on_subtle           #CCD7E6
+        ink_primary              #F2F6FB
+        ink_secondary            #B4C1D4
+        ink_tertiary             #93A1B5
+        icon_on_surface          #C8D4E4
+        icon_on_subtle           #C8D4E4
         primary                  #8EB4FF
-        on_primary               #0B1220
+        on_primary               #0B1424
+        selection                #24364F
         success                  #72DFC0
         on_success               #06221B
         success_surface          #14312A
@@ -106,11 +105,12 @@
         warning_surface          #33260F
         danger                   #FF9E9E
         on_danger                #3A0F10
+        danger_surface           #3A1D1E
         disabled_fill            #2C394C
         disabled_ink             #C4D0E2
-        segment_track            #212B3A
-        on_segment_selected      #0B1220
-        code_surface             #101722
+        segment_track            #1E2939
+        on_segment_selected      #0B1424
+        code_surface             #111A28
         code_ink                 #DDE7F5
         syntax_tag               #5FD3C0
         syntax_attr              #9CC2FF

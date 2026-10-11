@@ -116,6 +116,11 @@ public class SettingsActivity extends Activity {
         network.setChecked(CanvasPrefs.networkAllowedByDefault(this));
         network.setOnCheckedChangeListener((v, checked) ->
                 CanvasPrefs.setNetworkAllowedByDefault(SettingsActivity.this, checked));
+
+        Switch clipboardAuto = findViewById(R.id.switch_clipboard_auto);
+        clipboardAuto.setChecked(CanvasPrefs.clipboardAutoDetect(this));
+        clipboardAuto.setOnCheckedChangeListener((v, checked) ->
+                CanvasPrefs.setClipboardAutoDetect(SettingsActivity.this, checked));
     }
 
     // --- cache ---------------------------------------------------------------------------------

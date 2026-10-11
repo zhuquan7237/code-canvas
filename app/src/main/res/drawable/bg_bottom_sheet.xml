@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bottom sheet: top corners only, 24dp (the "sheet" tier). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/canvas_surface_elevated" />
+    <corners android:topLeftRadius="24dp" android:topRightRadius="24dp"
+        android:bottomLeftRadius="0dp" android:bottomRightRadius="0dp" />
+</shape>

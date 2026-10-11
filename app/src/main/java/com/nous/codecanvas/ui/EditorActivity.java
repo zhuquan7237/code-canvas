@@ -2,6 +2,7 @@ package com.nous.codecanvas.ui;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -55,6 +56,8 @@ public class EditorActivity extends Activity {
 
     private DocumentRepository repository;
     private AlertDialog activeDialog;
+    /** The bottom sheet currently on screen, if any. */
+    private Dialog activeSheet;
     private CanvasDocument currentDocument;
 
     // Views
@@ -305,12 +308,9 @@ public class EditorActivity extends Activity {
         webPreview.setWebChromeClient(new android.webkit.WebChromeClient() {
             @Override
             public boolean onJsAlert(WebView view, String url, String message, android.webkit.JsResult result) {
-                activeDialog = new AlertDialog.Builder(EditorActivity.this)
-                        .setTitle("页面提示")
-                        .setMessage(message)
-                        .setPositiveButton("确定", (d, w) -> result.confirm())
-                        .setOnCancelListener(d -> result.cancel())
-                        .show();
+                activeDialog = CanvasConfirmDialog.show(EditorActivity.this,
+                        "页面提示", message, "确定", "取消", false,
+                        result::confirm, result::cancel);
                 return true;
             }
 
@@ -389,12 +389,12 @@ public class EditorActivity extends Activity {
         detachDeadWebView();
         runOnUiThread(() -> {
             if (isDestroyed() || isFinishing()) return;
-            new AlertDialog.Builder(this)
-                    .setTitle("预览已停止")
-                    .setMessage("渲染进程被系统回收或崩溃了。你的代码和编辑状态没有受影响，可以重建预览继续。")
-                    .setPositiveButton("重建预览", (d, w) -> { rebuildPreviewRenderer(); renderPreview(); })
-                    .setNegativeButton("返回代码", (d, w) -> switchToTab(0))
-                    .show();
+            activeDialog = CanvasConfirmDialog.show(this,
+                    "预览已停止",
+                    "渲染进程被系统回收或崩溃了。你的代码和编辑状态没有受影响，可以重建预览继续。",
+                    "重建预览", "返回代码", false,
+                    () -> { rebuildPreviewRenderer(); renderPreview(); },
+                    () -> switchToTab(0));
         });
         return true;
     }
@@ -455,10 +455,11 @@ public class EditorActivity extends Activity {
         setupEditorHelpers();
         findViewById(R.id.btn_preview_network).setOnClickListener(v -> {
             if (isAllowNetwork) { setNetworkAllowed(false); return; }
-            activeDialog = new AlertDialog.Builder(this).setTitle("允许此页面联网？")
-                    .setMessage("用于加载 HTTPS 图片、字体和外部脚本。页面可能向第三方网站发送请求；页面脚本默认是开的，联网之后脚本也能发请求。只对当前这一页生效，离开就恢复离线。只开启你信任的代码。")
-                    .setPositiveButton("允许本页联网", (d,w) -> setNetworkAllowed(true))
-                    .setNegativeButton("保持离线",null).show();
+            activeDialog = CanvasConfirmDialog.show(this,
+                    "允许此页面联网？",
+                    "用于加载 HTTPS 图片、字体和外部脚本。页面可能向第三方网站发送请求；页面脚本默认是开的，联网之后脚本也能发请求。只对当前这一页生效，离开就恢复离线。只开启你信任的代码。",
+                    "允许本页联网", "保持离线", false,
+                    () -> setNetworkAllowed(true));
         });
         tabCode.setOnLongClickListener(v -> {
             ((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("代码",editCode.getText().toString()));
@@ -531,14 +532,111 @@ public class EditorActivity extends Activity {
         }
     }
     private EditText field(String hint) {EditText e=new EditText(this);e.setSingleLine(true);e.setHint(hint);e.setTextColor(getResources().getColor(R.color.canvas_ink_primary));e.setHintTextColor(getResources().getColor(R.color.canvas_ink_secondary));return e;}
-    private void showMore(){activeDialog=new AlertDialog.Builder(this).setTitle("编辑工具").setItems(new String[]{"全选","复制全部代码","跳转到行"},(d,w)->{
-        if(w==0){editCode.requestFocus();editCode.selectAll();}else if(w==1){((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("代码",editCode.getText().toString()));Toast.makeText(this,"已复制",Toast.LENGTH_SHORT).show();}else{EditText e=field("输入行号");e.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);activeDialog=new AlertDialog.Builder(this).setTitle("跳转到行").setView(e).setPositiveButton("跳转",(x,y)->{try{editCode.setSelection(com.nous.codecanvas.editor.EditorCommands.lineOffset(editCode.getText().toString(),Integer.parseInt(e.getText().toString())));editCode.requestFocus();}catch(Exception ex){Toast.makeText(this,"请输入有效行号",Toast.LENGTH_SHORT).show();}}).setNegativeButton("取消",null).show();}
-    }).setNegativeButton("关闭",null).show();}
-    private void showFind(){android.widget.LinearLayout box=new android.widget.LinearLayout(this);box.setOrientation(1);int pad=(int)(20*getResources().getDisplayMetrics().density);box.setPadding(pad,0,pad,0);EditText query=field("查找内容（按原文匹配）"),replacement=field("替换为");query.setContentDescription("查找内容");replacement.setContentDescription("替换为");TextView status=new TextView(this);status.setTextColor(getResources().getColor(R.color.canvas_ink_secondary));box.addView(query);box.addView(replacement);box.addView(status);
-        android.widget.LinearLayout actions=new android.widget.LinearLayout(this);box.addView(actions);
-        for(String label:new String[]{"上一处","下一处","替换"}){Button b=new Button(this);b.setText(label);b.setTextSize(12);b.setTextColor(getResources().getColor(R.color.canvas_primary));actions.addView(b,new android.widget.LinearLayout.LayoutParams(0,48* (int)Math.ceil(getResources().getDisplayMetrics().density),1));b.setOnClickListener(v->{String t=editCode.getText().toString(),q=query.getText().toString();if(q.isEmpty()){status.setText("请输入查找内容");return;}if(label.equals("替换")){int x=editCode.getSelectionStart(),y=editCode.getSelectionEnd();if(x>=0&&y>=x&&t.substring(x,y).equals(q)){String r=replacement.getText().toString();if(t.length()-q.length()+r.length()>com.nous.codecanvas.editor.EditorCommands.MAX){status.setText("替换后代码过大");return;}editCode.getText().replace(x,y,r);editCode.setSelection(x+r.length());t=editCode.getText().toString();}}
-            int at=label.equals("上一处")?t.lastIndexOf(q,Math.max(-1,editCode.getSelectionStart()-1)):t.indexOf(q,Math.max(0,editCode.getSelectionEnd()));if(at<0)at=label.equals("上一处")?t.lastIndexOf(q):t.indexOf(q);if(at>=0){editCode.setSelection(at,at+q.length());status.setText("已定位到第 "+(at+1)+" 个字符");}else status.setText("没有匹配内容");});}
-        activeDialog=new AlertDialog.Builder(this).setTitle("查找与替换").setView(box).setPositiveButton("全部替换",null).setNegativeButton("关闭",null).show();activeDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{String q=query.getText().toString(),r=replacement.getText().toString(),t=editCode.getText().toString();try{String result=com.nous.codecanvas.editor.EditorCommands.replaceAll(t,q,r);editCode.setText(result);editCode.setSelection(0);status.setText(result.equals(t)?"没有匹配内容":"已全部替换，可撤销");}catch(Exception ex){status.setText(ex.getMessage());}});
+    private void showMore(){
+        CanvasBottomSheet.Action[] actions = new CanvasBottomSheet.Action[]{
+                new CanvasBottomSheet.Action(0, R.drawable.ic_select_all, "全选"),
+                new CanvasBottomSheet.Action(1, R.drawable.ic_copy, "复制全部代码"),
+                new CanvasBottomSheet.Action(2, R.drawable.ic_find, "跳转到行"),
+        };
+        activeSheet = CanvasBottomSheet.show(this, "编辑工具", null, actions, id -> {
+            if (id == 0) { editCode.requestFocus(); editCode.selectAll(); }
+            else if (id == 1) { ((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("代码",editCode.getText().toString()));Toast.makeText(this,"已复制",Toast.LENGTH_SHORT).show(); }
+            else {
+                activeDialog = UiDialogHelper.createThemedInputDialog(this, "跳转到行", "输入行号",
+                        "", android.text.InputType.TYPE_CLASS_NUMBER, "跳转", false, false, raw -> {
+                    try {
+                        editCode.setSelection(com.nous.codecanvas.editor.EditorCommands.lineOffset(
+                                editCode.getText().toString(), Integer.parseInt(raw)));
+                        editCode.requestFocus();
+                    } catch (Exception ex) {
+                        Toast.makeText(this, "请输入有效行号", Toast.LENGTH_SHORT).show();
+                    }
+                });
+                activeDialog.show();
+            }
+        });
+    }
+    /**
+     * 查找与替换走的是和"新建/重命名"同一块对话框面板：同一圆角、同一内边距、同一套按钮。
+     * 旧版是在代码里拼一个裸 LinearLayout 再套系统按钮，读起来是另一个房间。
+     */
+    private void showFind(){
+        View panel = getLayoutInflater().inflate(R.layout.dialog_find_replace, null);
+        final EditText query = panel.findViewById(R.id.find_query);
+        final EditText replacement = panel.findViewById(R.id.find_replacement);
+        final TextView status = panel.findViewById(R.id.find_status);
+        query.setContentDescription("查找内容");
+        replacement.setContentDescription("替换为");
+
+        activeDialog = new AlertDialog.Builder(this).setView(panel).create();
+        if (activeDialog.getWindow() != null) {
+            activeDialog.getWindow().setBackgroundDrawable(
+                    new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+
+        final Runnable findNext = () -> stepFind(query, status, false);
+        final Runnable findPrev = () -> stepFind(query, status, true);
+        final Runnable replaceOne = () -> {
+            String q = query.getText().toString();
+            String text = editCode.getText().toString();
+            if (q.isEmpty()) { status.setText("请输入查找内容"); return; }
+            int selStart = editCode.getSelectionStart();
+            int selEnd = editCode.getSelectionEnd();
+            if (selStart >= 0 && selEnd >= selStart && text.substring(selStart, selEnd).equals(q)) {
+                String r = replacement.getText().toString();
+                if (text.length() - q.length() + r.length() > com.nous.codecanvas.editor.EditorCommands.MAX) {
+                    status.setText("替换后代码过大");
+                    return;
+                }
+                editCode.getText().replace(selStart, selEnd, r);
+                editCode.setSelection(selStart + r.length());
+                status.setText("已替换 1 处，可撤销");
+            } else {
+                status.setText("先定位到要替换的内容");
+            }
+        };
+
+        panel.findViewById(R.id.find_prev).setOnClickListener(v -> findPrev.run());
+        panel.findViewById(R.id.find_next).setOnClickListener(v -> findNext.run());
+        panel.findViewById(R.id.find_replace_one).setOnClickListener(v -> replaceOne.run());
+        panel.findViewById(R.id.dialog_btn_negative).setOnClickListener(v -> activeDialog.dismiss());
+        panel.findViewById(R.id.dialog_btn_positive).setOnClickListener(v -> {
+            String q = query.getText().toString();
+            String r = replacement.getText().toString();
+            String text = editCode.getText().toString();
+            try {
+                String result = com.nous.codecanvas.editor.EditorCommands.replaceAll(text, q, r);
+                editCode.setText(result);
+                editCode.setSelection(0);
+                status.setText(result.equals(text) ? "没有匹配内容" : "已全部替换，可撤销");
+            } catch (Exception ex) {
+                status.setText(ex.getMessage());
+            }
+        });
+
+        activeDialog.show();
+    }
+
+    /** 上一处 / 下一处：选区移动是唯一副作用，找不到就明说。 */
+    private void stepFind(EditText query, TextView status, boolean backwards) {
+        String q = query.getText().toString();
+        if (q.isEmpty()) {
+            status.setText("请输入查找内容");
+            return;
+        }
+        String text = editCode.getText().toString();
+        int at = backwards
+                ? text.lastIndexOf(q, Math.max(-1, editCode.getSelectionStart() - 1))
+                : text.indexOf(q, Math.max(0, editCode.getSelectionEnd()));
+        if (at < 0) {
+            at = backwards ? text.lastIndexOf(q) : text.indexOf(q);
+        }
+        if (at >= 0) {
+            editCode.setSelection(at, at + q.length());
+            status.setText("已定位到第 " + (at + 1) + " 个字符");
+        } else {
+            status.setText("没有匹配内容");
+        }
     }
 
     private void bindDocumentData() {
@@ -624,26 +722,24 @@ public class EditorActivity extends Activity {
     }
 
     private void showMultiBlockPicker(final java.util.List<com.nous.codecanvas.util.AiCodeExtractor.CodeBlock> blocks, final String originalRaw) {
-        String[] items = new String[blocks.size() + 1];
+        CanvasBottomSheet.Action[] actions = new CanvasBottomSheet.Action[blocks.size() + 1];
         for (int i = 0; i < blocks.size(); i++) {
             com.nous.codecanvas.util.AiCodeExtractor.CodeBlock b = blocks.get(i);
             String label = (b.language.isEmpty() ? "代码块 " + (i + 1) : b.language.toUpperCase(Locale.ROOT) + " 块 " + (i + 1));
-            String snippet = b.code.length() > 30 ? b.code.substring(0, 30).replace("\n", " ") + "..." : b.code.replace("\n", " ");
-            items[i] = label + " (" + snippet + ")";
+            String snippet = b.code.length() > 34 ? b.code.substring(0, 34).replace("\n", " ") + "…" : b.code.replace("\n", " ");
+            actions[i] = new CanvasBottomSheet.Action(i, R.drawable.ic_paste, label, snippet, false);
         }
-        items[blocks.size()] = "完整原始剪贴板文本";
+        actions[blocks.size()] = new CanvasBottomSheet.Action(blocks.size(), R.drawable.ic_copy,
+                "完整原始剪贴板文本", originalRaw.length() + " 字符", false);
 
-        activeDialog = new AlertDialog.Builder(this)
-                .setTitle("检测到多段代码块，请选择")
-                .setItems(items, (dialog, which) -> {
-                    if (which < blocks.size()) {
-                        promptAppendOrReplace(blocks.get(which).code);
+        activeSheet = CanvasBottomSheet.show(this, "检测到 " + blocks.size() + " 段代码块", "选择一段插入编辑器",
+                actions, id -> {
+                    if (id < blocks.size()) {
+                        promptAppendOrReplace(blocks.get(id).code);
                     } else {
                         promptAppendOrReplace(originalRaw);
                     }
-                })
-                .setNegativeButton("取消", null)
-                .show();
+                });
     }
 
     private void promptAppendOrReplace(final String text) {
@@ -661,17 +757,20 @@ public class EditorActivity extends Activity {
             return;
         }
 
-        activeDialog = new AlertDialog.Builder(this)
-                .setTitle("粘贴方式选择")
-                .setMessage("当前画布已有代码，请选择操作：")
-                .setPositiveButton("追加到末尾", (dialog, which) -> {
-                    editCode.setSelection(editCode.length());
-                    insertTextIntoEditor("\n\n" + text, false);
-                    editCode.setSelection(editCode.length());
-                })
-                .setNeutralButton("覆盖替换 (可撤销)", (dialog, which) -> insertTextIntoEditor(text, true))
-                .setNegativeButton("取消", null)
-                .show();
+        CanvasBottomSheet.Action[] actions = new CanvasBottomSheet.Action[]{
+                new CanvasBottomSheet.Action(0, R.drawable.ic_paste, "追加到末尾"),
+                new CanvasBottomSheet.Action(1, R.drawable.ic_edit, "覆盖替换", "可撤销", true),
+        };
+        activeSheet = CanvasBottomSheet.show(this, "粘贴方式", "当前画布已有代码",
+                actions, id -> {
+                    if (id == 0) {
+                        editCode.setSelection(editCode.length());
+                        insertTextIntoEditor("\n\n" + text, false);
+                        editCode.setSelection(editCode.length());
+                    } else {
+                        insertTextIntoEditor(text, true);
+                    }
+                });
     }
 
     private void insertTextIntoEditor(String text, boolean replaceAll) {
@@ -821,7 +920,7 @@ public class EditorActivity extends Activity {
             XmlValidator.ValidationResult result = XmlValidator.validateSecurely(content);
             if (result.isValid()) {
                 txtXmlStatus.setText("✓ XML 结构完整有效（已启用防 XXE 安全沙箱）");
-                txtXmlStatus.setTextColor(getResources().getColor(R.color.canvas_teal_dark));
+                txtXmlStatus.setTextColor(getResources().getColor(R.color.canvas_success));
             } else {
                 txtXmlStatus.setText("⚠ XML 解析异常: " + result.getErrorMessage());
                 txtXmlStatus.setTextColor(getResources().getColor(R.color.canvas_danger));
@@ -1040,10 +1139,13 @@ public class EditorActivity extends Activity {
     }
 
     public AlertDialog getActiveDialogForTest() { return activeDialog; }
+    /** The bottom sheet on screen, for tests that drive its real rows. */
+    public Dialog getActiveSheetForTest() { return activeSheet; }
 
     @Override
     protected void onDestroy() {
         if(activeDialog!=null && activeDialog.isShowing()) activeDialog.dismiss();
+        if(activeSheet!=null && activeSheet.isShowing()) activeSheet.dismiss();
         handler.removeCallbacks(autoSaveRunnable);
         handler.removeCallbacks(highlightRunnable);
         previewState.invalidate();

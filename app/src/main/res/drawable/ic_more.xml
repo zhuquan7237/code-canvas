@@ -1,11 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <!-- More menu: three dots. Semantically distinct from add/search. -->
-    <path
-        android:fillColor="@color/canvas_icon_on_subtle"
-        android:pathData="M12,5 a1.7,1.7 0,1 0,0.001 0 Z M12,12 a1.7,1.7 0,1 0,0.001 0 Z M12,19 a1.7,1.7 0,1 0,0.001 0 Z" />
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M12,6.2 A1.3,1.3 0 1,1 13.3,4.9 A1.3,1.3 0 0,1 12,6.2 Z M12,13.3 A1.3,1.3 0 1,1 13.3,12 A1.3,1.3 0 0,1 12,13.3 Z M12,20.4 A1.3,1.3 0 1,1 13.3,19.1 A1.3,1.3 0 0,1 12,20.4 Z" android:fillColor="@color/canvas_icon_on_subtle" />
 </vector>

@@ -71,6 +71,21 @@ public class AiCodeExtractor {
         return region;
     }
 
+    /**
+     * Whether the text actually contains a fenced code block.
+     *
+     * <p>{@link #extract} cannot answer this: it never returns an empty list — with no fence it
+     * wraps the whole input as one block, which is the right behaviour for "import this reply" and
+     * the wrong answer for "is this a code block at all". Anything deciding whether a clip is worth
+     * offering has to ask this question instead.</p>
+     */
+    public static boolean hasFencedBlock(String input) {
+        if (input == null || input.trim().isEmpty()) {
+            return false;
+        }
+        return FENCED_BLOCK_PATTERN.matcher(input).find();
+    }
+
     public static List<CodeBlock> extract(String input) {
         if (input == null) {
             return Collections.emptyList();

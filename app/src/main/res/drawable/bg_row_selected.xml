@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Multi-select: the whole card lifts into the selection tint and the
+     boundary strengthens to the primary accent. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/canvas_selection" />
+    <stroke android:width="1.5dp" android:color="@color/canvas_primary" />
+    <corners android:radius="16dp" />
+</shape>

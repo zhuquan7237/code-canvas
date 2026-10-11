@@ -1,5 +1,9 @@
 package com.nous.codecanvas;
 
+import android.app.Activity;
+import android.app.Instrumentation;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.test.InstrumentationTestCase;
 import android.view.View;
@@ -23,12 +27,23 @@ import java.util.List;
 public class DocumentActionsTest extends InstrumentationTestCase {
 
     private MainActivity home;
+    private Instrumentation.ActivityMonitor editorMonitor;
+    /** Every editor this class opened; a test that starts an Activity owns closing it. */
+    private final List<Activity> openedEditors = new ArrayList<>();
     private final List<String> created = new ArrayList<>();
 
     @Override
     protected void setUp() throws Exception {
         super.setUp();
         TestAppearance.resetToSystem(getInstrumentation().getTargetContext());
+        // Start from a known clipboard: a clip left by another class would raise the app's
+        // clipboard banner and change how many rows fit on screen.
+        ClipboardManager clipboard =
+                (ClipboardManager) getInstrumentation().getTargetContext()
+                        .getSystemService(MainActivity.CLIPBOARD_SERVICE);
+        if (clipboard != null) clipboard.setPrimaryClip(ClipData.newPlainText("fixture", ""));
+        editorMonitor = getInstrumentation().addMonitor(
+                com.nous.codecanvas.ui.EditorActivity.class.getName(), null, false);
         DocumentRepository repo = new DocumentRepository(getInstrumentation().getTargetContext());
         String id = "actions-" + System.nanoTime();
         created.add(id);
@@ -47,8 +62,18 @@ public class DocumentActionsTest extends InstrumentationTestCase {
         for (String id : created) {
             repo.deleteDocument(id);
         }
+        // Tapping a row really does open the editor; leaving it on top of the stack makes the
+        // next test class unable to bring its own home screen to the foreground.
+        Activity launched;
+        while ((launched = getInstrumentation().waitForMonitorWithTimeout(editorMonitor, 200)) != null) {
+            openedEditors.add(launched);
+        }
+        if (editorMonitor != null) getInstrumentation().removeMonitor(editorMonitor);
         final MainActivity toFinish = home;
         getInstrumentation().runOnMainSync(() -> {
+            for (Activity editor : openedEditors) {
+                if (!editor.isFinishing()) editor.finish();
+            }
             if (!toFinish.isFinishing()) toFinish.finish();
         });
         getInstrumentation().waitForIdleSync();

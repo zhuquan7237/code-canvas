@@ -1,25 +1,49 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root_main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@color/canvas_bg">
 
-    <!-- Brand bar: the title carries the weight, the two actions are bare
-         glyphs. No boxes around icons - spacing and alignment do the grouping. -->
+    <!-- The browsing column. The drawer is a sibling that overlays it, so the
+         panel can cover the top bar instead of pushing the page sideways. -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="58dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+    <!-- Top bar: brand lockup left, three quiet glyphs right. The bar is the
+         page, not a separate slab - no surface break, no divider. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingStart="20dp"
-        android:paddingEnd="8dp"
-        android:background="@color/canvas_surface">
+        android:paddingStart="22dp"
+        android:paddingEnd="10dp">
+
+        <LinearLayout
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="11dp"
+            android:background="@drawable/bg_icon_button">
+
+            <ImageButton
+                android:id="@+id/btn_drawer"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:background="@null"
+                android:src="@drawable/ic_menu"
+                android:contentDescription="打开目录" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:layout_marginStart="6dp"
             android:orientation="vertical">
 
             <TextView
@@ -27,7 +51,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="代码画布"
-                android:textSize="20sp"
+                android:textSize="21sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.01"
                 android:textColor="@color/canvas_ink_primary" />
@@ -39,14 +63,14 @@
                 android:layout_marginTop="1dp"
                 android:text="粘贴代码，立即看见"
                 android:textSize="12sp"
-                android:textColor="@color/canvas_ink_secondary" />
+                android:textColor="@color/canvas_ink_tertiary" />
         </LinearLayout>
 
         <ImageButton
             android:id="@+id/btn_import"
             android:layout_width="44dp"
             android:layout_height="44dp"
-            android:layout_marginStart="4dp"
+            android:layout_marginStart="2dp"
             android:padding="11dp"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_import"
@@ -71,17 +95,13 @@
             android:contentDescription="设置" />
     </LinearLayout>
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/canvas_border" />
-
+    <!-- Hero action: the one thing most visits are for. -->
     <Button
         android:id="@+id/btn_quick_paste_preview"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="50dp"
         android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="10dp"
         android:background="@drawable/bg_button_primary"
         android:text="粘贴并预览"
         android:textSize="15sp"
@@ -89,8 +109,13 @@
         android:letterSpacing="0.01"
         android:textColor="@color/text_on_primary_button" />
 
-    <!-- Search with a real affordance glyph; the trough is flat at rest and only
-         grows an outline while it has focus. -->
+    <!-- Clipboard auto-detect banner slot. GONE until a renderable clip is seen. -->
+    <include
+        android:id="@+id/banner_clipboard"
+        layout="@layout/banner_clipboard"
+        android:visibility="gone" />
+
+    <!-- Search: a pill at rest, an outline only while it has focus. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="44dp"
@@ -98,7 +123,7 @@
         android:layout_marginTop="12dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingHorizontal="14dp"
+        android:paddingHorizontal="16dp"
         android:background="@drawable/bg_search">
 
         <ImageView
@@ -112,26 +137,26 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="10dp"
             android:background="@null"
             android:hint="搜索文件或代码内容"
             android:textSize="14sp"
             android:textColor="@color/canvas_ink_primary"
-            android:textColorHint="@color/canvas_ink_secondary"
+            android:textColorHint="@color/canvas_ink_tertiary"
             android:inputType="text"
             android:singleLine="true"
             android:importantForAutofill="no" />
     </LinearLayout>
 
-    <!-- Section header + view-mode toggle: one filled primary pill, no jade chip. -->
+    <!-- Section header: count on the left, update + view-mode on the right. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="46dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="12dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingStart="20dp"
-        android:paddingEnd="14dp">
+        android:paddingStart="22dp"
+        android:paddingEnd="16dp">
 
         <TextView
             android:id="@+id/txt_file_count"
@@ -140,15 +165,14 @@
             android:text="我的文件"
             android:textSize="13sp"
             android:textStyle="bold"
-            android:textColor="@color/canvas_ink_secondary" />
+            android:letterSpacing="0.02"
+            android:textColor="@color/canvas_ink_tertiary" />
 
         <View
             android:layout_width="0dp"
             android:layout_height="1dp"
             android:layout_weight="1" />
 
-        <!-- The update entry lives with the content it affects, not pinned to the
-             bottom of the screen where it read as an unrelated footer. -->
         <Button
             android:id="@+id/btn_check_update"
             android:layout_width="wrap_content"
@@ -203,8 +227,9 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:divider="@null"
-            android:dividerHeight="8dp"
+            android:dividerHeight="10dp"
             android:paddingHorizontal="20dp"
+            android:paddingTop="2dp"
             android:paddingBottom="8dp"
             android:clipToPadding="false" />
 
@@ -216,6 +241,7 @@
             android:horizontalSpacing="12dp"
             android:verticalSpacing="12dp"
             android:paddingHorizontal="20dp"
+            android:paddingTop="2dp"
             android:paddingBottom="8dp"
             android:clipToPadding="false"
             android:stretchMode="columnWidth"
@@ -260,7 +286,7 @@
             <Button
                 android:id="@+id/btn_empty_paste"
                 android:layout_width="match_parent"
-                android:layout_height="46dp"
+                android:layout_height="48dp"
                 android:layout_marginTop="20dp"
                 android:background="@drawable/bg_button_primary"
                 android:text="粘贴并预览"
@@ -286,7 +312,75 @@
                 android:gravity="center"
                 android:text="代码只保存在本机，不会上传。"
                 android:textSize="12sp"
-                android:textColor="@color/canvas_ink_secondary" />
+                android:textColor="@color/canvas_ink_tertiary" />
         </LinearLayout>
     </FrameLayout>
-</LinearLayout>
+    </LinearLayout>
+
+    <!-- Contextual action bar: overlays the top bar while selection is live, so the
+         list never reflows and the mode never fights the browsing UI. -->
+    <LinearLayout
+        android:id="@+id/selection_bar"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_gravity="top"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:background="@color/canvas_surface_elevated"
+        android:elevation="8dp"
+        android:visibility="gone">
+
+        <ImageButton
+            android:id="@+id/btn_selection_close"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:padding="11dp"
+            android:background="@drawable/bg_icon_button"
+            android:src="@drawable/ic_close"
+            android:contentDescription="退出多选" />
+
+        <TextView
+            android:id="@+id/txt_selection_count"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="已选 0 项"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:textColor="@color/canvas_ink_primary" />
+
+        <ImageButton
+            android:id="@+id/btn_selection_all"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:padding="11dp"
+            android:background="@drawable/bg_icon_button"
+            android:src="@drawable/ic_select_all"
+            android:contentDescription="全选" />
+
+        <ImageButton
+            android:id="@+id/btn_selection_share"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:padding="11dp"
+            android:background="@drawable/bg_icon_button"
+            android:src="@drawable/ic_share"
+            android:contentDescription="分享所选" />
+
+        <ImageButton
+            android:id="@+id/btn_selection_delete"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:padding="11dp"
+            android:background="@drawable/bg_icon_button"
+            android:src="@drawable/ic_delete"
+            android:contentDescription="删除所选" />
+    </LinearLayout>
+
+    <!-- Catalog drawer: overlays everything (top bar included) so browsing and
+         selecting never fight the navigation panel. -->
+    <include layout="@layout/drawer_catalog" />
+</FrameLayout>

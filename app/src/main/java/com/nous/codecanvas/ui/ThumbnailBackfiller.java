@@ -40,6 +40,28 @@ final class ThumbnailBackfiller {
     /** How many documents one visit may render. The home screen is useful long before all of them. */
     private static final int MAX_PER_VISIT = 12;
 
+    /**
+     * Process-wide thumbnail memory cache. The home list used to decode every PNG from disk on
+     * every bind — and, worse, paint the type cover first and swap the bitmap in a frame later,
+     * which is the visible "flash" on every cold open. Binds now consult this cache first; a hit
+     * lands the finished thumbnail in the same frame, and the cache is filled once per key.
+     */
+    private static final android.util.LruCache<String, Bitmap> MEMORY =
+            new android.util.LruCache<String, Bitmap>((int) (Runtime.getRuntime().maxMemory() / 8)) {
+                @Override
+                protected int sizeOf(String key, Bitmap value) {
+                    return value.getByteCount();
+                }
+            };
+
+    static Bitmap memoryGet(String key) {
+        return MEMORY.get(key);
+    }
+
+    static void memoryPut(String key, Bitmap bitmap) {
+        if (key != null && bitmap != null && !bitmap.isRecycled()) MEMORY.put(key, bitmap);
+    }
+
     private final Activity activity;
     private final Deque<CanvasDocument> queue = new ArrayDeque<>();
     private final Runnable onThumbnailStored;
@@ -142,6 +164,7 @@ final class ThumbnailBackfiller {
                         if (view != web) return;
                         Bitmap shot = PreviewThumbnailCache.capture(view);
                         if (shot != null) {
+                            memoryPut(key, shot.copy(shot.getConfig() != null ? shot.getConfig() : android.graphics.Bitmap.Config.ARGB_8888, false));
                             PreviewThumbnailCache.store(activity.getApplicationContext(), key, shot);
                             if (onThumbnailStored != null) onThumbnailStored.run();
                         }

@@ -204,14 +204,72 @@ public class ColorContrastTest {
 
     @Test
     public void functionalBoundariesStayVisibleInBothThemes() throws Exception {
-        // canvas_border_strong is a real boundary (search field outline, segment chip
-        // outline). Roundtrip measurement used to be skipped here while the day value
-        // sat at 2.41:1; it is now enforced.
         for (Palette p : new Palette[]{day(), night()}) {
             String theme = p == day() ? "day" : "night";
             functional(theme + " border_strong/surface", p.color("border_strong"), p.color("surface"));
             functional(theme + " border_strong/subtle", p.color("border_strong"), p.color("surface_subtle"));
             functional(theme + " border_strong/segment_track", p.color("border_strong"), p.color("segment_track"));
+        }
+    }
+
+    // --- v0.3.0 "Atelier" additions -------------------------------------------------------------
+
+    /**
+     * The third ink rung carries captions, counts and placeholders, so it has to be readable as
+     * text — not merely decorative. It is allowed down to 3:1 on surface_subtle, where it paints
+     * chip and search chrome rather than body copy.
+     */
+    @Test
+    public void tertiaryInkIsReadableWhereverItCarriesText() throws Exception {
+        for (Palette p : new Palette[]{day(), night()}) {
+            String theme = p == day() ? "day" : "night";
+            text(theme + " tertiary/bg", p.color("ink_tertiary"), p.color("bg"));
+            text(theme + " tertiary/surface", p.color("ink_tertiary"), p.color("surface"));
+            text(theme + " tertiary/surface_elevated",
+                    p.color("ink_tertiary"), p.color("surface_elevated"));
+            functional(theme + " tertiary/subtle",
+                    p.color("ink_tertiary"), p.color("surface_subtle"));
+        }
+    }
+
+    /**
+     * Sheets, drawers and dialogs are painted on surface_elevated, a surface v0.2.x did not have.
+     * Every ink that appears on chrome must clear AA there too.
+     */
+    @Test
+    public void elevatedSurfaceKeepsEveryInkReadable() throws Exception {
+        for (Palette p : new Palette[]{day(), night()}) {
+            String theme = p == day() ? "day" : "night";
+            text(theme + " primary/elevated", p.color("ink_primary"), p.color("surface_elevated"));
+            text(theme + " secondary/elevated", p.color("ink_secondary"), p.color("surface_elevated"));
+            text(theme + " danger/elevated", p.color("danger"), p.color("surface_elevated"));
+            functional(theme + " icon/elevated", p.color("icon_on_surface"), p.color("surface_elevated"));
+        }
+    }
+
+    /** The danger row in the action sheet: red label on the red-washed field. */
+    @Test
+    public void dangerRowOfTheActionSheetIsReadable() throws Exception {
+        for (Palette p : new Palette[]{day(), night()}) {
+            String theme = p == day() ? "day" : "night";
+            text(theme + " danger/danger_surface", p.color("danger"), p.color("danger_surface"));
+            text(theme + " on_danger/danger", p.color("on_danger"), p.color("danger"));
+        }
+    }
+
+    /** A multi-selected row is tinted, and its own text still has to be readable on the tint. */
+    @Test
+    public void selectedRowTintKeepsRowTextReadable() throws Exception {
+        for (Palette p : new Palette[]{day(), night()}) {
+            String theme = p == day() ? "day" : "night";
+            text(theme + " primary/selection", p.color("ink_primary"), p.color("selection"));
+            text(theme + " secondary/selection", p.color("ink_secondary"), p.color("selection"));
+            // The tint has to be distinguishable from both surfaces, or selection reads as noise.
+            assertTrue(theme + " selection must differ from surface by >= 1.08 ("
+                            + PaletteLogic.contrast(p.color("selection"), p.color("surface")) + ")",
+                    PaletteLogic.contrast(p.color("selection"), p.color("surface")) >= 1.08);
+            assertTrue(theme + " selection must differ from bg by >= 1.08",
+                    PaletteLogic.contrast(p.color("selection"), p.color("bg")) >= 1.08);
         }
     }
 
@@ -237,12 +295,12 @@ public class ColorContrastTest {
         for (String theme : new String[]{Palette.DAY, Palette.NIGHT}) {
             Palette p = Palette.load(theme);
             for (String token : new String[]{
-                    "bg", "surface", "surface_subtle", "ink_primary", "ink_secondary",
-                    "icon_on_surface", "icon_on_subtle", "primary", "on_primary",
-                    "success", "on_success", "preview", "on_preview",
-                    "warning", "danger", "on_danger", "disabled_fill", "disabled_ink",
-                    "segment_track", "on_segment_selected", "code_surface",
-                    "syntax_tag", "syntax_attr", "syntax_string", "syntax_comment"}) {
+                    "bg", "surface", "surface_subtle", "surface_elevated", "ink_primary",
+                    "ink_secondary", "ink_tertiary", "icon_on_surface", "icon_on_subtle",
+                    "primary", "on_primary", "selection", "success", "on_success",
+                    "preview", "on_preview", "warning", "danger", "on_danger", "danger_surface",
+                    "disabled_fill", "disabled_ink", "segment_track", "on_segment_selected",
+                    "code_surface", "syntax_tag", "syntax_attr", "syntax_string", "syntax_comment"}) {
                 assertNoAccidentalOpacity(theme + " " + token, p.color(token));
             }
         }

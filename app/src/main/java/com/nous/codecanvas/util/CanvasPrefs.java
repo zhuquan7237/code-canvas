@@ -17,6 +17,7 @@ public final class CanvasPrefs {
     private static final String KEY_ALLOW_SCRIPTS = "allow_scripts";
     private static final String KEY_THUMBNAILS = "home_thumbnails";
     private static final String KEY_NETWORK = "allow_network";
+    private static final String KEY_CLIPBOARD_AUTO = "clipboard_auto_detect";
 
     /** Appearance: 0 follow system, 1 light, 2 dark. See {@link AppearanceManager}. */
     public static final String KEY_APPEARANCE = "appearance_mode";
@@ -43,6 +44,19 @@ public final class CanvasPrefs {
 
     public static void setThumbnailsEnabled(Context c, boolean enabled) {
         prefs(c).edit().putBoolean(KEY_THUMBNAILS, enabled).apply();
+    }
+
+    /**
+     * Clipboard auto-detect on open: on by default — the visit almost always starts with code
+     * already copied. Strictly opt-outable, because a feature that reads the clipboard on launch
+     * must be something the user can switch off.
+     */
+    public static boolean clipboardAutoDetect(Context c) {
+        return prefs(c).getBoolean(KEY_CLIPBOARD_AUTO, true);
+    }
+
+    public static void setClipboardAutoDetect(Context c, boolean enabled) {
+        prefs(c).edit().putBoolean(KEY_CLIPBOARD_AUTO, enabled).apply();
     }
 
     /**

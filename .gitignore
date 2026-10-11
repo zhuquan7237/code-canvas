@@ -21,3 +21,6 @@ app/build/
 /docs/evidence/v0.1.1-device-tests.txt
 /docs/evidence/v0.1.1-all-tests-final.txt
 /docs/evidence/v0.1.1/exported-welcome*.html
+# Local build/test logs — never part of the published tree
+/*.txt
+/*.log

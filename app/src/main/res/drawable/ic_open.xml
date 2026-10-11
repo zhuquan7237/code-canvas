@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 打开预览：眼睛轮廓 + 瞳孔。旧版是方框里的播放三角，读起来像"播放媒体"。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M2.75,12 C5,7.6 8.3,5.5 12,5.5 C15.7,5.5 19,7.6 21.25,12 C19,16.4 15.7,18.5 12,18.5 C8.3,18.5 5,16.4 2.75,12 Z"
+        android:strokeColor="@color/canvas_icon_on_subtle"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <path android:pathData="M14.4,12 A2.4,2.4 0 1,1 9.6,12 A2.4,2.4 0 0,1 14.4,12 Z"
+        android:strokeColor="@color/canvas_icon_on_subtle"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+</vector>

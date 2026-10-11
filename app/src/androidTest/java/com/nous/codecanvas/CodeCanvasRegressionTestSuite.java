@@ -39,16 +39,16 @@ public class CodeCanvasRegressionTestSuite extends InstrumentationTestCase {
  }
  public void testMultiBlockSvgRealSelectionAppendReplaceUndoAndSelection() throws Throwable {
   String svg="<svg viewBox='0 0 40 40'><circle cx='20' cy='20' r='10'/></svg>";
-  watch(); ui(() -> {clip("```html\n<h1>不要拼接</h1>\n```\n```svg\n"+svg+"\n```");main.findViewById(R.id.btn_quick_paste_preview).performClick();AlertDialog d=main.getActiveDialogForTest();assertTrue(d.isShowing());ListView l=d.getListView();assertEquals(3,l.getAdapter().getCount());l.performItemClick(l.getAdapter().getView(1,null,l),1,1);});
+  watch(); ui(() -> {clip("```html\n<h1>不要拼接</h1>\n```\n```svg\n"+svg+"\n```");main.findViewById(R.id.btn_quick_paste_preview).performClick();android.app.Dialog sheet=main.getActiveSheetForTest();assertNotNull("多段代码必须走动作面板",sheet);assertTrue(sheet.isShowing());assertEquals(3,com.nous.codecanvas.ui.CanvasBottomSheet.actionCount(sheet));com.nous.codecanvas.ui.CanvasBottomSheet.actionRowAt(sheet,1).performClick();});
   EditorActivity e=await(); EditText code=e.findViewById(R.id.edit_code);
   ui(() -> {
    assertEquals(svg,code.getText().toString());assertTrue(e.getCurrentDocumentForTest().getTitle().endsWith(".svg"));e.findViewById(R.id.tab_code).performClick();
    code.setText("AAAABBBB");code.setSelection(4);clip("APPENDED");e.findViewById(R.id.btn_paste).performClick();
-   AlertDialog d=e.getActiveDialogForTest();assertTrue(d.isShowing());d.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+   android.app.Dialog pasteSheet=e.getActiveSheetForTest();assertNotNull("粘贴方式必须走动作面板",pasteSheet);assertTrue(pasteSheet.isShowing());com.nous.codecanvas.ui.CanvasBottomSheet.actionRowAt(pasteSheet,0).performClick();
   });
   ui(() -> {
    assertEquals("AAAABBBB\n\nAPPENDED",code.getText().toString());assertEquals(code.length(),code.getSelectionStart());
-   clip("NEW_CONTENT");code.setSelection(2);e.findViewById(R.id.btn_paste).performClick();e.getActiveDialogForTest().getButton(AlertDialog.BUTTON_NEUTRAL).performClick();
+   clip("NEW_CONTENT");code.setSelection(2);e.findViewById(R.id.btn_paste).performClick();android.app.Dialog overwriteSheet=e.getActiveSheetForTest();assertNotNull(overwriteSheet);assertTrue(overwriteSheet.isShowing());com.nous.codecanvas.ui.CanvasBottomSheet.actionRowAt(overwriteSheet,1).performClick();
   });
   ui(() -> {
    assertEquals("NEW_CONTENT",code.getText().toString());assertTrue(e.findViewById(R.id.btn_undo).isEnabled());e.findViewById(R.id.btn_undo).performClick();assertEquals("AAAABBBB\n\nAPPENDED",code.getText().toString());
@@ -66,7 +66,7 @@ public class CodeCanvasRegressionTestSuite extends InstrumentationTestCase {
  }
  public void testOriginalChoicePreservesAllText() throws Throwable {
   String raw="```html\n<h1>one</h1>\n```\n```css\nh1{color:red}\n```";
-  watch();ui(() -> {clip(raw);main.findViewById(R.id.btn_quick_paste_preview).performClick();ListView l=main.getActiveDialogForTest().getListView();l.performItemClick(l.getAdapter().getView(2,null,l),2,2);});
+  watch();ui(() -> {clip(raw);main.findViewById(R.id.btn_quick_paste_preview).performClick();android.app.Dialog sheet=main.getActiveSheetForTest();assertNotNull(sheet);assertTrue(sheet.isShowing());com.nous.codecanvas.ui.CanvasBottomSheet.actionRowAt(sheet,2).performClick();});
   EditorActivity e=await();ui(() -> assertEquals(raw,((EditText)e.findViewById(R.id.edit_code)).getText().toString()));
  }
 }

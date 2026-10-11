@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Clipboard auto-detect banner: appears at the top of the list when the app
+     opens and the clipboard already holds renderable code. It asks once; the
+     close button or any import makes it go away and stay away for that clip. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:layout_marginHorizontal="20dp"
+    android:layout_marginTop="10dp"
+    android:paddingStart="14dp"
+    android:paddingEnd="6dp"
+    android:paddingVertical="8dp"
+    android:background="@drawable/bg_clipboard_banner">
+
+    <ImageView
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@drawable/ic_clipboard_in"
+        android:importantForAccessibility="no" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="12dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/banner_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="检测到剪贴板代码"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/canvas_ink_primary" />
+
+        <TextView
+            android:id="@+id/banner_snippet"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:textSize="12sp"
+            android:textColor="@color/canvas_ink_secondary"
+            android:singleLine="true"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_banner_import"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:minWidth="0dp"
+        android:background="@drawable/bg_button_primary"
+        android:text="导入并预览"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_on_primary_button"
+        android:paddingHorizontal="14dp" />
+
+    <ImageButton
+        android:id="@+id/btn_banner_dismiss"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:padding="10dp"
+        android:background="@drawable/bg_icon_button"
+        android:src="@drawable/ic_close"
+        android:contentDescription="忽略这次剪贴板内容" />
+</LinearLayout>

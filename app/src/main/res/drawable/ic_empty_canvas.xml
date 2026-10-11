@@ -31,7 +31,7 @@
         android:pathData="M64,52 A14,14 0 1 1 63.99,52 Z" />
     <path
         android:strokeColor="@color/canvas_on_primary"
-        android:strokeWidth="2.4"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
         android:pathData="M64,46 L64,58 M58,52 L70,52" />
 </vector>

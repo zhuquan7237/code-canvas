@@ -1,21 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="@color/canvas_icon_on_subtle"
-        android:strokeWidth="1.8"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M11,18 a7,7 0,1 1,0 -14 a7,7 0,0 1,0 14 Z" />
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="@color/canvas_icon_on_subtle"
-        android:strokeWidth="1.8"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M16,16 L21,21" />
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M10.5,15.5 A5,5 0 1,1 15.5,10.5 A5,5 0 0,1 10.5,15.5 Z" android:strokeColor="@color/canvas_icon_on_subtle" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" />
+    <path android:pathData="M14,14 L19,19" android:strokeColor="@color/canvas_icon_on_subtle" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" />
+    <path android:pathData="M7.5,20.5 L16.5,20.5" android:strokeColor="@color/canvas_icon_on_subtle" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" />
 </vector>

@@ -1,21 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 设置：细线条风格，与现有图标集一致（24 网格 / 1.5dp 描边 / 圆角端点） -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:pathData="M12,15.5A3.5,3.5 0 1,1 15.5,12A3.5,3.5 0 0,1 12,15.5Z"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.5"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <!-- 齿轮：宽齿+窄槽的实体轮廓，读起来是"设置"而不是"太阳"。 -->
+    <path android:pathData="M12.00,2.00 L17.00,3.34 L16.05,4.99 L17.73,6.27 L19.07,4.93 L21.66,9.41 L19.82,9.90 L20.10,12.00 L22.00,12.00 L20.66,17.00 L19.01,16.05 L17.73,17.73 L19.07,19.07 L14.59,21.66 L14.10,19.82 L12.00,20.10 L12.00,22.00 L7.00,20.66 L7.95,19.01 L6.27,17.73 L4.93,19.07 L2.34,14.59 L4.18,14.10 L3.90,12.00 L2.00,12.00 L3.34,7.00 L4.99,7.95 L6.27,6.27 L4.93,4.93 L9.41,2.34 L9.90,4.18 L12.00,3.90 Z"
+        android:strokeColor="@color/canvas_icon_on_subtle"
+        android:strokeWidth="1.8"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:fillColor="#00000000" />
-    <path
-        android:pathData="M19.4,15a1.65,1.65 0 0,0 0.33,1.82l0.06,0.06a2,2 0 0,1 -2.83,2.83l-0.06,-0.06a1.65,1.65 0 0,0 -1.82,-0.33a1.65,1.65 0 0,0 -1,1.51V21a2,2 0 0,1 -4,0v-0.09A1.65,1.65 0 0,0 9,19.4a1.65,1.65 0 0,0 -1.82,0.33l-0.06,0.06a2,2 0 0,1 -2.83,-2.83l0.06,-0.06A1.65,1.65 0 0,0 4.6,15a1.65,1.65 0 0,0 -1.51,-1H3a2,2 0 0,1 0,-4h0.09A1.65,1.65 0 0,0 4.6,9a1.65,1.65 0 0,0 -0.33,-1.82l-0.06,-0.06a2,2 0 0,1 2.83,-2.83l0.06,0.06A1.65,1.65 0 0,0 9,4.6a1.65,1.65 0 0,0 1,-1.51V3a2,2 0 0,1 4,0v0.09a1.65,1.65 0 0,0 1,1.51a1.65,1.65 0 0,0 1.82,-0.33l0.06,-0.06a2,2 0 0,1 2.83,2.83l-0.06,0.06A1.65,1.65 0 0,0 19.4,9v0a1.65,1.65 0 0,0 1.51,1H21a2,2 0 0,1 0,4h-0.09A1.65,1.65 0 0,0 19.4,15Z"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.5"
+    <path android:pathData="M13.9,12 A1.9,1.9 0 1,1 10.1,12 A1.9,1.9 0 0,1 13.9,12 Z"
+        android:strokeColor="@color/canvas_icon_on_subtle"
+        android:strokeWidth="1.8"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:fillColor="#00000000" />

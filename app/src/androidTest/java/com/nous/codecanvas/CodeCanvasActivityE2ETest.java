@@ -360,7 +360,7 @@ public class CodeCanvasActivityE2ETest extends android.test.InstrumentationTestC
             AlertDialog confirmation=editorActivity.getActiveDialogForTest();
             assertNotNull("Network confirmation must appear",confirmation);
             assertTrue("Network stays blocked before consent",webView.getSettings().getBlockNetworkLoads());
-            confirmation.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+            com.nous.codecanvas.ui.CanvasConfirmDialog.confirmButton(confirmation).performClick();
         });
         instrumentation.waitForIdleSync();
 
