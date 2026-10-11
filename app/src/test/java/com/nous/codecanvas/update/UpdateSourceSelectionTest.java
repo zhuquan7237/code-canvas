@@ -71,4 +71,16 @@ public class UpdateSourceSelectionTest {
         UpdateManifest first = of(30);
         assertSame(first, AppUpdater.newestOf(Arrays.asList(first, of(30))));
     }
+
+    @Test
+    public void fallbackDownloadUrlIsPreservedAfterPrimary() throws Exception {
+        String json = "{\"schemaVersion\":1,\"versionName\":\"0.4.0\",\"versionCode\":40,"
+                + "\"apkUrl\":\"https://relay.zhuquan.xyz/dl/code-canvas-0.4.0.apk\","
+                + "\"fallbackApkUrl\":\"https://github.com/zhuquan7237/code-canvas/releases/download/v0.4.0/code-canvas-0.4.0.apk\","
+                + "\"size\":80000,\"sha256\":\"" + "a".repeat(64) + "\"}";
+        UpdateManifest m = UpdateManifest.parse(json);
+        assertEquals(2, m.downloadUrls().size());
+        assertEquals("https://relay.zhuquan.xyz/dl/code-canvas-0.4.0.apk", m.downloadUrls().get(0));
+        assertEquals("https://github.com/zhuquan7237/code-canvas/releases/download/v0.4.0/code-canvas-0.4.0.apk", m.downloadUrls().get(1));
+    }
 }

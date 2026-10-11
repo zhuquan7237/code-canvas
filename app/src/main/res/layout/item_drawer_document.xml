@@ -7,15 +7,16 @@
     android:minHeight="52dp"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingHorizontal="20dp"
+    android:paddingHorizontal="18dp"
     android:paddingVertical="7dp">
 
     <ImageView
         android:id="@+id/drawer_item_thumb"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
         android:background="@drawable/bg_thumbnail"
         android:foreground="@drawable/fg_thumbnail"
+        android:clipToOutline="true"
         android:scaleType="centerCrop"
         android:importantForAccessibility="no" />
 

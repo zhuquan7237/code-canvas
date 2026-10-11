@@ -16,6 +16,7 @@
         android:layout_height="104dp"
         android:background="@drawable/bg_thumbnail"
         android:foreground="@drawable/fg_thumbnail"
+        android:clipToOutline="true"
         android:scaleType="centerCrop"
         android:contentDescription="文件缩略图" />
 

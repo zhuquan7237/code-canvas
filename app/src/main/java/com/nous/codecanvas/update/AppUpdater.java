@@ -74,8 +74,8 @@ public final class AppUpdater {
      */
     private static final ExecutorService SOURCE_POOL =
             Executors.newFixedThreadPool(MANIFEST_SOURCES.length);
-    /** Upper bound on one source, so a hung connection cannot hold the whole check open. */
-    private static final long SOURCE_WAIT_MS = 12000L;
+    /** Shared upper bound across all parallel manifest checks. */
+    private static final long SOURCE_WAIT_MS = 6000L;
 
     private static final long AUTO_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L;
     /** Backoff after consecutive check failures, so a blocked network is not hammered. */
@@ -206,10 +206,12 @@ public final class AppUpdater {
             String lastError = null;
             StringBuilder tried = new StringBuilder();
             List<UpdateManifest> answered = new ArrayList<>();
+            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(SOURCE_WAIT_MS);
             for (int i = 0; i < pending.size(); i++) {
                 if (closed) return;
                 try {
-                    answered.add(pending.get(i).get(SOURCE_WAIT_MS, TimeUnit.MILLISECONDS));
+                    long remainingMs = Math.max(150L, TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime()));
+                    answered.add(pending.get(i).get(remainingMs, TimeUnit.MILLISECONDS));
                 } catch (Exception e) {
                     Throwable cause = (e instanceof ExecutionException) ? e.getCause() : e;
                     lastError = describe(cause);
@@ -247,7 +249,7 @@ public final class AppUpdater {
                     available = null;
                     button.setText("已是最新 · " + installedName);
                     button.setTextColor(activity.getResources().getColor(R.color.canvas_ink_secondary));
-                    if (manual) Toast.makeText(activity, "已是最新版本", Toast.LENGTH_SHORT).show();
+                    if (manual) Toast.makeText(activity, "已是最新版本 (" + installedName + ")", Toast.LENGTH_SHORT).show();
                 }
             });
         });
@@ -267,10 +269,7 @@ public final class AppUpdater {
                 m.notes + "\n\n下载 " + m.size + " 字节。校验通过后交给系统安装，已有文件会保留。",
                 "下载并安装", "稍后", false,
                 () -> download(m),
-                () -> {
-                    available = null;
-                    check(true);
-                });
+                null);
     }
 
     private void download(final UpdateManifest m) {

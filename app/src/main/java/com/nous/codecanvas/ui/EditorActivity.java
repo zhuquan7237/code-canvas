@@ -842,6 +842,12 @@ public class EditorActivity extends Activity {
     }
 
     @Override
+    public void finish() {
+        super.finish();
+        overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right);
+    }
+
+    @Override
     public void onBackPressed() {
         if (isFullscreen) {
             setFullscreen(false);
@@ -890,8 +896,22 @@ public class EditorActivity extends Activity {
             renderPreview();
             viewFlipper.setDisplayedChild(1);
         }
-        View page=viewFlipper.getCurrentView();page.animate().cancel();page.setAlpha(1f);
-        if(android.animation.ValueAnimator.areAnimatorsEnabled()){page.setTranslationX(6*getResources().getDisplayMetrics().density);page.animate().translationX(0).setDuration(160).start();}else page.setTranslationX(0);
+        View page = viewFlipper.getCurrentView();
+        page.animate().cancel();
+        if (android.animation.ValueAnimator.areAnimatorsEnabled()) {
+            float dir = tabIndex == 1 ? 1f : -1f;
+            page.setAlpha(0.45f);
+            page.setTranslationX(dir * 16f * getResources().getDisplayMetrics().density);
+            page.animate()
+                    .alpha(1f)
+                    .translationX(0f)
+                    .setDuration(180)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f))
+                    .start();
+        } else {
+            page.setAlpha(1f);
+            page.setTranslationX(0f);
+        }
     }
 
     private void setNetworkAllowed(boolean allowed) {

@@ -1,5 +1,6 @@
 package com.nous.codecanvas.ui;
 
+import android.animation.ValueAnimator;
 import android.app.Dialog;
 import android.content.Context;
 import android.graphics.Color;
@@ -7,9 +8,9 @@ import android.graphics.drawable.ColorDrawable;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -74,11 +75,27 @@ public final class CanvasBottomSheet {
     public static Dialog show(Context context, String title, String subtitle,
                               Action[] actions, OnActionListener listener) {
         Dialog dialog = new Dialog(context);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         View sheet = LayoutInflater.from(context).inflate(R.layout.sheet_actions, null);
 
+        View backdrop = sheet.findViewById(R.id.sheet_backdrop);
+        View card = sheet.findViewById(R.id.sheet_card);
+        View handle = sheet.findViewById(R.id.sheet_handle);
         TextView txtTitle = sheet.findViewById(R.id.sheet_title);
         TextView txtSubtitle = sheet.findViewById(R.id.sheet_subtitle);
         LinearLayout container = sheet.findViewById(R.id.sheet_actions_container);
+
+        if (backdrop != null) {
+            backdrop.setOnClickListener(v -> dialog.dismiss());
+        }
+        if (card != null) {
+            card.setOnClickListener(v -> {
+                // Consume clicks inside the sheet card surface so they do not bubble to backdrop.
+            });
+        }
+        if (handle != null) {
+            handle.setOnClickListener(v -> dialog.dismiss());
+        }
 
         if (title == null || title.isEmpty()) {
             txtTitle.setVisibility(View.GONE);
@@ -125,17 +142,29 @@ public final class CanvasBottomSheet {
         Window window = dialog.getWindow();
         if (window != null) {
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            window.getDecorView().setPadding(0, 0, 0, 0);
             window.setLayout(WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.WRAP_CONTENT);
+                    WindowManager.LayoutParams.MATCH_PARENT);
             window.setGravity(Gravity.BOTTOM);
-            // Dim is handled by the framework's FLAG_DIM_BEHIND default for Dialog;
-            // soften it to the design scrim rather than the harsher stock value.
             WindowManager.LayoutParams lp = window.getAttributes();
             lp.dimAmount = 0.5f;
             window.setAttributes(lp);
         }
+        dialog.setCancelable(true);
         dialog.setCanceledOnTouchOutside(true);
         dialog.show();
+
+        if (card != null && ValueAnimator.areAnimatorsEnabled()) {
+            float offset = 120f * context.getResources().getDisplayMetrics().density;
+            card.setTranslationY(offset);
+            card.setAlpha(0.6f);
+            card.animate()
+                    .translationY(0f)
+                    .alpha(1f)
+                    .setDuration(200)
+                    .setInterpolator(new DecelerateInterpolator(1.5f))
+                    .start();
+        }
         return dialog;
     }
 }

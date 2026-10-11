@@ -24,3 +24,5 @@ app/build/
 # Local build/test logs — never part of the published tree
 /*.txt
 /*.log
+desktop/node_modules/
+desktop/dist/

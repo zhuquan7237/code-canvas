@@ -329,8 +329,10 @@ public class MainActivity extends Activity {
         btnImport.setOnClickListener(v -> startSafImport());
         View settings = findViewById(R.id.btn_settings);
         if (settings != null) {
-            settings.setOnClickListener(v ->
-                    startActivity(new Intent(MainActivity.this, SettingsActivity.class)));
+            settings.setOnClickListener(v -> {
+                startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
+            });
         }
 
         editSearch.addTextChangedListener(new TextWatcher() {
@@ -443,6 +445,7 @@ public class MainActivity extends Activity {
         findViewById(R.id.drawer_settings).setOnClickListener(v -> {
             closeDrawer();
             startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
         });
         findViewById(R.id.btn_drawer).setOnClickListener(v -> openDrawer());
         findViewById(R.id.btn_drawer_close).setOnClickListener(v -> closeDrawer());
@@ -479,15 +482,33 @@ public class MainActivity extends Activity {
 
     private void openDrawer() {
         drawerAdapter.notifyDataSetChanged();
+        View scrim = findViewById(R.id.drawer_scrim);
         drawerRoot.setVisibility(View.VISIBLE);
-        drawerPanel.setTranslationX(-drawerPanel.getWidth() > 0
-                ? -drawerPanel.getWidth() : -dp(294));
+        int panelWidth = drawerPanel.getWidth() > 0 ? drawerPanel.getWidth() : dp(276);
+        if (scrim != null) {
+            scrim.animate().cancel();
+            scrim.setAlpha(0f);
+            scrim.animate().alpha(1f).setDuration(220)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                    .start();
+        }
+        drawerPanel.animate().cancel();
+        drawerPanel.setTranslationX(-panelWidth);
         drawerPanel.animate().translationX(0f).setDuration(220)
-                .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+                .setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f)).start();
     }
 
     private void closeDrawer() {
-        drawerPanel.animate().translationX(-drawerPanel.getWidth())
+        View scrim = findViewById(R.id.drawer_scrim);
+        int panelWidth = drawerPanel.getWidth() > 0 ? drawerPanel.getWidth() : dp(276);
+        if (scrim != null) {
+            scrim.animate().cancel();
+            scrim.animate().alpha(0f).setDuration(180)
+                    .setInterpolator(new android.view.animation.AccelerateInterpolator())
+                    .start();
+        }
+        drawerPanel.animate().cancel();
+        drawerPanel.animate().translationX(-panelWidth)
                 .setDuration(180)
                 .setInterpolator(new android.view.animation.AccelerateInterpolator())
                 .withEndAction(() -> drawerRoot.setVisibility(View.GONE))
@@ -514,20 +535,25 @@ public class MainActivity extends Activity {
             TextView title = convertView.findViewById(R.id.drawer_item_title);
             TextView meta = convertView.findViewById(R.id.drawer_item_meta);
             android.widget.ImageView thumb = convertView.findViewById(R.id.drawer_item_thumb);
+            thumb.setClipToOutline(true);
 
             title.setText(doc.getTitle());
             if (presentation != null) {
                 meta.setText(presentation.kind.name() + " · " + presentation.sizeText);
                 String key = presentation.previewKey;
                 thumb.setTag(key);
-                thumb.setScaleType(android.widget.ImageView.ScaleType.CENTER);
-                thumb.setImageResource(presentation.kind == RenderKind.HTML ? R.drawable.cover_web
-                        : presentation.kind == RenderKind.SVG ? R.drawable.cover_vector
-                        : R.drawable.cover_document);
                 android.graphics.Bitmap cached = ThumbnailBackfiller.memoryGet(key);
                 if (cached != null && !cached.isRecycled()) {
+                    thumb.setPadding(0, 0, 0, 0);
                     thumb.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
                     thumb.setImageBitmap(cached);
+                } else {
+                    int pad = dp(4);
+                    thumb.setPadding(pad, pad, pad, pad);
+                    thumb.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+                    thumb.setImageResource(presentation.kind == RenderKind.HTML ? R.drawable.cover_web
+                            : presentation.kind == RenderKind.SVG ? R.drawable.cover_vector
+                            : R.drawable.cover_document);
                 }
             } else {
                 meta.setText("");
@@ -670,6 +696,7 @@ public class MainActivity extends Activity {
         intent.putExtra(EditorActivity.EXTRA_DOC_ID, docId);
         intent.putExtra(EditorActivity.EXTRA_START_PREVIEW, startPreview);
         startActivity(intent);
+        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
     }
 
     // --- clipboard auto-detect ---------------------------------------------------------------------
@@ -1115,6 +1142,7 @@ public class MainActivity extends Activity {
                             : coverKind == RenderKind.SVG ? R.drawable.cover_vector
                             : R.drawable.cover_document);
 
+            cover.setClipToOutline(true);
             cover.setTag(key);
             cover.setContentDescription("作品缩略图；还没生成好时显示文件类型封面");
             bindThumbnail(cover, key, typeCover);

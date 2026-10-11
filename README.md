@@ -1,8 +1,8 @@
 # 代码画布 · CodeCanvas
 
-把 AI 给出的代码，变成看得见的作品。轻量原生 Android 应用，使用系统 WebView，不打包浏览器内核。
+把 AI 给出的代码，变成看得见的作品。提供轻量原生 Android 应用（使用系统 WebView，不打包浏览器内核）与 Windows 电脑版（`desktop/`）。
 
-[下载最新 APK](https://relay.zhuquan.xyz/dl/code-canvas-0.2.0.apk)（自建源，国内可直连）· [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
+[下载最新 Android APK (v0.4.0)](https://relay.zhuquan.xyz/dl/code-canvas-0.4.0.apk)（自建源，国内可直连）· [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
 
 ## 怎么用
 
@@ -12,6 +12,28 @@
 4. 点作品名称重命名；导出为标准文件，其他编辑器和浏览器也能使用。
 
 已有作品默认打开预览，需要修改时再切「代码」。空白新建仍直接编辑。主页不显示代码片段；缩略图由应用在后台为每个作品渲染（没打开过也会生成），宽 480，随主题变化，临时缓存最多 40 张，系统可清理。在其他应用里打开或分享 `.html/.htm/.svg/.xml/.txt` 文件会直接进预览。
+
+## Windows 电脑版 (`desktop/`)
+
+在桌面端提供与手机版一致的 Atelier 深浅色双主题与三栏工作台（左侧目录筛选抽屉 + 中栏行号代码编辑器 + 右栏实时沙盒预览，支持一键切换「分栏 / 仅代码 / 仅预览」）：
+
+- **Electron 桌面运行 / 打包**：
+  ```sh
+  cd desktop
+  npm install
+  npm start        # 启动桌面窗口
+  npm run dist:win # 打包 Windows 免安装目录与安装包
+  ```
+- **浏览器零依赖直开**：直接用桌面浏览器打开 `desktop/src/index.html` 即可离线使用（自动切换至本地存储兜底）。
+
+## v0.4.0 本次更新（圆角裁切修复 · 抽屉与转场动效 · 齿轮与按钮重塑 · 更新源修复 · Windows 电脑版）
+
+- **主页与抽屉预览缩略图圆角裁切**：修复主页列表、两列方格与目录抽屉中方形缩略图越出 `12dp` 圆角边框的问题，开启硬件圆角轮廓裁切（`clipToOutline`），并将抽屉类型封面统一为内边距自适应，不再撑破小缩略图框。
+- **目录抽屉布局与顺滑动画**：统一主页顶栏左右 `20dp` 边距（修复左上角目录按钮偏右问题），收窄抽屉宽度至 `276dp` 并紧凑化五个筛选胶囊（全部 / HTML / SVG / XML / 其它），同时补齐首次打开抽屉宽度未测量导致的跳变修复与遮罩层透明度同步渐变。
+- **页面打开与标签切换过渡动画**：为主页 ↔ 编辑器 / 设置页补齐 220ms 推入与返回滑出过渡动画，并为编辑器「代码 ↔ 预览」切换加入方向感微位移渐变。
+- **重绘设置齿轮与按钮轮廓 + 修复更多选项空白处点击**：将右上角歪斜的折线齿轮重绘为对称 8 齿圆角齿轮，为顶栏图标按钮与胶囊次要按钮补齐柔和底色与 `1dp` 細描边；修复 `CanvasBottomSheet` 全屏透明遮罩点击区域，点击面板上方任意空白处均可正常收起。
+- **检查更新修复**：修复多源并发检查超时与点击「稍后」重入检查的问题，同步更新国内自建源 `relay.zhuquan.xyz` 清单与安装包。
+- **新增 Windows 电脑版（`desktop/`）**：支持三栏同屏编辑与实时预览、Markdown 代码块智能提取、深浅色主题切换、文件导入导出与缩略图列表。
 
 ## v0.3.0 本次更新（Atelier 设计重做 · 目录抽屉 · 批量操作 · 剪贴板自动识别）
 
