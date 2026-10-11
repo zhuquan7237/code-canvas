@@ -1,0 +1,25 @@
+命令：./gradlew testDebugUnitTest
+退出码：0
+
+合计 141 项，0 失败
+
+逐类：
+  com.nous.codecanvas.RenderKindDetectorTest                  7 项  失败 0  错误 0
+  com.nous.codecanvas.UpdateSourceTest                        4 项  失败 0  错误 0
+  com.nous.codecanvas.UpgradeFeaturesTest                     3 项  失败 0  错误 0
+  com.nous.codecanvas.data.DocumentRepositoryTest             5 项  失败 0  错误 0
+  com.nous.codecanvas.editor.LineNumberGutterTest             6 项  失败 0  错误 0
+  com.nous.codecanvas.editor.UndoRedoManagerTest              2 项  失败 0  错误 0
+  com.nous.codecanvas.ui.ColorContrastTest                   15 项  失败 0  错误 0
+  com.nous.codecanvas.ui.PaletteLogicTest                     3 项  失败 0  错误 0
+  com.nous.codecanvas.util.AiCodeExtractorMarkupRegionTest    4 项  失败 0  错误 0
+  com.nous.codecanvas.util.AiCodeExtractorTest                9 项  失败 0  错误 0
+  com.nous.codecanvas.util.AppearanceManagerTest              6 项  失败 0  错误 0
+  com.nous.codecanvas.util.ClipboardCodeOfferTest             4 项  失败 0  错误 0
+  com.nous.codecanvas.util.CoreLogicTest                      5 项  失败 0  错误 0
+  com.nous.codecanvas.util.PreviewHtmlViewportTest            7 项  失败 0  错误 0
+  com.nous.codecanvas.util.PreviewKeyTest                     4 项  失败 0  错误 0
+  com.nous.codecanvas.util.RenderKindDetectorRulesTest       32 项  失败 0  错误 0
+  com.nous.codecanvas.util.RenderingAdvisorTest               5 项  失败 0  错误 0
+  com.nous.codecanvas.util.SvgWrapperAspectTest               4 项  失败 0  错误 0
+  com.nous.codecanvas.util.SvgWrapperResponsiveTest          16 项  失败 0  错误 0

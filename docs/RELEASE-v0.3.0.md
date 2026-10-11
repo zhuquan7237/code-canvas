@@ -138,10 +138,12 @@ v0.2.0 之后，能力已经够了：能渲染、能设外观、能管文件。�
 
 | 项目 | 结果 |
 | --- | --- |
-| 单元测试 | **141 项全过，0 失败**（v0.2.0 是 133；新增 `ClipboardCodeOfferTest`，`ColorContrastTest` 扩充约束） |
-| 仪器测试 | `DesignSystemRegressionTest`（设计系统）、`HomeLayoutDensityTest`（密度布局）在模拟器上通过 |
+| 单元测试 | **141 项全过，0 失败**（19 个类；v0.2.0 是 133。新增 `ClipboardCodeOfferTest`，`ColorContrastTest` 扩充约束） |
+| 仪器测试 | **59 项全过，0 失败**（19 个类，480 秒，Android 模拟器实跑） |
 | 构建 | `assembleDebug` 成功 |
 | 实机核对 | 模拟器截图逐项比对浅色/夜间配色、抽屉、动作面板、卡片圆角与阴影 |
+
+原始记录：`docs/evidence/v0.3.0/`（仪器测试逐字输出、单测逐类统计、启动器图标实拍）。
 
 ### 这一版修掉的真实缺陷
 

@@ -61,10 +61,11 @@
 ### 验收
 
 - 单元测试 **141** 项全过（含对比度审计与剪贴板判定契约；v0.2.0 是 133 项）。
-- 模拟器仪器测试全过，新增 `DesignSystemRegressionTest` 覆盖抽屉、多选、批量删除、
+- 模拟器仪器测试 **59** 项全过，新增 `DesignSystemRegressionTest` 覆盖抽屉、多选、批量删除、
   剪贴板判定、动作面板与弹窗形态。
 - 逐屏截图复核浅色 / 夜间两套主题。
-- 完整说明与已知限制见 [docs/RELEASE-v0.3.0.md](docs/RELEASE-v0.3.0.md)。
+- 完整说明与已知限制见 [docs/RELEASE-v0.3.0.md](docs/RELEASE-v0.3.0.md)，
+  原始测试记录见 [docs/evidence/v0.3.0/](docs/evidence/v0.3.0/)。
 
 
 ## v0.1.1 打磨
