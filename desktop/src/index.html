@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>代码画布 · Code Canvas Desktop</title>
+  <title>代码画布 · Code Canvas</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -61,11 +61,11 @@
       <!-- Sidebar Footer -->
       <div class="sidebar-footer">
         <div class="theme-switcher" role="group" aria-label="外观模式">
-          <button class="segment-btn" data-theme-mode="light">浅色</button>
-          <button class="segment-btn" data-theme-mode="dark">深色</button>
-          <button class="segment-btn active" data-theme-mode="system">跟随系统</button>
+          <button class="segment-btn" data-theme-mode="light" title="浅色模式">浅色</button>
+          <button class="segment-btn" data-theme-mode="dark" title="深色模式">深色</button>
+          <button class="segment-btn active" data-theme-mode="system" title="跟随系统外观">系统</button>
         </div>
-        <button class="icon-btn" id="btnOpenStorage" title="打开本地数据文件夹">
+        <button class="icon-btn" id="btnOpenStorage" title="打开本地数据存储文件夹">
           <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         </button>
       </div>
@@ -73,22 +73,8 @@
 
     <!-- Main Workbench -->
     <main class="workbench">
-      <!-- Clipboard Auto-Detect Banner -->
-      <div class="clipboard-banner hidden" id="clipboardBanner">
-        <div class="banner-left">
-          <span class="banner-badge">检测到剪贴板代码</span>
-          <span class="banner-snippet" id="bannerSnippet"></span>
-        </div>
-        <div class="banner-actions">
-          <button class="btn-primary btn-sm" id="btnBannerImport">导入并预览</button>
-          <button class="icon-btn btn-sm" id="btnBannerDismiss" title="忽略">
-            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Top Header Bar -->
-      <header class="topbar">
+      <!-- Top Header Bar (Integrated with Windows TitleBarOverlay) -->
+      <header class="topbar" id="topbar">
         <div class="topbar-left">
           <button class="icon-btn hidden" id="btnExpandSidebar" title="展开侧边目录 (Ctrl+B)">
             <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -108,44 +94,112 @@
           <button class="segment-btn" data-view-mode="preview">仅预览</button>
         </div>
 
-        <!-- Right Controls -->
+        <!-- Right Document & Window Controls -->
         <div class="topbar-right">
-          <button class="btn-subtle" id="btnToggleGrid" title="切换透明网格背景">网格底</button>
-          <button class="btn-subtle" id="btnPinTop" title="窗口始终置顶">置顶</button>
-          <button class="btn-subtle" id="btnRefreshPreview" title="重新渲染预览 (Ctrl+R)">刷新</button>
-          <button class="btn-subtle" id="btnCopyCode" title="复制全部源码">复制源码</button>
-          <button class="btn-subtle" id="btnExportDoc" title="导出源码文件 (Ctrl+S)">导出</button>
-          <button class="icon-btn" id="btnDeleteDoc" title="删除当前画布">
+          <button class="icon-btn" id="btnPinTop" title="窗口始终置顶">
+            <svg viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z"/></svg>
+          </button>
+          <button class="btn-subtle" id="btnCopyCode" title="复制全部源码">
+            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>复制源码</span>
+          </button>
+          <button class="btn-primary btn-sm" id="btnExportDoc" title="导出源码文件 (Ctrl+S)">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>导出</span>
+          </button>
+          <button class="icon-btn danger-hover" id="btnDeleteDoc" title="删除当前画布">
             <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
           </button>
         </div>
       </header>
 
-      <!-- Split Workspace: Code Editor + Live Preview Canvas -->
+      <!-- Clipboard Auto-Detect Banner -->
+      <div class="clipboard-banner hidden" id="clipboardBanner">
+        <div class="banner-left">
+          <span class="banner-badge">检测到剪贴板代码</span>
+          <span class="banner-snippet" id="bannerSnippet"></span>
+        </div>
+        <div class="banner-actions">
+          <button class="btn-primary btn-sm" id="btnBannerImport">导入并预览</button>
+          <button class="icon-btn btn-sm" id="btnBannerDismiss" title="忽略">
+            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Split Workspace: Code Editor + Draggable Splitter + Live Preview Canvas -->
       <section class="workspace split" id="workspace">
         <!-- Code Pane -->
         <div class="pane code-pane" id="codePane">
-          <div class="code-toolbar">
-            <div class="symbol-strip" id="symbolStrip">
-              <button class="sym-btn" data-insert="<>">&lt;&gt;</button>
-              <button class="sym-btn" data-insert="{}">{}</button>
-              <button class="sym-btn" data-insert="()">()</button>
-              <button class="sym-btn" data-insert="[]">[]</button>
-              <button class="sym-btn" data-insert='""'>""</button>
-              <button class="sym-btn" data-insert="=">=</button>
-              <button class="sym-btn" data-insert="/">/</button>
-              <button class="sym-btn" data-insert="  ">Tab</button>
+          <div class="pane-toolbar code-toolbar">
+            <div class="editor-tools">
+              <button class="tool-chip active" id="btnWordWrap" title="切换自动换行 (Alt+Z)">
+                <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><polyline points="16 16 14 18 16 20"/><line x1="3" y1="18" x2="10" y2="18"/></svg>
+                <span>自动换行</span>
+              </button>
+              <button class="tool-chip" id="btnFormatCode" title="格式化并缩进代码 (Shift+Alt+F)">
+                <svg viewBox="0 0 24 24"><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></svg>
+                <span>格式化</span>
+              </button>
+              <button class="tool-chip" id="btnToggleFind" title="查找与替换 (Ctrl+F)">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span>查找</span>
+              </button>
+              <div class="font-size-group" title="调整代码字号">
+                <button class="tool-chip compact" id="btnFontDec" aria-label="缩小字号">A-</button>
+                <span class="font-size-val" id="fontSizeLabel">13px</span>
+                <button class="tool-chip compact" id="btnFontInc" aria-label="放大字号">A+</button>
+              </div>
             </div>
-            <div class="code-stats" id="codeStats">1 行 · 0 字符</div>
+            <div class="code-stats" id="codeStats">13 行 · 440 字符</div>
           </div>
-          <div class="editor-surface">
+
+          <!-- Inline Find & Replace Bar -->
+          <div class="find-bar hidden" id="findBar">
+            <input type="text" id="findInput" placeholder="查找内容…" autocomplete="off" />
+            <input type="text" id="replaceInput" placeholder="替换为…" autocomplete="off" />
+            <button class="tool-chip" id="btnFindNext">下一处</button>
+            <button class="tool-chip" id="btnReplaceOne">替换</button>
+            <button class="tool-chip" id="btnReplaceAll">全部替换</button>
+            <span class="find-count" id="findCountLabel"></span>
+            <button class="icon-btn compact" id="btnCloseFind" title="关闭查找 (Esc)">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <!-- Syntax-Highlighted Editor Surface -->
+          <div class="editor-surface" id="editorSurface">
             <div class="line-gutter" id="lineGutter" aria-hidden="true">1</div>
-            <textarea id="codeEditor" spellcheck="false" placeholder="输入或粘贴 HTML / SVG / XML 代码…"></textarea>
+            <div class="code-stage" id="codeStage">
+              <pre class="code-highlight" id="codeHighlight" aria-hidden="true"></pre>
+              <textarea id="codeEditor" spellcheck="false" placeholder="输入或粘贴 HTML / SVG / XML 代码…"></textarea>
+            </div>
           </div>
+        </div>
+
+        <!-- Draggable Splitter -->
+        <div class="pane-splitter" id="paneSplitter" title="拖拽调节左右分栏宽度（双击恢复默认比例）">
+          <div class="splitter-grip"></div>
         </div>
 
         <!-- Preview Canvas Pane -->
         <div class="pane preview-pane" id="previewPane">
+          <div class="pane-toolbar preview-toolbar">
+            <div class="preview-header-left">
+              <span class="preview-dot"></span>
+              <span class="preview-header-title" id="previewHeaderLabel">实时预览画布</span>
+            </div>
+            <div class="preview-header-right">
+              <button class="tool-chip" id="btnToggleGrid" title="切换透明棋盘网格底色">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+                <span>网格底</span>
+              </button>
+              <button class="tool-chip" id="btnRefreshPreview" title="重新渲染预览 (Ctrl+R)">
+                <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                <span>刷新</span>
+              </button>
+            </div>
+          </div>
           <div class="preview-card" id="previewCard">
             <iframe id="previewFrame" sandbox="allow-scripts" title="作品实时预览画布"></iframe>
           </div>

@@ -35,11 +35,11 @@ function defaultStarterDocuments() {
     justify-content: center;
     background: radial-gradient(circle at 30% 20%, #1e293b, #0f172a 75%);
     color: #f8fafc;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
     padding: 24px;
   }
   .card {
-    background: rgba(30, 41, 59, 0.78);
+    background: rgba(30, 41, 59, 0.82);
     border: 1px solid rgba(148, 163, 184, 0.22);
     border-radius: 20px;
     padding: 28px 32px;
@@ -95,7 +95,7 @@ function defaultStarterDocuments() {
     <h1>代码画布 · 桌面工作台</h1>
     <p>在左侧编辑代码或直接按 Ctrl+Shift+V 粘贴 AI 生成的 HTML / SVG / XML，右侧画布将立即实时渲染。</p>
     <div class="meter"><div class="bar" id="bar"></div></div>
-    <button onclick=" randomize() ">随机切换能量波形</button>
+    <button onclick="randomize()">随机切换能量波形</button>
   </div>
   <script>
     function randomize() {
@@ -141,7 +141,7 @@ function defaultStarterDocuments() {
     <token name="canvas_primary" day="#2456C6" night="#8EB4FF" />
     <token name="canvas_surface" day="#FFFFFF" night="#151E2C" />
   </palette>
-  < radii unit="dp">
+  <radii unit="dp">
     <thumbnail>12</thumbnail>
     <card>16</card>
     <dialog>20</dialog>
@@ -161,7 +161,17 @@ function loadDocuments() {
     }
     const raw = fs.readFileSync(file, 'utf8');
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : defaultStarterDocuments();
+    if (!Array.isArray(parsed)) return defaultStarterDocuments();
+    // Auto-heal starter XML if it had the old '< radii' typo
+    let mutated = false;
+    for (const doc of parsed) {
+      if (doc && typeof doc.content === 'string' && doc.content.includes('< radii unit="dp">')) {
+        doc.content = doc.content.replace('< radii unit="dp">', '<radii unit="dp">');
+        mutated = true;
+      }
+    }
+    if (mutated) saveDocuments(parsed);
+    return parsed;
   } catch (e) {
     return defaultStarterDocuments();
   }
@@ -180,7 +190,10 @@ function loadPrefs() {
     viewMode: 'split',
     clipboardAutoDetect: true,
     alwaysOnTop: false,
-    showGrid: false
+    showGrid: false,
+    wordWrap: true,
+    fontSize: 12,
+    splitRatio: 0.50
   };
   try {
     if (!fs.existsSync(file)) return defaults;
@@ -196,16 +209,34 @@ function savePrefs(prefs) {
   fs.writeFileSync(file, JSON.stringify(prefs, null, 2), 'utf8');
 }
 
+function isEffectiveDark(prefs) {
+  if (prefs.theme === 'dark') return true;
+  if (prefs.theme === 'light') return false;
+  return Boolean(nativeTheme.shouldUseDarkColors);
+}
+
+function computeTitleBarOverlay(prefs) {
+  const dark = isEffectiveDark(prefs);
+  return {
+    color: dark ? '#151E2C' : '#FFFFFF',
+    symbolColor: dark ? '#F2F6FB' : '#1A2433',
+    height: 52
+  };
+}
+
 function createWindow() {
   const prefs = loadPrefs();
+  const dark = isEffectiveDark(prefs);
   mainWindow = new BrowserWindow({
-    width: 1320,
+    width: 1340,
     height: 840,
-    minWidth: 880,
+    minWidth: 920,
     minHeight: 580,
     title: '代码画布 · Code Canvas',
-    backgroundColor: '#0D1420',
+    backgroundColor: dark ? '#0D1420' : '#F5F7FA',
     autoHideMenuBar: true,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: computeTitleBarOverlay(prefs),
     alwaysOnTop: Boolean(prefs.alwaysOnTop),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -220,6 +251,15 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+
+  nativeTheme.on('updated', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const prefs = loadPrefs();
+      if (typeof mainWindow.setTitleBarOverlay === 'function') {
+        try { mainWindow.setTitleBarOverlay(computeTitleBarOverlay(prefs)); } catch (e) {}
+      }
+    }
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -328,19 +368,26 @@ ipcMain.handle('prefs:get', () => {
   const prefs = loadPrefs();
   return Object.assign({}, prefs, {
     systemDark: nativeTheme.shouldUseDarkColors,
-    storageDir: app.getPath('userData')
+    storageDir: app.getPath('userData'),
+    isElectron: true
   });
 });
 
 ipcMain.handle('prefs:set', (_event, patch) => {
   const next = Object.assign(loadPrefs(), patch || {});
   savePrefs(next);
-  if (mainWindow && typeof patch.alwaysOnTop === 'boolean') {
-    mainWindow.setAlwaysOnTop(patch.alwaysOnTop);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (typeof patch.alwaysOnTop === 'boolean') {
+      mainWindow.setAlwaysOnTop(patch.alwaysOnTop);
+    }
+    if (typeof mainWindow.setTitleBarOverlay === 'function') {
+      try { mainWindow.setTitleBarOverlay(computeTitleBarOverlay(next)); } catch (e) {}
+    }
   }
   return Object.assign({}, next, {
     systemDark: nativeTheme.shouldUseDarkColors,
-    storageDir: app.getPath('userData')
+    storageDir: app.getPath('userData'),
+    isElectron: true
   });
 });
 

@@ -2,6 +2,10 @@
   'use strict';
 
   const Core = window.CanvasCore;
+  const isElectronEnv = Boolean(window.canvasDesktop);
+  if (isElectronEnv) {
+    document.body.classList.add('is-electron');
+  }
   const Bridge = window.canvasDesktop || createBrowserFallbackBridge();
 
   function createBrowserFallbackBridge() {
@@ -15,21 +19,34 @@
           title: 'Atelier 交互粒子画布.html',
           updatedAt: now,
           revision: 1,
-          content: '<!DOCTYPE html>\n<html><head><meta charset="utf-8"><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a;color:#f8fafc;font-family:system-ui,sans-serif}.card{padding:28px 32px;border-radius:20px;background:#1e293b;border:1px solid #334155;text-align:center}h1{font-size:22px;margin:0 0 10px}p{color:#94a3b8;font-size:13px}</style></head><body><div class="card"><h1>代码画布 · 桌面工作台</h1><p>在左侧编辑代码或按 Ctrl+Shift+V 粘贴 AI 代码，右侧实时预览。</p></div></body></html>'
+          content: '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <style>\n    body {\n      margin: 0;\n      min-height: 100vh;\n      display: flex;\n      align-items: center;\n      justify-content: center;\n      background: #0f172a;\n      color: #f8fafc;\n      font-family: system-ui, sans-serif;\n    }\n    .card {\n      padding: 28px 32px;\n      border-radius: 20px;\n      background: #1e293b;\n      border: 1px solid #334155;\n      text-align: center;\n    }\n    h1 { font-size: 22px; margin: 0 0 10px; }\n    p { color: #94a3b8; font-size: 13px; }\n  </style>\n</head>\n<body>\n  <div class="card">\n    <h1>代码画布 · 桌面工作台</h1>\n    <p>在左侧编辑代码或按 Ctrl+Shift+V 粘贴 AI 代码，右侧实时预览。</p>\n  </div>\n</body>\n</html>'
         },
         {
           id: 'starter-svg-geometry',
           title: '几何黄金螺旋徽章.svg',
           updatedAt: now - 60000,
           revision: 1,
-          content: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240"><rect width="320" height="240" rx="24" fill="#0D1420"/><circle cx="160" cy="120" r="72" fill="none" stroke="#38BDF8" stroke-width="3"/><polygon points="160,58 214,152 106,152" fill="none" stroke="#F8FAFC" stroke-width="2.5"/></svg>'
+          content: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240">\n  <rect width="320" height="240" rx="24" fill="#0D1420"/>\n  <circle cx="160" cy="120" r="72" fill="none" stroke="#38BDF8" stroke-width="3"/>\n  <polygon points="160,58 214,152 106,152" fill="none" stroke="#F8FAFC" stroke-width="2.5"/>\n</svg>'
+        },
+        {
+          id: 'starter-xml-config',
+          title: 'Atelier 主题规范配置.xml',
+          updatedAt: now - 120000,
+          revision: 1,
+          content: '<?xml version="1.0" encoding="UTF-8"?>\n<atelierDesignSystem version="0.4.0">\n  <palette mode="DualTheme">\n    <token name="canvas_bg" day="#F5F7FA" night="#0D1420" />\n    <token name="canvas_primary" day="#2456C6" night="#8EB4FF" />\n    <token name="canvas_surface" day="#FFFFFF" night="#151E2C" />\n  </palette>\n  <radii unit="dp">\n    <thumbnail>12</thumbnail>\n    <card>16</card>\n    <dialog>20</dialog>\n  </radii>\n</atelierDesignSystem>'
         }
       ];
     }
     function readDocs() {
       try {
         const raw = localStorage.getItem(DOCS_KEY);
-        return raw ? JSON.parse(raw) : defaultDocs();
+        const docs = raw ? JSON.parse(raw) : defaultDocs();
+        for (const doc of docs) {
+          if (doc && typeof doc.content === 'string' && doc.content.includes('< radii unit="dp">')) {
+            doc.content = doc.content.replace('< radii unit="dp">', '<radii unit="dp">');
+          }
+        }
+        return docs;
       } catch (e) {
         return defaultDocs();
       }
@@ -97,7 +114,17 @@
         try { await navigator.clipboard.writeText(text); return true; } catch (e) { return false; }
       },
       getPrefs: async () => {
-        const defaults = { theme: 'system', viewMode: 'split', clipboardAutoDetect: true, alwaysOnTop: false, showGrid: false, systemDark: window.matchMedia('(prefers-color-scheme: dark)').matches };
+        const defaults = {
+          theme: 'system',
+          viewMode: 'split',
+          clipboardAutoDetect: true,
+          alwaysOnTop: false,
+          showGrid: false,
+          wordWrap: true,
+          fontSize: 12,
+          splitRatio: 0.50,
+          systemDark: window.matchMedia('(prefers-color-scheme: dark)').matches
+        };
         try { return Object.assign(defaults, JSON.parse(localStorage.getItem(PREFS_KEY) || '{}')); } catch (e) { return defaults; }
       },
       setPrefs: async (patch) => {
@@ -120,6 +147,9 @@
     clipboardAutoDetect: true,
     alwaysOnTop: false,
     showGrid: false,
+    wordWrap: true,
+    fontSize: 13,
+    splitRatio: 0.46,
     systemDark: true
   };
   let lastHandledClipHash = '';
@@ -139,9 +169,22 @@
   const currentKindBadge = document.getElementById('currentKindBadge');
   const saveStatus = document.getElementById('saveStatus');
   const workspace = document.getElementById('workspace');
+  const paneSplitter = document.getElementById('paneSplitter');
+  const editorSurface = document.getElementById('editorSurface');
   const codeEditor = document.getElementById('codeEditor');
+  const codeHighlight = document.getElementById('codeHighlight');
   const lineGutter = document.getElementById('lineGutter');
   const codeStats = document.getElementById('codeStats');
+  const fontSizeLabel = document.getElementById('fontSizeLabel');
+  const btnWordWrap = document.getElementById('btnWordWrap');
+  const btnFormatCode = document.getElementById('btnFormatCode');
+  const btnToggleFind = document.getElementById('btnToggleFind');
+  const findBar = document.getElementById('findBar');
+  const findInput = document.getElementById('findInput');
+  const replaceInput = document.getElementById('replaceInput');
+  const findCountLabel = document.getElementById('findCountLabel');
+  const previewHeaderLabel = document.getElementById('previewHeaderLabel');
+  const btnToggleGrid = document.getElementById('btnToggleGrid');
   const previewCard = document.getElementById('previewCard');
   const previewFrame = document.getElementById('previewFrame');
   const clipboardBanner = document.getElementById('clipboardBanner');
@@ -159,6 +202,19 @@
     return Boolean(prefs.systemDark);
   }
 
+  function applyEditorPrefsUi() {
+    const wrap = prefs.wordWrap !== false;
+    editorSurface.classList.toggle('wrap-enabled', wrap);
+    btnWordWrap.classList.toggle('active', wrap);
+
+    const size = Math.min(20, Math.max(11, Number(prefs.fontSize) || 13));
+    editorSurface.style.setProperty('--editor-font-size', size + 'px');
+    fontSizeLabel.textContent = size + 'px';
+
+    const ratio = Math.min(0.74, Math.max(0.26, Number(prefs.splitRatio) || 0.46));
+    workspace.style.setProperty('--code-pane-width', Math.round(ratio * 100) + '%');
+  }
+
   function applyThemeUi() {
     const dark = isDarkActive();
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
@@ -166,8 +222,9 @@
       btn.classList.toggle('active', btn.dataset.themeMode === prefs.theme);
     });
     document.getElementById('btnPinTop').classList.toggle('active', Boolean(prefs.alwaysOnTop));
-    document.getElementById('btnToggleGrid').classList.toggle('active', Boolean(prefs.showGrid));
+    btnToggleGrid.classList.toggle('active', Boolean(prefs.showGrid));
     previewCard.classList.toggle('grid-bg', Boolean(prefs.showGrid));
+    applyEditorPrefsUi();
     renderPreviewNow();
   }
 
@@ -206,8 +263,9 @@
       const item = document.createElement('div');
       item.className = 'doc-item' + (currentDoc && currentDoc.id === doc.id ? ' active' : '');
       const sizeText = Core.formatBytes(new Blob([doc.content || '']).size);
+      const thumbHtml = Core.buildThumbnailMarkup(doc, kind);
       item.innerHTML = `
-        <div class="doc-thumb">${kind}</div>
+        <div class="doc-thumb">${thumbHtml}</div>
         <div class="doc-meta">
           <div class="doc-name"></div>
           <div class="doc-sub">${kind} · ${sizeText}</div>
@@ -238,6 +296,14 @@
     const nums = [];
     for (let i = 1; i <= lines; i++) nums.push(i);
     lineGutter.textContent = nums.join('\n');
+    codeHighlight.innerHTML = Core.highlightMarkup(text) + '\n';
+    syncEditorScroll();
+  }
+
+  function syncEditorScroll() {
+    lineGutter.scrollTop = codeEditor.scrollTop;
+    codeHighlight.scrollTop = codeEditor.scrollTop;
+    codeHighlight.scrollLeft = codeEditor.scrollLeft;
   }
 
   function renderPreviewNow() {
@@ -245,6 +311,18 @@
     const content = codeEditor.value || '';
     const kind = Core.detectRenderKind(currentDoc.title, content);
     currentKindBadge.textContent = kind;
+
+    // Context-aware preview pane header
+    if (kind === Core.RenderKind.XML) {
+      previewHeaderLabel.textContent = 'XML 交互结构树 · 防 XXE 沙箱';
+      btnToggleGrid.classList.add('hidden');
+      previewCard.classList.remove('grid-bg');
+    } else {
+      previewHeaderLabel.textContent = kind === Core.RenderKind.SVG ? 'SVG 矢量画布 · 自适应比例' : '实时渲染画布 · 安全沙箱';
+      btnToggleGrid.classList.remove('hidden');
+      previewCard.classList.toggle('grid-bg', Boolean(prefs.showGrid));
+    }
+
     const html = Core.buildPreviewDocument(content, kind, { isDark: isDarkActive() });
     previewFrame.srcdoc = html;
   }
@@ -336,12 +414,122 @@
     clipboardBanner.classList.remove('hidden');
   }
 
+  // Inline Find & Replace
+  function toggleFindBar(forceOpen) {
+    const show = typeof forceOpen === 'boolean' ? forceOpen : findBar.classList.contains('hidden');
+    findBar.classList.toggle('hidden', !show);
+    btnToggleFind.classList.toggle('active', show);
+    if (show) {
+      findInput.focus();
+      findInput.select();
+      updateFindCount();
+    } else {
+      codeEditor.focus();
+    }
+  }
+
+  function updateFindCount() {
+    const needle = findInput.value;
+    if (!needle) {
+      findCountLabel.textContent = '';
+      return;
+    }
+    const hay = codeEditor.value || '';
+    let count = 0;
+    let pos = 0;
+    while ((pos = hay.indexOf(needle, pos)) !== -1) {
+      count++;
+      pos += needle.length;
+    }
+    findCountLabel.textContent = count > 0 ? `${count} 处匹配` : '无匹配';
+  }
+
+  function findNextInEditor() {
+    const needle = findInput.value;
+    if (!needle) return;
+    const hay = codeEditor.value || '';
+    const startFrom = codeEditor.selectionEnd || 0;
+    let idx = hay.indexOf(needle, startFrom);
+    if (idx === -1) idx = hay.indexOf(needle, 0);
+    if (idx !== -1) {
+      codeEditor.focus();
+      codeEditor.setSelectionRange(idx, idx + needle.length);
+    }
+    updateFindCount();
+  }
+
+  function replaceOneInEditor() {
+    const needle = findInput.value;
+    if (!needle) return;
+    const replacement = replaceInput.value || '';
+    const start = codeEditor.selectionStart;
+    const end = codeEditor.selectionEnd;
+    const hay = codeEditor.value || '';
+    if (hay.slice(start, end) === needle) {
+      codeEditor.value = hay.slice(0, start) + replacement + hay.slice(end);
+      codeEditor.setSelectionRange(start, start + replacement.length);
+      updateGutterAndStats();
+      scheduleSaveAndPreview();
+    }
+    findNextInEditor();
+  }
+
+  function replaceAllInEditor() {
+    const needle = findInput.value;
+    if (!needle) return;
+    const replacement = replaceInput.value || '';
+    const hay = codeEditor.value || '';
+    if (!hay.includes(needle)) return;
+    codeEditor.value = hay.split(needle).join(replacement);
+    updateGutterAndStats();
+    scheduleSaveAndPreview();
+    updateFindCount();
+  }
+
+  // Draggable Splitter Logic
+  function initSplitter() {
+    let dragging = false;
+    paneSplitter.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      dragging = true;
+      paneSplitter.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      previewFrame.style.pointerEvents = 'none';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const rect = workspace.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const relX = e.clientX - rect.left;
+      const ratio = Math.min(0.74, Math.max(0.26, relX / rect.width));
+      prefs.splitRatio = ratio;
+      workspace.style.setProperty('--code-pane-width', Math.round(ratio * 100) + '%');
+    });
+
+    window.addEventListener('mouseup', async () => {
+      if (!dragging) return;
+      dragging = false;
+      paneSplitter.classList.remove('dragging');
+      document.body.style.cursor = '';
+      previewFrame.style.pointerEvents = '';
+      prefs = await Bridge.setPrefs({ splitRatio: prefs.splitRatio });
+    });
+
+    paneSplitter.addEventListener('dblclick', async () => {
+      prefs.splitRatio = 0.46;
+      workspace.style.setProperty('--code-pane-width', '46%');
+      prefs = await Bridge.setPrefs({ splitRatio: 0.46 });
+    });
+  }
+
   async function init() {
     prefs = await Bridge.getPrefs();
     allDocs = await Bridge.listDocuments();
     applyViewModeUi(prefs.viewMode || 'split');
     applyThemeUi();
     applyFilters();
+    initSplitter();
     if (allDocs.length > 0) {
       selectDocument(allDocs[0]);
     }
@@ -352,10 +540,63 @@
   codeEditor.addEventListener('input', () => {
     updateGutterAndStats();
     scheduleSaveAndPreview();
+    if (!findBar.classList.contains('hidden')) updateFindCount();
   });
 
-  codeEditor.addEventListener('scroll', () => {
-    lineGutter.scrollTop = codeEditor.scrollTop;
+  codeEditor.addEventListener('scroll', syncEditorScroll);
+
+  codeEditor.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = codeEditor.selectionStart;
+      const end = codeEditor.selectionEnd;
+      const val = codeEditor.value;
+      codeEditor.value = val.slice(0, start) + '  ' + val.slice(end);
+      codeEditor.setSelectionRange(start + 2, start + 2);
+      updateGutterAndStats();
+      scheduleSaveAndPreview();
+    }
+  });
+
+  btnWordWrap.addEventListener('click', async () => {
+    prefs = await Bridge.setPrefs({ wordWrap: !(prefs.wordWrap !== false) });
+    applyEditorPrefsUi();
+  });
+
+  btnFormatCode.addEventListener('click', () => {
+    if (!currentDoc) return;
+    const kind = Core.detectRenderKind(currentDoc.title, codeEditor.value);
+    codeEditor.value = Core.formatMarkup(codeEditor.value, kind);
+    updateGutterAndStats();
+    scheduleSaveAndPreview();
+    saveStatus.textContent = '已格式化代码';
+  });
+
+  btnToggleFind.addEventListener('click', () => toggleFindBar());
+  document.getElementById('btnCloseFind').addEventListener('click', () => toggleFindBar(false));
+  findInput.addEventListener('input', updateFindCount);
+  findInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') findNextInEditor();
+    if (e.key === 'Escape') toggleFindBar(false);
+  });
+  replaceInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') replaceOneInEditor();
+    if (e.key === 'Escape') toggleFindBar(false);
+  });
+  document.getElementById('btnFindNext').addEventListener('click', findNextInEditor);
+  document.getElementById('btnReplaceOne').addEventListener('click', replaceOneInEditor);
+  document.getElementById('btnReplaceAll').addEventListener('click', replaceAllInEditor);
+
+  document.getElementById('btnFontDec').addEventListener('click', async () => {
+    const nextSize = Math.max(11, (Number(prefs.fontSize) || 13) - 1);
+    prefs = await Bridge.setPrefs({ fontSize: nextSize });
+    applyEditorPrefsUi();
+  });
+
+  document.getElementById('btnFontInc').addEventListener('click', async () => {
+    const nextSize = Math.min(20, (Number(prefs.fontSize) || 13) + 1);
+    prefs = await Bridge.setPrefs({ fontSize: nextSize });
+    applyEditorPrefsUi();
   });
 
   inputSearch.addEventListener('input', applyFilters);
@@ -447,7 +688,7 @@
     applyThemeUi();
   });
 
-  document.getElementById('btnToggleGrid').addEventListener('click', async () => {
+  btnToggleGrid.addEventListener('click', async () => {
     prefs = await Bridge.setPrefs({ showGrid: !prefs.showGrid });
     applyThemeUi();
   });
@@ -474,21 +715,6 @@
     clipboardBanner.classList.add('hidden');
   });
 
-  document.getElementById('symbolStrip').addEventListener('click', (e) => {
-    const btn = e.target.closest('.sym-btn');
-    if (!btn) return;
-    const pair = btn.dataset.insert;
-    const start = codeEditor.selectionStart;
-    const end = codeEditor.selectionEnd;
-    const val = codeEditor.value;
-    codeEditor.value = val.slice(0, start) + pair + val.slice(end);
-    const cursorOffset = pair.length === 2 && pair !== '  ' ? start + 1 : start + pair.length;
-    codeEditor.focus();
-    codeEditor.setSelectionRange(cursorOffset, cursorOffset);
-    updateGutterAndStats();
-    scheduleSaveAndPreview();
-  });
-
   window.addEventListener('focus', checkClipboardOffer);
 
   window.addEventListener('keydown', (e) => {
@@ -502,6 +728,18 @@
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r') {
       e.preventDefault();
       renderPreviewNow();
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      toggleFindBar(true);
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      if (currentDoc) Bridge.exportFile({ title: currentDoc.title, content: codeEditor.value });
+    } else if (e.altKey && !e.ctrlKey && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      btnWordWrap.click();
+    } else if (e.shiftKey && e.altKey && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      btnFormatCode.click();
     }
   });
 
