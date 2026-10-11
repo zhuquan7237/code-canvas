@@ -2,7 +2,7 @@
 
 把 AI 给出的代码，变成看得见的作品。提供轻量原生 Android 应用（使用系统 WebView，不打包浏览器内核）与 Windows 电脑版（`desktop/`）。
 
-[下载最新 Android APK (v0.4.0)](https://relay.zhuquan.xyz/dl/code-canvas-0.4.0.apk)（自建源，国内可直连）· [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
+[下载最新 Android APK (v0.4.0)](https://relay.zhuquan.xyz/dl/code-canvas-0.4.0.apk)（自建源，国内可直连）· [下载 Windows 电脑版 EXE (v0.4.0)](https://github.com/zhuquan7237/code-canvas/releases/download/v0.4.0/CodeCanvas-Desktop-0.4.0-Portable.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
 
 ## 怎么用
 
@@ -17,12 +17,13 @@
 
 在桌面端提供与手机版一致的 Atelier 深浅色双主题与三栏工作台（左侧目录筛选抽屉 + 中栏行号代码编辑器 + 右栏实时沙盒预览，支持一键切换「分栏 / 仅代码 / 仅预览」）：
 
-- **Electron 桌面运行 / 打包**：
+- **直接下载免安装单文件 EXE**：前往 [GitHub Release v0.4.0](https://github.com/zhuquan7237/code-canvas/releases/tag/v0.4.0) 下载 `CodeCanvas-Desktop-0.4.0-Portable.exe` 双击即可运行。
+- **源码运行 / 自行打包**：
   ```sh
   cd desktop
   npm install
   npm start        # 启动桌面窗口
-  npm run dist:win # 打包 Windows 免安装目录与安装包
+  npm run dist:win # 打包 Windows 免安装单文件 EXE (dist/CodeCanvas-Desktop-0.4.0-Portable.exe)
   ```
 - **浏览器零依赖直开**：直接用桌面浏览器打开 `desktop/src/index.html` 即可离线使用（自动切换至本地存储兜底）。
 
