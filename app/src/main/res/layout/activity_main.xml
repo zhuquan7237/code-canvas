@@ -206,8 +206,8 @@
             android:listSelector="@android:color/transparent"
             android:paddingHorizontal="8dp"
             android:paddingTop="0dp"
-            android:paddingBottom="88dp"
-            android:clipToPadding="false" />
+            android:paddingBottom="128dp"
+            android:clipToPadding="true" />
 
         <GridView
             android:id="@+id/grid_documents"
@@ -218,8 +218,8 @@
             android:verticalSpacing="@dimen/space_16"
             android:paddingHorizontal="@dimen/screen_inset"
             android:paddingTop="2dp"
-            android:paddingBottom="8dp"
-            android:clipToPadding="false"
+            android:paddingBottom="128dp"
+            android:clipToPadding="true"
             android:stretchMode="columnWidth"
             android:visibility="gone" />
 
