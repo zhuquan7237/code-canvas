@@ -135,13 +135,40 @@ public final class ShareExporter {
         return name;
     }
 
-    static String mimeTypeFor(String fileName) {
+    public static String mimeTypeFor(String fileName) {
         String ext = FileUtils.getExtension(fileName);
         if (!ext.isEmpty()) {
             String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.toLowerCase(Locale.ROOT));
             if (mime != null) return mime;
         }
         return "text/plain";
+    }
+
+    /** Share several staged files at once. A single file uses the one-item chooser. */
+    public static Intent chooserIntent(Context context, java.util.List<Staged> staged, String chooserTitle) {
+        if (staged == null || staged.isEmpty()) {
+            throw new IllegalArgumentException("nothing to share");
+        }
+        if (staged.size() == 1) {
+            return chooserIntent(context, staged.get(0), chooserTitle);
+        }
+        Intent send = new Intent(Intent.ACTION_SEND_MULTIPLE);
+        java.util.ArrayList<Uri> uris = new java.util.ArrayList<>();
+        String mime = staged.get(0).mimeType;
+        boolean mixed = false;
+        for (Staged item : staged) {
+            uris.add(item.uri);
+            if (item.mimeType != null && !item.mimeType.equals(mime)) mixed = true;
+        }
+        send.setType(mixed ? "*/*" : mime);
+        send.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        ClipData clip = ClipData.newUri(context.getContentResolver(), "分享", uris.get(0));
+        for (int i = 1; i < uris.size(); i++) {
+            clip.addItem(new ClipData.Item(uris.get(i)));
+        }
+        send.setClipData(clip);
+        return Intent.createChooser(send, chooserTitle);
     }
 
     /** Build the send intent, with the read grant attached to the URI itself. */

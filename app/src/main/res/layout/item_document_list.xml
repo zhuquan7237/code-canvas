@@ -4,106 +4,103 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="68dp"
+        android:layout_height="wrap_content"
+        android:minHeight="56dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="12dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="2dp"
+        android:paddingVertical="6dp"
         android:background="@android:color/transparent">
 
-    <ImageView
-        android:id="@+id/img_doc_preview"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:background="@drawable/bg_thumbnail"
-        android:foreground="@drawable/fg_thumbnail"
-        android:clipToOutline="true"
-        android:scaleType="fitCenter"
-        android:contentDescription="文件缩略图" />
+        <ImageView
+            android:id="@+id/img_doc_preview"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_thumbnail"
+            android:foreground="@drawable/fg_thumbnail"
+            android:clipToOutline="true"
+            android:scaleType="matrix"
+            android:contentDescription="文件缩略图" />
 
-    <LinearLayout
-        android:id="@+id/card_content_container"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:layout_marginStart="12dp"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/txt_doc_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="文件名"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textColor="@color/canvas_ink_primary"
-            android:singleLine="true"
-            android:ellipsize="middle" />
-
-        <!-- One metadata line instead of three stacked rows keeps the list dense. -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:id="@+id/card_content_container"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical">
 
             <TextView
-                android:id="@+id/txt_doc_tag"
-                android:layout_width="wrap_content"
+                android:id="@+id/txt_doc_title"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_chip"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="2dp"
-                android:text="HTML"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:textColor="@color/canvas_ink_secondary" />
+                android:text="文件名"
+                android:textSize="15sp"
+                android:textColor="@color/canvas_ink_primary"
+                android:singleLine="true"
+                android:ellipsize="middle" />
 
-            <TextView
-                android:id="@+id/txt_doc_size"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="1 KB"
-                android:textSize="11sp"
-                android:textColor="@color/canvas_ink_secondary" />
+                android:layout_marginTop="2dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/txt_doc_tag"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_chip"
+                    android:paddingHorizontal="6dp"
+                    android:paddingVertical="1dp"
+                    android:text="HTML"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/canvas_primary" />
+
+                <TextView
+                    android:id="@+id/txt_doc_size"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="1 KB"
+                    android:textSize="12sp"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:textColor="@color/canvas_ink_tertiary" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/txt_doc_time"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:text="刚刚"
-                android:textSize="11sp"
-                android:gravity="end"
-                android:singleLine="true"
-                android:ellipsize="end"
-                android:textColor="@color/canvas_ink_secondary" />
+                android:layout_height="0dp"
+                android:visibility="gone"
+                android:text="" />
         </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btn_card_more"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="8dp"
+            android:background="@drawable/bg_icon_button"
+            android:src="@drawable/ic_more"
+            android:contentDescription="文件操作" />
     </LinearLayout>
 
-    <ImageButton
-        android:id="@+id/btn_card_more"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:padding="11dp"
-        android:background="@drawable/bg_icon_button"
-        android:src="@drawable/ic_more"
-        android:contentDescription="文件操作" />
-    </LinearLayout>
-
-    <!-- Multi-select badge: centre-end of the row, filled accent when checked. -->
     <ImageView
         android:id="@+id/img_check_badge"
-        android:layout_width="26dp"
-        android:layout_height="26dp"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
         android:layout_gravity="center_vertical|end"
-        android:layout_marginEnd="16dp"
+        android:layout_marginEnd="12dp"
         android:background="@drawable/bg_check_badge"
         android:src="@drawable/ic_check"
         android:tint="@color/check_badge_tint"
-        android:padding="5dp"
+        android:padding="4dp"
         android:visibility="gone"
         android:importantForAccessibility="no" />
 </FrameLayout>

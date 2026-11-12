@@ -123,6 +123,10 @@ public class StructuredTextTest {
         List<String> problems = StructuredText.checkYaml("a:\n  b: 1\n  c:\n    - x\n    - y\n");
         assertTrue(problems.toString(), problems.isEmpty());
         assertTrue(StructuredText.yamlVerdict(problems).contains("未做完整"));
+        List<StructuredText.YamlRow> rows = StructuredText.yamlOutline("a:\n  b: 1\n  c:\n    - x\n");
+        assertFalse(rows.isEmpty());
+        assertEquals(1, rows.get(0).line);
+        assertTrue(rows.get(1).depth >= 1);
         assertTrue("a failing verdict must also state the limit",
                 StructuredText.yamlVerdict(java.util.Arrays.asList("x")).contains("未做完整"));
     }
@@ -180,10 +184,11 @@ public class StructuredTextTest {
     }
 
     @Test
-    public void separatorIsGuessedFromTheFirstLine() {
+    public void separatorIsGuessedFromTheFirstRecords() {
         assertEquals('\t', CsvTable.guessSeparator("a\tb\tc\n1\t2\t3"));
         assertEquals(',', CsvTable.guessSeparator("a,b,c"));
         assertEquals(';', CsvTable.guessSeparator("a;b;c"));
+        assertEquals('\t', CsvTable.guessSeparator("name\na\tb\nc\td"));
     }
 
     @Test

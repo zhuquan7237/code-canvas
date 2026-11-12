@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Dark theme: derive from Theme.DeviceDefault.NoActionBar for dark consistency -->
-    <style name="AppTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+    <style name="AppTheme.Base" parent="@android:style/Theme.DeviceDefault.NoActionBar">
         <item name="android:windowBackground">@color/canvas_bg</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
         <item name="android:statusBarColor">@color/canvas_bg</item>
         <item name="android:navigationBarColor">@color/canvas_bg</item>
         <item name="android:textColorPrimary">@color/canvas_ink_primary</item>
@@ -20,6 +19,8 @@
         <item name="android:dialogTheme">@style/AppDialogTheme</item>
         <item name="android:alertDialogTheme">@style/AppDialogTheme</item>
     </style>
+
+    <style name="AppTheme" parent="AppTheme.Base" />
 
     <style name="AppDialogTheme" parent="@android:style/Theme.DeviceDefault.Dialog">
         <item name="android:windowBackground">@drawable/bg_dialog_surface</item>

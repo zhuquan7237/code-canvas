@@ -132,19 +132,27 @@ public final class CsvTable {
         return table;
     }
 
-    /** Guess the separator from the first line: tab-separated files are common alongside commas. */
+    /**
+     * Guess the separator from the first several records. A header with no delimiter used to hide
+     * a tab-separated body, because the scan stopped at the first newline.
+     */
     public static char guessSeparator(String text) {
         if (text == null) return ',';
-        int tabs = 0, commas = 0, semicolons = 0;
-        for (int i = 0; i < text.length(); i++) {
+        int tabs = 0, commas = 0, semicolons = 0, lines = 0;
+        int limit = Math.min(text.length(), 8192);
+        for (int i = 0; i < limit; i++) {
             char c = text.charAt(i);
-            if (c == '\n') break;
+            if (c == '\n') {
+                lines++;
+                if (lines >= 20) break;
+                continue;
+            }
             if (c == '\t') tabs++;
             else if (c == ',') commas++;
             else if (c == ';') semicolons++;
         }
         if (tabs > commas && tabs > semicolons) return '\t';
-        if (semicolons > commas) return ';';
+        if (semicolons > commas && semicolons > tabs) return ';';
         return ',';
     }
 

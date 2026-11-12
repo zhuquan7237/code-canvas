@@ -373,6 +373,45 @@ public final class StructuredText {
      * <p>Always states what was <b>not</b> checked. No YAML engine ships with the app, so claiming
      * "valid YAML" from an indentation check would be a lie the user could act on.</p>
      */
+    /** One indented line of a YAML outline, for the structure view. */
+    public static final class YamlRow {
+        public final int line;
+        public final int depth;
+        public final String label;
+        public final boolean problem;
+
+        public YamlRow(int line, int depth, String label, boolean problem) {
+            this.line = line;
+            this.depth = depth;
+            this.label = label;
+            this.problem = problem;
+        }
+    }
+
+    /**
+     * A readable outline of keys. Depth follows leading spaces. Lines named by
+     * {@link #checkYaml} are marked so the preview can point at them.
+     */
+    public static List<YamlRow> yamlOutline(String source) {
+        List<YamlRow> rows = new ArrayList<>();
+        if (source == null) return rows;
+        java.util.Set<Integer> bad = new java.util.HashSet<>();
+        for (String problem : checkYaml(source)) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("第\\s*(\\d+)\\s*行").matcher(problem);
+            if (m.find()) bad.add(Integer.parseInt(m.group(1)));
+        }
+        String[] lines = source.split("\r\n|\r|\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            String raw = lines[i];
+            String trimmed = raw.trim();
+            if (trimmed.isEmpty()) continue;
+            int indent = 0;
+            while (indent < raw.length() && raw.charAt(indent) == ' ') indent++;
+            rows.add(new YamlRow(i + 1, indent / 2, trimmed, bad.contains(i + 1)));
+        }
+        return rows;
+    }
+
     public static String yamlVerdict(List<String> problems) {
         String limit = "（只检查缩进与括号，未做完整 YAML 语义校验）";
         if (problems.isEmpty()) return "缩进与括号检查通过" + limit;

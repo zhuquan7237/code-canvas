@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Spacing ladder. Layouts use these names, not one-off dp values. -->
+    <dimen name="space_4">4dp</dimen>
+    <dimen name="space_8">8dp</dimen>
+    <dimen name="space_12">12dp</dimen>
+    <dimen name="space_16">16dp</dimen>
+    <dimen name="space_24">24dp</dimen>
+    <dimen name="space_32">32dp</dimen>
+
+    <!-- Corner radii. One step per role, so a chip never looks like a card. -->
+    <dimen name="radius_chip">8dp</dimen>
+    <dimen name="radius_control">12dp</dimen>
+    <dimen name="radius_card">16dp</dimen>
+    <dimen name="radius_sheet">24dp</dimen>
+    <dimen name="radius_pill">999dp</dimen>
+
+    <dimen name="touch_min">48dp</dimen>
+    <dimen name="screen_inset">16dp</dimen>
+</resources>

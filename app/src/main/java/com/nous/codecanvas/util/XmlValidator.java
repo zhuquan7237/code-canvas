@@ -1,6 +1,7 @@
 package com.nous.codecanvas.util;
 
 import java.io.StringReader;
+import java.util.Locale;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.xml.sax.InputSource;
@@ -32,7 +33,9 @@ public class XmlValidator {
 
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            // Disallow XXE features securely on standard Android/Java XML parsers
+            // Disallow XXE features securely on standard Android/Java XML parsers.
+            // If the parser cannot refuse DOCTYPE, fail closed instead of parsing anyway.
+            boolean doctypeBlocked = false;
             try {
                 factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
             } catch (Exception ignored) {}
@@ -44,6 +47,7 @@ public class XmlValidator {
             } catch (Exception ignored) {}
             try {
                 factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+                doctypeBlocked = true;
             } catch (Exception ignored) {}
             try {
                 factory.setXIncludeAware(false);
@@ -51,10 +55,15 @@ public class XmlValidator {
             try {
                 factory.setExpandEntityReferences(false);
             } catch (Exception ignored) {}
+            if (!doctypeBlocked) {
+                return new ValidationResult(false, "安全拦截：XML 解析器无法关闭 DOCTYPE，已拒绝解析");
+            }
             factory.setNamespaceAware(true);
 
-            // If user supplied DOCTYPE and feature was ignored, manual scan for DOCTYPE or ENTITY
-            if (xmlContent.contains("<!DOCTYPE") && (xmlContent.contains("SYSTEM") || xmlContent.contains("PUBLIC") || xmlContent.contains("ENTITY"))) {
+            String scanned = xmlContent.length() > 8192 ? xmlContent.substring(0, 8192) : xmlContent;
+            String upper = scanned.toUpperCase(Locale.ROOT);
+            if (upper.contains("<!DOCTYPE")
+                    && (upper.contains("SYSTEM") || upper.contains("PUBLIC") || upper.contains("ENTITY"))) {
                 return new ValidationResult(false, "安全拦截：禁止外部 DOCTYPE / ENTITY 实体声明 (防 XXE)");
             }
 

@@ -14,10 +14,8 @@ import android.widget.FrameLayout;
 
 import com.nous.codecanvas.model.CanvasDocument;
 import com.nous.codecanvas.util.CanvasPrefs;
-import com.nous.codecanvas.util.PreviewHtml;
 import com.nous.codecanvas.util.PreviewKey;
-import com.nous.codecanvas.util.RenderKind;
-import com.nous.codecanvas.util.RenderKindDetector;
+import com.nous.codecanvas.util.PreviewPage;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -82,7 +80,7 @@ final class ThumbnailBackfiller {
         int taken = 0;
         for (CanvasDocument doc : documents) {
             if (taken >= MAX_PER_VISIT) break;
-            if (hasThumbnail(doc)) continue;
+            if (!canThumbnail(doc) || hasThumbnail(doc)) continue;
             queue.addLast(doc);
             addAnything = true;
             taken++;
@@ -151,8 +149,18 @@ final class ThumbnailBackfiller {
             return;
         }
         final String key = darkKeyFor(doc);
-        final RenderKind kind = RenderKindDetector.detect(doc.getTitle(), doc.getContent());
         final boolean dark = isDark();
+        if (!canThumbnail(doc)) {
+            startNext();
+            return;
+        }
+        PreviewPage.Request request = new PreviewPage.Request();
+        request.kind = doc.kind().name();
+        request.content = doc.getContent();
+        request.fileName = doc.getTitle();
+        request.dark = dark;
+        request.allowScripts = CanvasPrefs.scriptsAllowed(activity);
+        final String page = PreviewPage.build(request);
 
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -174,7 +182,7 @@ final class ThumbnailBackfiller {
             }
         });
         web.loadDataWithBaseURL("https://codecanvas.invalid/gallery/" + Math.abs(key.hashCode()) + "/",
-                PreviewHtml.forDocument(doc.getContent(), kind, dark), "text/html", "UTF-8", null);
+                page, "text/html", "UTF-8", null);
     }
 
     /** Off-screen but attached and laid out: a WebView that is not in the hierarchy will not paint. */
@@ -211,6 +219,29 @@ final class ThumbnailBackfiller {
         } catch (Exception e) {
             web = null;
             return false;
+        }
+    }
+
+    /** Visual previews worth a thumbnail. Images and PDFs stay on their type cover. */
+    private static boolean canThumbnail(CanvasDocument doc) {
+        if (doc == null || doc.isBlob()) return false;
+        String content = doc.getContent();
+        if (content == null || content.length() > 200_000) return false;
+        switch (doc.kind()) {
+            case HTML:
+            case SVG:
+            case MARKDOWN:
+            case MERMAID:
+            case JSON:
+            case JSONL:
+            case CSV:
+            case YAML:
+            case XML:
+            case CODE:
+            case TEXT:
+                return true;
+            default:
+                return false;
         }
     }
 

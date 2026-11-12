@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Text;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
@@ -159,10 +160,40 @@ namespace CodeCanvasSetup
             }
             catch { }
 
+            ScheduleInstallDirRemoval(installDir);
+
             if (!silent)
             {
-                MessageBox.Show("代码画布已成功移除快捷方式与注册信息。", "卸载完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("代码画布已卸载。程序文件会在安装程序退出后删除。你的作品仍留在本机数据目录，不会被这次卸载清掉。", "卸载完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
+        }
+
+        /// <summary>
+        /// The uninstaller itself is running from the install directory, so the directory cannot
+        /// be removed in-process. A short-lived command finishes the delete after this process exits.
+        /// User documents live under Roaming\CodeCanvas and are not in this directory.
+        /// </summary>
+        private static void ScheduleInstallDirRemoval(string installDir)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(installDir) || !Directory.Exists(installDir)) return;
+                string script = Path.Combine(Path.GetTempPath(), "codecanvas-uninstall-" + Process.GetCurrentProcess().Id + ".cmd");
+                string quoted = installDir.Replace("\"", "");
+                string body = "@echo off\r\n"
+                    + "ping 127.0.0.1 -n 3 >nul\r\n"
+                    + "rmdir /s /q \"" + quoted + "\"\r\n"
+                    + "del /f /q \"%~f0\"\r\n";
+                File.WriteAllBytes(script, Encoding.ASCII.GetBytes(body));
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = script,
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                });
+            }
+            catch { }
         }
 
         private static void StopRunningInstances()

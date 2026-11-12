@@ -6,22 +6,23 @@
     android:orientation="vertical"
     android:background="@color/canvas_bg">
 
-    <!-- Top bar: bare glyphs, no outlined boxes. -->
+    <!-- One row. Search, export and share live in the overflow so the file name
+         keeps the width. The landscape code/preview switch sits in this same row. -->
     <LinearLayout
         android:id="@+id/header_editor"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="52dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingStart="12dp"
-        android:paddingEnd="8dp"
-        android:background="@color/canvas_surface">
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:background="@color/canvas_bg">
 
         <ImageButton
             android:id="@+id/btn_back"
             android:layout_width="44dp"
             android:layout_height="44dp"
-            android:padding="11dp"
+            android:padding="10dp"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_back"
             android:contentDescription="返回" />
@@ -31,7 +32,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="2dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:clickable="true"
@@ -40,14 +41,15 @@
 
             <TextView
                 android:id="@+id/txt_editor_title"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="untitled.html"
-                android:textSize="15sp"
+                android:textSize="17sp"
                 android:textStyle="bold"
                 android:textColor="@color/canvas_ink_primary"
                 android:singleLine="true"
-                android:ellipsize="middle" />
+                android:ellipsize="end" />
 
             <!-- The unsaved marker. A dot, not a colour change: the title stays readable
                  and the state is still unmistakable. -->
@@ -63,47 +65,87 @@
                 android:contentDescription="有未保存的修改" />
 
             <ImageView
-                android:layout_width="13dp"
-                android:layout_height="13dp"
-                android:layout_marginStart="7dp"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginStart="6dp"
                 android:src="@drawable/ic_edit"
                 android:importantForAccessibility="no" />
         </LinearLayout>
 
-        <ImageButton
-            android:id="@+id/btn_search"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:padding="11dp"
-            android:background="@drawable/bg_icon_button"
-            android:src="@drawable/ic_find"
-            android:contentDescription="搜索代码" />
+        <LinearLayout
+            android:id="@+id/header_mode_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="2dp"
+            android:visibility="gone"
+            android:background="@drawable/bg_segment_track">
+
+            <TextView
+                android:id="@+id/tab_code_land"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:text="代码"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/canvas_ink_secondary"
+                android:background="@drawable/bg_segment_item" />
+
+            <TextView
+                android:id="@+id/tab_preview_land"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:text="预览"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/canvas_ink_secondary"
+                android:background="@drawable/bg_segment_item" />
+        </LinearLayout>
 
         <ImageButton
             android:id="@+id/btn_save"
             android:layout_width="44dp"
             android:layout_height="44dp"
-            android:padding="11dp"
+            android:padding="10dp"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_check"
             android:contentDescription="保存" />
 
         <ImageButton
-            android:id="@+id/btn_export_saf"
+            android:id="@+id/btn_editor_overflow"
             android:layout_width="44dp"
             android:layout_height="44dp"
-            android:padding="11dp"
+            android:padding="10dp"
             android:background="@drawable/bg_icon_button"
-            android:src="@drawable/ic_export"
+            android:src="@drawable/ic_more"
+            android:contentDescription="更多操作" />
+
+        <!-- Still wired. The overflow menu calls them. Kept out of the row so the
+             file name is not squeezed by four icons. -->
+        <ImageButton
+            android:id="@+id/btn_search"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:contentDescription="搜索代码" />
+
+        <ImageButton
+            android:id="@+id/btn_export_saf"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
             android:contentDescription="另存为" />
 
         <ImageButton
             android:id="@+id/btn_share"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:padding="11dp"
-            android:background="@drawable/bg_icon_button"
-            android:src="@drawable/ic_share"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
             android:contentDescription="分享" />
     </LinearLayout>
 
@@ -111,18 +153,18 @@
     <LinearLayout
         android:id="@+id/layout_editor_tabs"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="40dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingHorizontal="16dp"
-        android:paddingBottom="10dp"
-        android:background="@color/canvas_surface">
+        android:paddingBottom="4dp"
+        android:background="@color/canvas_bg">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="match_parent"
             android:orientation="horizontal"
-            android:padding="3dp"
+            android:padding="2dp"
             android:background="@drawable/bg_segment_track">
 
             <TextView
@@ -132,6 +174,7 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:text="代码"
+                android:contentDescription="代码"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:textColor="@color/canvas_on_primary"
@@ -144,6 +187,7 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:text="预览"
+                android:contentDescription="预览"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:textColor="@color/canvas_ink_secondary"
@@ -239,12 +283,13 @@
     <LinearLayout
         android:id="@+id/toolbar_editor_actions"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/touch_min"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingStart="12dp"
-        android:paddingEnd="16dp"
-        android:background="@color/canvas_surface">
+        android:paddingStart="@dimen/space_12"
+        android:paddingEnd="@dimen/space_16"
+        android:background="@color/canvas_bg">
 
         <ImageButton
             android:id="@+id/btn_undo"
@@ -272,6 +317,7 @@
             android:background="?android:attr/selectableItemBackground"
             android:paddingHorizontal="12dp"
             android:text="粘贴"
+            android:contentDescription="粘贴"
             android:textSize="13sp"
             android:textStyle="bold"
             android:textColor="@color/canvas_primary" />
@@ -282,6 +328,8 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="end"
+            android:maxLines="1"
+            android:ellipsize="end"
             android:text="1 行 · 0 字符"
             android:textSize="12sp"
             android:fontFamily="monospace"
@@ -306,13 +354,15 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingHorizontal="14dp"
-        android:paddingBottom="10dp"
-        android:background="@color/canvas_surface"
+        android:paddingBottom="4dp"
+        android:background="@color/canvas_bg"
         android:visibility="gone">
 
         <LinearLayout
+            android:id="@+id/preview_action_row"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
 
@@ -336,6 +386,7 @@
                 android:background="@drawable/bg_button_subtle"
                 android:paddingHorizontal="12dp"
                 android:text="刷新"
+                android:contentDescription="刷新预览"
                 android:textSize="12sp"
                 android:textColor="@color/canvas_ink_primary"
                 android:layout_marginEnd="8dp" />
@@ -348,6 +399,7 @@
                 android:background="@drawable/bg_button_subtle"
                 android:paddingHorizontal="12dp"
                 android:text="联网加载"
+                android:contentDescription="联网加载"
                 android:textSize="12sp"
                 android:textColor="@color/canvas_ink_primary" />
 
@@ -359,6 +411,7 @@
                 android:background="@drawable/bg_button_subtle"
                 android:paddingHorizontal="12dp"
                 android:text="全屏"
+                android:contentDescription="全屏预览"
                 android:textSize="12sp"
                 android:textColor="@color/canvas_ink_primary"
                 android:layout_marginStart="8dp" />
@@ -533,9 +586,9 @@
             android:id="@+id/container_preview_canvas"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingHorizontal="12dp"
-            android:paddingTop="12dp"
-            android:paddingBottom="14dp">
+            android:paddingHorizontal="8dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
 
             <FrameLayout
                 android:id="@+id/preview_canvas_card"
@@ -564,6 +617,49 @@
                         android:visibility="gone"
                         android:contentDescription="图片预览" />
                 </com.nous.codecanvas.ui.SvgViewport>
+
+                <LinearLayout
+                    android:id="@+id/pdf_pager"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/touch_min"
+                    android:layout_gravity="top"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingHorizontal="@dimen/space_8"
+                    android:background="@color/canvas_surface"
+                    android:visibility="gone">
+
+                    <Button
+                        android:id="@+id/btn_pdf_prev"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:minWidth="0dp"
+                        android:background="@drawable/bg_button_subtle"
+                        android:text="上一页"
+                        android:textSize="13sp"
+                        android:textColor="@color/canvas_ink_primary" />
+
+                    <TextView
+                        android:id="@+id/txt_pdf_page"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="72dp"
+                        android:gravity="center"
+                        android:text="1 / 1"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/canvas_ink_primary" />
+
+                    <Button
+                        android:id="@+id/btn_pdf_next"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:minWidth="0dp"
+                        android:background="@drawable/bg_button_subtle"
+                        android:text="下一页"
+                        android:textSize="13sp"
+                        android:textColor="@color/canvas_ink_primary" />
+                </LinearLayout>
 
                 <!-- XML structure / validation panel -->
                 <ScrollView
@@ -642,8 +738,8 @@
         android:scrollbars="none"
         android:requiresFadingEdge="horizontal"
         android:fadingEdgeLength="28dp"
-        android:paddingBottom="6dp"
-        android:background="@color/canvas_surface">
+        android:paddingBottom="4dp"
+        android:background="@color/canvas_bg">
 
         <LinearLayout
             android:id="@+id/layout_editor_helpers"

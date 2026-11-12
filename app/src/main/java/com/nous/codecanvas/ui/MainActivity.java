@@ -10,8 +10,11 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -224,23 +227,25 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (Build.VERSION.SDK_INT >= 30) {
+            getWindow().setDecorFitsSystemWindows(false);
+        }
         setContentView(R.layout.activity_main);
 
         View rootView = findViewById(R.id.root_main);
         if (rootView != null) {
             rootView.setOnApplyWindowInsetsListener((v, insets) -> {
-                v.setPadding(
-                        insets.getSystemWindowInsetLeft(),
-                        insets.getSystemWindowInsetTop(),
-                        insets.getSystemWindowInsetRight(),
-                        insets.getSystemWindowInsetBottom()
-                );
+                SystemBarInsets.apply(v, insets);
                 return insets;
             });
         }
 
         repository = new DocumentRepository(this);
         appearanceAtCreate = com.nous.codecanvas.util.AppearanceManager.getMode(this);
+        if (savedInstanceState != null) {
+            handledIncomingUri = savedInstanceState.getString("handled_incoming");
+            typeFilter = savedInstanceState.getString("type_filter");
+        }
         try {
             repository.seedDefaultTemplatesIfEmpty();
         } catch (Exception e) {
@@ -250,6 +255,13 @@ public class MainActivity extends Activity {
         initViews();
         setupListeners();
         handleIncomingIntent(getIntent());
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (handledIncomingUri != null) outState.putString("handled_incoming", handledIncomingUri);
+        if (typeFilter != null) outState.putString("type_filter", typeFilter);
     }
 
     @Override
@@ -293,12 +305,9 @@ public class MainActivity extends Activity {
             String shared = intent.getStringExtra(Intent.EXTRA_TEXT);
             if (shared != null && !shared.trim().isEmpty()) {
                 pendingSharedText = shared;
-                List<AiCodeExtractor.CodeBlock> blocks = AiCodeExtractor.extract(shared);
-                if (blocks.isEmpty()) {
-                    createAndLaunchQuickPaste(shared, "");
-                } else {
-                    createAndLaunchQuickPaste(blocks.get(0).code, blocks.get(0).language);
-                }
+                // Same chooser as a paste: several fenced blocks must be picked, not silently
+                // reduced to the first one.
+                offerIncomingText(shared);
             }
         }
     }
@@ -323,16 +332,48 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    public void onConfigurationChanged(android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        applyHomeChrome();
+        buildFilterChips();
+    }
+
+    /** The paste action floats. In a selection it would cover the last rows, so it steps aside. */
+    private void applyHomeChrome() {
+        if (btnQuickPaste != null) {
+            btnQuickPaste.setVisibility(selectionMode ? View.GONE : View.VISIBLE);
+        }
+    }
+
+    @Override
     public void onBackPressed() {
+        if (consumeBack()) return;
+        super.onBackPressed();
+    }
+
+    /** Drawer and multi-select have to go first. The system back gesture uses the same path. */
+    private boolean consumeBack() {
+        if (activeSheet != null && activeSheet.isShowing()) {
+            activeSheet.dismiss();
+            return true;
+        }
+        if (activeDialog != null && activeDialog.isShowing()) {
+            activeDialog.dismiss();
+            return true;
+        }
         if (selectionMode) {
             exitSelectionMode();
-            return;
+            return true;
         }
         if (drawerRoot != null && drawerRoot.getVisibility() == View.VISIBLE) {
             closeDrawer();
-            return;
+            return true;
         }
-        super.onBackPressed();
+        return false;
+    }
+
+    private void onBackInvoked() {
+        if (!consumeBack()) finish();
     }
 
     private void initViews() {
@@ -367,6 +408,11 @@ public class MainActivity extends Activity {
         gridAdapter = new DocumentAdapter();
         gridDocuments.setAdapter(gridAdapter);
         setGrid(getPreferences(0).getBoolean("grid", false));
+        applyHomeChrome();
+        if (Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::onBackInvoked);
+        }
         findViewById(R.id.btn_layout_list).setOnClickListener(v -> setGrid(false));
         findViewById(R.id.btn_layout_grid).setOnClickListener(v -> setGrid(true));
 
@@ -399,6 +445,20 @@ public class MainActivity extends Activity {
         btnQuickPaste.setOnClickListener(v -> performQuickPasteAndPreview());
         btnNew.setOnClickListener(v -> showNewDocumentDialog());
         btnImport.setOnClickListener(v -> startSafImport());
+        View addMenu = findViewById(R.id.btn_add_menu);
+        if (addMenu != null) {
+            addMenu.setOnClickListener(v -> {
+                android.widget.PopupMenu menu = new android.widget.PopupMenu(this, v);
+                menu.getMenu().add(0, 1, 0, "新建");
+                menu.getMenu().add(0, 2, 0, "导入文件");
+                menu.setOnMenuItemClickListener(item -> {
+                    if (item.getItemId() == 1) showNewDocumentDialog();
+                    else startSafImport();
+                    return true;
+                });
+                menu.show();
+            });
+        }
         View settings = findViewById(R.id.btn_settings);
         if (settings != null) {
             settings.setOnClickListener(v -> {
@@ -407,9 +467,22 @@ public class MainActivity extends Activity {
             });
         }
 
+        View clear = findViewById(R.id.btn_search_clear);
+        if (clear != null) {
+            clear.setOnClickListener(v -> editSearch.setText(""));
+        }
+        editSearch.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                if (imm != null) imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+                return true;
+            }
+            return false;
+        });
         editSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (clear != null) clear.setVisibility(s.length() == 0 ? View.GONE : View.VISIBLE);
                 // Coalesce the rebuild. Filtering 120 documents and rebinding the whole ListView on
                 // every keystroke made typing feel heavy (measured 495ms per key in a large
                 // library); the query is applied once the burst settles.
@@ -422,9 +495,13 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void loadDocuments() {
-        final boolean dark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+    private boolean isDarkTheme() {
+        return (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                 == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    private void loadDocuments() {
+        final boolean dark = isDarkTheme();
         new Thread(() -> {
             try {
                 List<CanvasDocument> docs = repository.getAllDocuments();
@@ -470,7 +547,7 @@ public class MainActivity extends Activity {
                 com.nous.codecanvas.data.DocumentKind kind = presentation != null
                         ? presentation.kind
                         : doc.kind();
-                if (!kind.name().equals(typeFilter)) continue;
+                if (!matchesTypeFilter(kind)) continue;
             }
             if (!q.isEmpty()) {
                 if (!doc.getTitle().toLowerCase(Locale.ROOT).contains(q)) {
@@ -492,14 +569,45 @@ public class MainActivity extends Activity {
                     ? "全部作品 · " + filteredDocuments.size()
                     : filterLabel(typeFilter) + " · " + filteredDocuments.size());
         }
-        viewEmpty.setVisibility(filteredDocuments.isEmpty() ? View.VISIBLE : View.GONE);
+        boolean noMatch = filteredDocuments.isEmpty();
+        viewEmpty.setVisibility(noMatch ? View.VISIBLE : View.GONE);
+        TextView emptyTitle = findViewById(R.id.txt_empty);
+        TextView emptyHint = findViewById(R.id.txt_empty_hint);
+        View emptyPaste = findViewById(R.id.btn_empty_paste);
+        View emptyImport = findViewById(R.id.btn_empty_import);
+        View emptyIcon = findViewById(R.id.img_empty);
+        boolean libraryEmpty = allDocuments.isEmpty();
+        if (emptyIcon != null) emptyIcon.setVisibility(libraryEmpty ? View.VISIBLE : View.GONE);
+        if (emptyTitle != null) {
+            emptyTitle.setText(libraryEmpty ? "把第一段代码变成作品" : "没有符合的作品");
+        }
+        if (emptyHint != null) {
+            emptyHint.setText(libraryEmpty
+                    ? "在 AI 聊天里复制 HTML、SVG 或 XML 代码，粘进来就能看到效果，不用装浏览器。"
+                    : "换个关键词，或在目录里改回「全部」。已有的作品还在。");
+        }
+        if (emptyPaste != null) emptyPaste.setVisibility(libraryEmpty ? View.VISIBLE : View.GONE);
+        if (emptyImport != null) emptyImport.setVisibility(libraryEmpty ? View.VISIBLE : View.GONE);
+    }
+
+    /** "其它" is everything that is not HTML, SVG or XML. There is no DocumentKind named RAW. */
+    private static final String FILTER_OTHER = "OTHER";
+
+    private boolean matchesTypeFilter(com.nous.codecanvas.data.DocumentKind kind) {
+        if (typeFilter == null) return true;
+        if (FILTER_OTHER.equals(typeFilter)) {
+            return kind != com.nous.codecanvas.data.DocumentKind.HTML
+                    && kind != com.nous.codecanvas.data.DocumentKind.SVG
+                    && kind != com.nous.codecanvas.data.DocumentKind.XML;
+        }
+        return kind.name().equals(typeFilter);
     }
 
     private static String filterLabel(String kind) {
         if (RenderKind.HTML.name().equals(kind)) return "HTML 画布";
         if (RenderKind.SVG.name().equals(kind)) return "SVG 矢量图";
         if (RenderKind.XML.name().equals(kind)) return "XML 文档";
-        if (RenderKind.RAW.name().equals(kind)) return "其它文本";
+        if (FILTER_OTHER.equals(kind)) return "其它";
         return "我的文件";
     }
 
@@ -539,7 +647,7 @@ public class MainActivity extends Activity {
         buildFilterChips();
     }
 
-    /** 全部 / HTML / SVG / XML / 其它 — one pill row, single-select. */
+    /** 全部 / HTML / SVG / XML / 其它. Chips wrap so the last one is not clipped on a narrow phone. */
     private void buildFilterChips() {
         drawerFilters.removeAllViews();
         String[][] options = {
@@ -547,11 +655,16 @@ public class MainActivity extends Activity {
                 {"HTML", RenderKind.HTML.name()},
                 {"SVG", RenderKind.SVG.name()},
                 {"XML", RenderKind.XML.name()},
-                {"其它", RenderKind.RAW.name()},
+                {"其它", FILTER_OTHER},
         };
+        int max = drawerPanel.getWidth() - dp(24);
+        if (max < dp(160)) max = dp(240);
         LayoutInflater inflater = LayoutInflater.from(this);
+        LinearLayout row = newFilterRow();
+        drawerFilters.addView(row);
+        int used = 0;
         for (String[] option : options) {
-            View chip = inflater.inflate(R.layout.item_drawer_filter, drawerFilters, false);
+            View chip = inflater.inflate(R.layout.item_drawer_filter, row, false);
             boolean active = option[1] == null ? typeFilter == null : option[1].equals(typeFilter);
             chip.setSelected(active);
             TextView label = chip.findViewById(R.id.filter_label);
@@ -562,11 +675,30 @@ public class MainActivity extends Activity {
                 buildFilterChips();
                 applyFilters();
             });
-            drawerFilters.addView(chip);
+            chip.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+            int width = chip.getMeasuredWidth() + dp(8);
+            if (used > 0 && used + width > max) {
+                row = newFilterRow();
+                drawerFilters.addView(row);
+                used = 0;
+            }
+            // Pin the measured width. Otherwise a nearly full row squeezes the last
+            // chip and "XML" wraps into two letters.
+            row.addView(chip, new LinearLayout.LayoutParams(
+                    chip.getMeasuredWidth(), LinearLayout.LayoutParams.WRAP_CONTENT));
+            used += width;
         }
     }
 
+    private LinearLayout newFilterRow() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        return row;
+    }
+
     private void openDrawer() {
+        buildFilterChips();
         drawerAdapter.notifyDataSetChanged();
         View scrim = findViewById(R.id.drawer_scrim);
         drawerRoot.setVisibility(View.VISIBLE);
@@ -684,6 +816,7 @@ public class MainActivity extends Activity {
         selectedIds.clear();
         selectedIds.add(firstId);
         selectionBar.setVisibility(View.VISIBLE);
+        applyHomeChrome();
         refreshSelectionUi();
     }
 
@@ -691,6 +824,7 @@ public class MainActivity extends Activity {
         selectionMode = false;
         selectedIds.clear();
         selectionBar.setVisibility(View.GONE);
+        applyHomeChrome();
         adapter.notifyDataSetChanged();
         gridAdapter.notifyDataSetChanged();
     }
@@ -756,23 +890,42 @@ public class MainActivity extends Activity {
                 }).start());
     }
 
-    /** Share the selected sources concatenated as one text block. */
+    /** Share the selection. Text files are joined; any image or PDF is shared as its own file. */
     private void shareSelection() {
         List<CanvasDocument> docs = selectedDocuments();
         if (docs.isEmpty()) return;
+        boolean binary = false;
+        for (CanvasDocument d : docs) {
+            if (d.isBlob() || !d.kind().editable()) binary = true;
+        }
+        final boolean shareEach = binary;
         new Thread(() -> {
             try {
-                StringBuilder sb = new StringBuilder();
-                for (CanvasDocument d : docs) {
-                    if (sb.length() > 0) sb.append("\n\n");
-                    sb.append(d.getContent());
-                }
                 String authority = getPackageName() + com.nous.codecanvas.provider.CanvasFileProvider.AUTHORITY_SUFFIX;
-                String name = docs.size() == 1 ? docs.get(0).getTitle() : "code-canvas-" + docs.size() + "-files.txt";
-                com.nous.codecanvas.util.ShareExporter.Staged staged =
-                        com.nous.codecanvas.util.ShareExporter.stage(this, authority, name, sb.toString());
-                runOnUiThread(() -> startActivity(
-                        com.nous.codecanvas.util.ShareExporter.chooserIntent(this, staged, "分享源码")));
+                Intent chooser;
+                if (shareEach) {
+                    java.util.List<com.nous.codecanvas.util.ShareExporter.Staged> staged = new java.util.ArrayList<>();
+                    for (CanvasDocument d : docs) {
+                        byte[] payload = com.nous.codecanvas.util.SourceWriter.payloadBytes(
+                                MainActivity.this, d, d.getContent());
+                        staged.add(com.nous.codecanvas.util.ShareExporter.stageBytes(
+                                MainActivity.this, authority, d.getTitle(), payload));
+                    }
+                    chooser = com.nous.codecanvas.util.ShareExporter.chooserIntent(
+                            MainActivity.this, staged, "分享");
+                } else {
+                    StringBuilder sb = new StringBuilder();
+                    for (CanvasDocument d : docs) {
+                        if (sb.length() > 0) sb.append("\n\n");
+                        sb.append(d.getContent());
+                    }
+                    String name = docs.size() == 1 ? docs.get(0).getTitle() : "code-canvas-" + docs.size() + "-files.txt";
+                    com.nous.codecanvas.util.ShareExporter.Staged staged =
+                            com.nous.codecanvas.util.ShareExporter.stage(this, authority, name, sb.toString());
+                    chooser = com.nous.codecanvas.util.ShareExporter.chooserIntent(this, staged, "分享源码");
+                }
+                final Intent send = chooser;
+                runOnUiThread(() -> startActivity(send));
             } catch (Exception e) {
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "分享失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
@@ -879,8 +1032,24 @@ public class MainActivity extends Activity {
             return;
         }
 
-        final String rawString = rawText.toString();
+        offerIncomingText(rawText.toString());
+    }
+
+    /**
+     * Turn pasted or shared text into a document. Several fenced blocks are offered one by one;
+     * they are never concatenated, and a reply that mixes prose with unmarked code asks first.
+     */
+    private void offerIncomingText(String rawString) {
+        if (rawString == null || rawString.isEmpty()) {
+            Toast.makeText(this, "剪贴板内容为空", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (rawString.length() > 2 * 1024 * 1024) {
+            Toast.makeText(this, "剪贴板代码过大 (超过 2MB 限制)", Toast.LENGTH_LONG).show();
+            return;
+        }
         lastHandledClipHash = rawString.hashCode();
+        pendingSharedText = null;
         List<AiCodeExtractor.CodeBlock> blocks = AiCodeExtractor.extract(rawString);
 
         if (blocks.size() > 1) {
@@ -1038,7 +1207,12 @@ public class MainActivity extends Activity {
                 doc.getTitle(),
                 newTitle -> new Thread(() -> {
                     try {
-                        repository.updateDocument(doc.getId(), newTitle, doc.getContent(), doc.getRevision());
+                        CanvasDocument renamed = doc.snapshot();
+                        renamed.setTitle(newTitle);
+                        if (!renamed.isBlob()) {
+                            com.nous.codecanvas.data.FileKindDetector.applyTo(renamed);
+                        }
+                        repository.updateDocument(renamed.getId(), renamed.getTitle(), renamed.getContent(), doc.getRevision());
                         runOnUiThread(() -> {
                             loadDocuments();
                             Toast.makeText(MainActivity.this, "已重命名为 " + newTitle, Toast.LENGTH_SHORT).show();
@@ -1063,7 +1237,11 @@ public class MainActivity extends Activity {
     private void exportDocument(final CanvasDocument doc) {
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("text/plain");
+        String mime = doc.getMimeType();
+        if (mime == null || mime.isEmpty() || "*/*".equals(mime) || "application/octet-stream".equals(mime)) {
+            mime = com.nous.codecanvas.util.ShareExporter.mimeTypeFor(doc.getTitle());
+        }
+        intent.setType(mime);
         intent.putExtra(Intent.EXTRA_TITLE, doc.getTitle());
         try {
             startActivityForResult(intent, REQ_EXPORT_DOCUMENT);
@@ -1190,7 +1368,10 @@ public class MainActivity extends Activity {
 
             android.widget.ImageView cover = convertView.findViewById(R.id.img_doc_preview);
             DocumentPresentation presentation = presentations.get(doc.getId());
-            if (presentation == null) throw new IllegalStateException("Missing prepared document metadata");
+            if (presentation == null) {
+                presentation = new DocumentPresentation(doc, isDarkTheme());
+                presentations.put(doc.getId(), presentation);
+            }
             String key = presentation.previewKey;
             com.nous.codecanvas.data.DocumentKind coverKind = presentation.kind;
             Drawable typeCover = getResources().getDrawable(
@@ -1204,9 +1385,13 @@ public class MainActivity extends Activity {
             bindThumbnail(cover, key, typeCover);
 
             if (txtTitle != null) txtTitle.setText(doc.getTitle());
-            if (txtTime != null) txtTime.setText(dateFormat.format(new Date(doc.getUpdatedAt())));
-            if (txtTag != null) txtTag.setText(coverKind.label());
-            if (txtSize != null) txtSize.setText(presentation.sizeText);
+            if (txtTag != null) {
+                txtTag.setText(coverKind.label());
+                KindStyle.applyChip(txtTag, coverKind);
+            }
+            String when = dateFormat.format(new Date(doc.getUpdatedAt()));
+            if (txtSize != null) txtSize.setText(presentation.sizeText + " · " + when);
+            if (txtTime != null) txtTime.setText(when);
 
             // Selection chrome: badge + row tint; type cover stays under the badge.
             boolean selected = selectionMode && selectedIds.contains(doc.getId());
@@ -1216,7 +1401,7 @@ public class MainActivity extends Activity {
             }
             convertView.setBackgroundResource(selected
                     ? R.drawable.bg_row_selected
-                    : R.drawable.bg_card);
+                    : (parent == gridDocuments ? R.drawable.bg_card : R.drawable.bg_list_row));
 
             if (contentContainer != null) {
                 contentContainer.setClickable(false);
@@ -1251,6 +1436,62 @@ public class MainActivity extends Activity {
      * miss (thumbnail still being rendered) shows the type cover, and the finished capture
      * crossfades in when the backfiller stores it.
      */
+    /**
+     * Zoom the thumbnail until it fills the tile, then slide to the band that actually
+     * has ink. A centred crop misses a heading that sits at the top; fitting the whole
+     * page shrinks that heading to a speck.
+     */
+    private void showThumbnailTop(android.widget.ImageView cover, android.graphics.Bitmap bitmap) {
+        cover.setScaleType(android.widget.ImageView.ScaleType.MATRIX);
+        cover.setImageBitmap(bitmap);
+        final Object token = cover.getTag();
+        Runnable apply = () -> {
+            if (bitmap.isRecycled() || (token != null && !token.equals(cover.getTag()))) return;
+            int vw = cover.getWidth();
+            int vh = cover.getHeight();
+            if (vw <= 1 || vh <= 1 || bitmap.getWidth() <= 1) return;
+            float scale = Math.max(vw / (float) bitmap.getWidth(), vh / (float) bitmap.getHeight());
+            int window = Math.max(1, Math.round(vh / scale));
+            int focus = bitmap.getHeight() <= window ? 0 : densestRow(bitmap, window);
+            float dx = (vw - bitmap.getWidth() * scale) / 2f;
+            float dy = bitmap.getHeight() * scale <= vh
+                    ? (vh - bitmap.getHeight() * scale) / 2f
+                    : -focus * scale;
+            android.graphics.Matrix matrix = new android.graphics.Matrix();
+            matrix.setScale(scale, scale);
+            matrix.postTranslate(dx, dy);
+            cover.setImageMatrix(matrix);
+        };
+        if (cover.getWidth() > 0) apply.run();
+        else cover.post(apply);
+    }
+
+    /** The source row where a window of {@code window} pixels contains the most non-paper ink. */
+    private static int densestRow(android.graphics.Bitmap bitmap, int window) {
+        int height = bitmap.getHeight();
+        int width = bitmap.getWidth();
+        int stepY = Math.max(1, height / 24);
+        int stepX = Math.max(1, width / 16);
+        int bestY = 0;
+        int best = -1;
+        for (int y = 0; y + window <= height; y += stepY) {
+            int score = 0;
+            int sampleY = Math.min(height - 1, y + window / 3);
+            for (int x = 0; x < width; x += stepX) {
+                int pixel = bitmap.getPixel(x, sampleY);
+                int lum = (android.graphics.Color.red(pixel) * 299
+                        + android.graphics.Color.green(pixel) * 587
+                        + android.graphics.Color.blue(pixel) * 114) / 1000;
+                if (lum < 236) score += 236 - lum;
+            }
+            if (score > best) {
+                best = score;
+                bestY = y;
+            }
+        }
+        return bestY;
+    }
+
     private void bindThumbnail(android.widget.ImageView cover, String key, Drawable typeCover) {
         if (!CanvasPrefs.thumbnailsEnabled(MainActivity.this)) {
             cover.setScaleType(android.widget.ImageView.ScaleType.CENTER);
@@ -1262,8 +1503,7 @@ public class MainActivity extends Activity {
             // A memory hit lands in the same frame, with no animation and no intermediate paint —
             // animating a cache hit is the other half of what makes a list flicker.
             cover.setAlpha(1f);
-            cover.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-            cover.setImageBitmap(cached);
+            showThumbnailTop(cover, cached);
             cover.setContentDescription("作品预览缩略图");
             cover.setTag(TAG_THUMB_BOUND, key);
             return;
@@ -1285,8 +1525,7 @@ public class MainActivity extends Activity {
             final boolean fadeIn = !alreadyShowingThis;
             runOnUiThread(() -> {
                 if (key.equals(cover.getTag()) && loaded != null && !loaded.isRecycled()) {
-                    cover.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-                    cover.setImageBitmap(loaded);
+                    showThumbnailTop(cover, loaded);
                     cover.setContentDescription("作品预览缩略图");
                     cover.setTag(TAG_THUMB_BOUND, key);
                     if (fadeIn) {

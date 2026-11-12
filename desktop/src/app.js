@@ -41,6 +41,7 @@
       try {
         const raw = localStorage.getItem(DOCS_KEY);
         const docs = raw ? JSON.parse(raw) : defaultDocs();
+        docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
         for (const doc of docs) {
           if (doc && typeof doc.content === 'string' && doc.content.includes('< radii unit="dp">')) {
             doc.content = doc.content.replace('< radii unit="dp">', '<radii unit="dp">');
@@ -78,7 +79,7 @@
         writeDocs(next);
         return next;
       },
-      importFiles: () => new Promise((resolve) => {
+      importFiles: () => new Promise((resolve, reject) => {
         const input = document.createElement('input');
         input.type = 'file';
         input.multiple = true;
@@ -87,14 +88,23 @@
           const files = Array.from(input.files || []);
           const docs = readDocs();
           const imported = [];
+          let skipped = 0;
           for (const f of files) {
+            if (f.size > 2 * 1024 * 1024) {
+              skipped += 1;
+              continue;
+            }
             const text = await f.text();
             const rec = { id: 'imp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), title: f.name, content: text, updatedAt: Date.now(), revision: 1 };
             docs.unshift(rec);
             imported.push(rec);
           }
           writeDocs(docs);
-          resolve(imported);
+          if (skipped > 0 && imported.length === 0) {
+            reject(new Error('文件超过 2MB，这一版暂不导入'));
+          } else {
+            resolve(imported);
+          }
         };
         input.click();
       }),
@@ -149,7 +159,7 @@
             const res = await fetch(u, { cache: 'no-store' });
             if (res.ok) {
               const text = await res.text();
-              return Core.parseDesktopUpdateManifest(text, Core.CURRENT_VERSION_CODE);
+              return Core.describeDesktopUpdate(Core.parseDesktopUpdateManifest(text), Core.CURRENT_VERSION_CODE);
             }
           } catch (e) {}
         }
@@ -312,7 +322,22 @@
   }
 
   function selectDocument(doc) {
-    if (!doc) return;
+    if (!doc) {
+      currentDoc = null;
+      currentDocTitle.textContent = '没有打开的作品';
+      currentKindBadge.textContent = '无';
+      codeEditor.value = '';
+      updateGutterAndStats();
+      if (previewHeaderLabel) previewHeaderLabel.textContent = '还没有打开的作品';
+      previewFrame.srcdoc = '<!DOCTYPE html><html><body style="margin:0"></body></html>';
+      if (findBar && !findBar.classList.contains('hidden')) {
+        findBar.classList.add('hidden');
+        if (btnToggleFind) btnToggleFind.classList.remove('active');
+      }
+      renderDocList();
+      if (saveStatus) saveStatus.textContent = '没有打开的作品';
+      return;
+    }
     currentDoc = doc;
     currentDocTitle.textContent = doc.title;
     const kind = Core.detectRenderKind(doc.title, doc.content);
@@ -415,15 +440,31 @@
     };
   }
 
-  async function quickPasteAndPreview(rawOverride) {
-    const rawText = typeof rawOverride === 'string' ? rawOverride : await Bridge.readClipboard();
-    if (!rawText || !rawText.trim()) return;
-    lastHandledClipHash = String(rawText.length) + ':' + rawText.slice(0, 64);
-    clipboardBanner.classList.add('hidden');
+  function showChoiceModal(title, subtitle, choices, onConfirm) {
+    modalTitle.textContent = title;
+    modalSubtitle.textContent = subtitle || '';
+    const options = choices.map((choice, index) => {
+      const label = String(choice.label).replace(/[&<>"]/g, (ch) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'
+      }[ch]));
+      return `<option value="${index}">${label}</option>`;
+    }).join('');
+    modalBody.innerHTML = `<select class="modal-input" id="modalChoice">${options}</select>`;
+    const select = document.getElementById('modalChoice');
+    modalBackdrop.classList.remove('hidden');
+    const close = () => modalBackdrop.classList.add('hidden');
+    modalCancelBtn.onclick = close;
+    modalBackdrop.onclick = (e) => {
+      if (e.target === modalBackdrop) close();
+    };
+    modalConfirmBtn.onclick = () => {
+      const picked = choices[Number(select.value)];
+      close();
+      if (picked) onConfirm(picked);
+    };
+  }
 
-    const blocks = Core.extractCodeBlocks(rawText);
-    const code = blocks.length > 0 ? blocks[0].code : (Core.extractMarkupRegion(rawText) || rawText);
-    const lang = blocks.length > 0 ? blocks[0].language : '';
+  async function createQuickDocument(code, lang) {
     const ext = Core.inferExtension(code, lang);
     const stamp = new Date().toTimeString().slice(0, 5).replace(':', '');
     const saved = await Bridge.saveDocument({
@@ -433,6 +474,33 @@
     allDocs.unshift(saved);
     applyFilters();
     selectDocument(saved);
+  }
+
+  async function quickPasteAndPreview(rawOverride) {
+    const rawText = typeof rawOverride === 'string' ? rawOverride : await Bridge.readClipboard();
+    if (!rawText || !rawText.trim()) return;
+    lastHandledClipHash = String(rawText.length) + ':' + rawText.slice(0, 64);
+    clipboardBanner.classList.add('hidden');
+
+    const blocks = Core.extractCodeBlocks(rawText);
+    if (blocks.length > 1) {
+      const choices = blocks.map((block, index) => ({
+        label: `${(block.language || '代码').toUpperCase()} 块 ${index + 1}`,
+        code: block.code,
+        language: block.language
+      }));
+      choices.push({ label: '完整原文', code: rawText, language: '' });
+      showChoiceModal(
+        `检测到 ${blocks.length} 段代码`,
+        '选择一段创建画布。多段不会被拼在一起。',
+        choices,
+        (picked) => createQuickDocument(picked.code, picked.language)
+      );
+      return;
+    }
+    const code = blocks.length > 0 ? blocks[0].code : (Core.extractMarkupRegion(rawText) || rawText);
+    const lang = blocks.length > 0 ? blocks[0].language : '';
+    await createQuickDocument(code, lang);
   }
 
   async function checkClipboardOffer() {
@@ -576,6 +644,8 @@
   function syncSettingsUi() {
     if (!chkClipboardFloat) return;
     chkClipboardFloat.checked = prefs.clipboardFloatEnabled !== false;
+    const chkClipboardBanner = document.getElementById('chkClipboardBanner');
+    if (chkClipboardBanner) chkClipboardBanner.checked = prefs.clipboardAutoDetect !== false;
     chkGlobalHotkey.checked = prefs.globalHotkeyEnabled !== false;
     chkCloseToTray.checked = prefs.closeToTray !== false;
     chkLaunchAtLogin.checked = Boolean(prefs.launchAtLogin);
@@ -609,7 +679,7 @@
             const res = await fetch(u, { cache: 'no-store' });
             if (res.ok) {
               const txt = await res.text();
-              result = Core.parseDesktopUpdateManifest(txt, Core.CURRENT_VERSION_CODE);
+              result = Core.describeDesktopUpdate(Core.parseDesktopUpdateManifest(txt), Core.CURRENT_VERSION_CODE);
               if (result && result.status === 'ok') break;
             }
           } catch (e) {}
@@ -720,6 +790,12 @@
   if (chkClipboardFloat) {
     chkClipboardFloat.addEventListener('change', async () => {
       prefs = await Bridge.setPrefs({ clipboardFloatEnabled: chkClipboardFloat.checked });
+    });
+  }
+  const chkClipboardBanner = document.getElementById('chkClipboardBanner');
+  if (chkClipboardBanner) {
+    chkClipboardBanner.addEventListener('change', async () => {
+      prefs = await Bridge.setPrefs({ clipboardAutoDetect: chkClipboardBanner.checked });
     });
   }
   if (chkGlobalHotkey) {
@@ -874,7 +950,13 @@
   });
 
   document.getElementById('btnImportFile').addEventListener('click', async () => {
-    const imported = await Bridge.importFiles();
+    let imported;
+    try {
+      imported = await Bridge.importFiles();
+    } catch (err) {
+      saveStatus.textContent = (err && err.message) ? err.message : '导入失败';
+      return;
+    }
     if (imported && imported.length > 0) {
       allDocs = await Bridge.listDocuments();
       applyFilters();
@@ -936,6 +1018,12 @@
     } else if (e.altKey && !e.ctrlKey && e.key.toLowerCase() === 'v') {
       e.preventDefault();
       quickPasteAndPreview();
+    } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'n') {
+      e.preventDefault();
+      document.getElementById('btnNewDoc').click();
+    } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'o') {
+      e.preventDefault();
+      document.getElementById('btnImportFile').click();
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
       e.preventDefault();
       const collapsed = sidebar.classList.toggle('collapsed');

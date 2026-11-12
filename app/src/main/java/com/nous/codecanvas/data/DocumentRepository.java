@@ -223,8 +223,17 @@ public class DocumentRepository {
                 if (stored.getRevision() != expectedRevision) {
                     throw new StaleWriteException(id, expectedRevision, stored.getRevision());
                 }
-                CanvasDocument next = new CanvasDocument(id, title, content,
-                        System.currentTimeMillis(), stored.getRevision() + 1);
+                // Copy the stored record first. A brand-new CanvasDocument drops kind, charset,
+                // line ending, source URI and the blob flag, so the next export rewrote a GB18030
+                // file as UTF-8 and "save back to the original" stopped having an original.
+                CanvasDocument next = stored.snapshot();
+                next.setTitle(title != null ? title : stored.getTitle());
+                next.setContent(content != null ? content : "");
+                next.setUpdatedAt(System.currentTimeMillis());
+                next.setRevision(stored.getRevision() + 1);
+                if (!next.isBlob()) {
+                    FileKindDetector.applyTo(next);
+                }
                 docs.set(i, next);
                 saveAllDocuments(docs);
                 return next.getRevision();

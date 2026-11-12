@@ -223,7 +223,13 @@ public final class FileImporter {
     private static InputStream open(Context context, Uri uri) throws IOException {
         ContentResolver resolver = context.getContentResolver();
         if ("file".equalsIgnoreCase(uri.getScheme()) && uri.getPath() != null) {
-            InputStream viaProvider = openFileUriThroughProvider(context, uri);
+            File direct = new File(uri.getPath());
+            // A path this process can already read is the file the user named. Looking it up by
+            // display name first imported whichever media row happened to share that name.
+            if (direct.isFile() && direct.canRead()) {
+                return new FileInputStream(direct);
+            }
+            InputStream viaProvider = openFileUriThroughProvider(context, uri, direct);
             if (viaProvider != null) return viaProvider;
             try {
                 return new FileInputStream(uri.getPath());
@@ -237,40 +243,57 @@ public final class FileImporter {
         return in;
     }
 
-    /** Resolve a {@code file://} path through the document providers, or null when none match. */
-    private static InputStream openFileUriThroughProvider(Context context, Uri uri) {
+    /**
+     * Resolve a {@code file://} path through the document providers, or null when none match.
+     *
+     * <p>Several indexed files can share a display name. A single hit is opened; several hits are
+     * opened only when exactly one of them has the same byte length as the path. Anything still
+     * ambiguous is refused, so the importer cannot silently open a different {@code report.csv}.</p>
+     */
+    private static InputStream openFileUriThroughProvider(Context context, Uri uri, File direct) {
         String path = uri.getPath();
         if (path == null) return null;
-        // DocumentsContract can only open ids the provider issued, so search the providers for a
-        // document whose display name matches this path's file name.
         String fileName = path.substring(path.lastIndexOf('/') + 1);
         if (fileName.isEmpty()) return null;
         Uri collections = android.provider.MediaStore.Files.getContentUri("external");
-        // _data is deprecated and returns null on Android 10+, so the path cannot be compared
-        // through it. The display name is what identifies the file here; the media provider only
-        // indexes files the app is allowed to read, so a name match is a safe candidate.
         String[] projection = {
                 android.provider.MediaStore.Files.FileColumns._ID,
-                android.provider.MediaStore.Files.FileColumns.DISPLAY_NAME };
+                android.provider.MediaStore.Files.FileColumns.DISPLAY_NAME,
+                android.provider.MediaStore.Files.FileColumns.SIZE };
+        java.util.List<Uri> hits = new java.util.ArrayList<>();
+        java.util.List<Long> sizes = new java.util.ArrayList<>();
         try (android.database.Cursor cursor = context.getContentResolver().query(
                 collections, projection,
                 android.provider.MediaStore.Files.FileColumns.DISPLAY_NAME + "=?",
                 new String[]{fileName}, null)) {
             if (cursor == null) return null;
+            int sizeColumn = cursor.getColumnIndex(android.provider.MediaStore.Files.FileColumns.SIZE);
             while (cursor.moveToNext()) {
                 long id = cursor.getLong(0);
-                Uri contentUri = android.content.ContentUris.withAppendedId(collections, id);
-                try {
-                    InputStream in = context.getContentResolver().openInputStream(contentUri);
-                    if (in != null) return in;
-                } catch (Exception ignored) {
-                    // Try the next candidate with the same name.
-                }
+                hits.add(android.content.ContentUris.withAppendedId(collections, id));
+                sizes.add(sizeColumn >= 0 ? cursor.getLong(sizeColumn) : -1L);
             }
         } catch (Exception ignored) {
-            // Provider unavailable or the query is not permitted: fall through to the direct read.
+            return null;
         }
-        return null;
+        Uri chosen = null;
+        if (hits.size() == 1) {
+            chosen = hits.get(0);
+        } else if (hits.size() > 1 && direct != null && direct.exists()) {
+            long expected = direct.length();
+            for (int i = 0; i < hits.size(); i++) {
+                if (sizes.get(i) == expected) {
+                    if (chosen != null) return null;
+                    chosen = hits.get(i);
+                }
+            }
+        }
+        if (chosen == null) return null;
+        try {
+            return context.getContentResolver().openInputStream(chosen);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static byte[] readAtMost(InputStream in, int limit) throws IOException {

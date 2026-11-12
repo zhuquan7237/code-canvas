@@ -126,4 +126,51 @@ public class DocumentRepositoryTest {
         assertEquals("All documents from concurrent instances must be preserved without loss", countPerRepo * 2, all.size());
     }
 
+    @Test
+    public void updateKeepsFileMetadataAndRefreshesKindOnRename() throws Exception {
+        CanvasDocument doc = new CanvasDocument("meta-1", "notes.txt", "hello", System.currentTimeMillis());
+        doc.setKindName(DocumentKind.TEXT.name());
+        doc.setEncoding("GB18030");
+        doc.setLineEnding("\r\n");
+        doc.setSourceUri("content://local/notes");
+        doc.setMimeType("text/plain");
+        doc.setByteSize(5);
+        repository.saveDocument(doc);
+
+        CanvasDocument stored = repository.findById("meta-1");
+        long revision = repository.updateDocument("meta-1", "notes.txt", "hello world", stored.getRevision());
+        CanvasDocument updated = repository.findById("meta-1");
+        assertEquals("hello world", updated.getContent());
+        assertEquals(revision, updated.getRevision());
+        assertEquals("GB18030", updated.getEncoding());
+        assertEquals("\r\n", updated.getLineEnding());
+        assertEquals("content://local/notes", updated.getSourceUri());
+        assertEquals("text/plain", updated.getMimeType());
+        assertEquals(5L, updated.getByteSize());
+        assertEquals(DocumentKind.TEXT.name(), updated.getKindName());
+
+        repository.updateDocument("meta-1", "art.svg", "<svg viewBox=\"0 0 10 10\"></svg>", updated.getRevision());
+        CanvasDocument renamed = repository.findById("meta-1");
+        assertEquals(DocumentKind.SVG.name(), renamed.getKindName());
+        assertEquals("GB18030", renamed.getEncoding());
+        assertEquals("content://local/notes", renamed.getSourceUri());
+    }
+
+    @Test
+    public void updateDoesNotTurnABlobIntoText() throws Exception {
+        CanvasDocument doc = new CanvasDocument("blob-1", "photo.png", "", System.currentTimeMillis());
+        doc.setBlob(true);
+        doc.setKindName(DocumentKind.IMAGE.name());
+        doc.setByteSize(12);
+        doc.setMimeType("image/png");
+        repository.saveDocument(doc);
+        CanvasDocument stored = repository.findById("blob-1");
+        repository.updateDocument("blob-1", "photo.txt", "", stored.getRevision());
+        CanvasDocument updated = repository.findById("blob-1");
+        assertTrue(updated.isBlob());
+        assertEquals(DocumentKind.IMAGE.name(), updated.getKindName());
+        assertEquals(12L, updated.getByteSize());
+        assertEquals("image/png", updated.getMimeType());
+    }
+
 }
