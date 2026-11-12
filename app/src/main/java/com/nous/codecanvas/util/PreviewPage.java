@@ -167,7 +167,15 @@ public final class PreviewPage {
     }
 
     private static String markdown(Request request) {
-        String extra = "body{padding:16px 16px 40px}"
+        String extra = "body{padding:20px 18px 48px;max-width:42rem}"
+                + "h1{font-size:1.65em;letter-spacing:-.01em;border-bottom:1px solid var(--line);padding-bottom:.25em}"
+                + "h2{font-size:1.28em;border-bottom:1px solid var(--line);padding-bottom:.15em}"
+                + "h3{font-size:1.08em}"
+                + "ul,ol{padding-left:1.35em}li{margin:.28em 0}"
+                + "blockquote{margin:1em 0;padding:8px 14px;background:var(--surface);"
+                + "border-left:3px solid var(--accent);border-radius:0 10px 10px 0}"
+                + "pre{border-radius:10px}"
+                + "table{display:block;overflow-x:auto;border-radius:10px}"
                 + ".task-list-item{list-style:none;margin-left:-1.2em}"
                 + ".task-list-item input{margin-right:.5em}"
                 + ".katex-display{overflow-x:auto;overflow-y:hidden;padding:2px 0}";
@@ -203,19 +211,59 @@ public final class PreviewPage {
         StructuredText.JsonResult result = StructuredText.formatJson(request.content);
         String extra = "body{padding:12px 14px 32px}"
                 + ".cc-tree{font-family:ui-monospace,'Cascadia Mono',Menlo,Consolas,monospace;font-size:13px;"
-                + "line-height:1.6;white-space:pre;overflow-x:auto}"
-                + ".k{color:var(--accent)}.s{color:var(--ok)}.n{color:var(--warn)}.b{color:var(--bad)}";
+                + "line-height:1.55}"
+                + ".cc-node{margin:4px 0 4px 12px}"
+                + ".cc-row,.cc-br{white-space:pre;padding:2px 0}"
+                + ".cc-path{margin-left:8px;border:0;background:var(--code-bg);color:var(--ink-2);"
+                + "border-radius:999px;padding:1px 8px;font:inherit;font-size:11px}"
+                + "summary{cursor:pointer}"
+                + ".k{color:var(--accent)}.s{color:var(--ok)}.n{color:var(--warn)}.b{color:var(--bad)}"
+                + ".cc-badline{background:var(--bad);color:#fff;border-radius:6px;padding:2px 6px}";
         StringBuilder body = new StringBuilder();
+        String copy = copyPathScript();
         if (result.valid) {
-            body.append("<div class=\"cc-note\">JSON 结构有效 · 已格式化显示（源码里的数字与字符串保持原样）</div>");
-            body.append("<div class=\"cc-tree\">").append(highlightJson(result.formatted)).append("</div>");
+            body.append("<div class=\"cc-note\">点路径可复制。对象和数组可以折叠。</div>");
+            body.append("<div class=\"cc-tree\">").append(JsonOutline.toHtml(result.formatted)).append("</div>");
         } else {
             body.append("<div class=\"cc-err\">JSON 格式错误：")
-                    .append(escape(result.errorLabel()))
-                    .append("\n\n源码已原样保留，可切到代码继续修改。</div>");
-            body.append("<div class=\"cc-tree\">").append(highlightJson(request.content)).append("</div>");
+                    .append(escape(result.errorLabel()));
+            if (result.errorLine > 0) {
+                body.append(" <a href=\"https://codecanvas.invalid/jump?line=")
+                        .append(result.errorLine).append("\">在代码中定位</a>");
+            }
+            body.append("</div>");
+            body.append("<div class=\"cc-tree\">")
+                    .append(highlightJsonLine(request.content, result.errorLine))
+                    .append("</div>");
         }
-        return shell(request.dark, extra, body.toString(), null);
+        return shell(request.dark, extra, body.toString(), copy);
+    }
+
+    /** Marks the error line so it can be seen without leaving the preview. */
+    static String highlightJsonLine(String json, int errorLine) {
+        if (json == null) return "";
+        String[] lines = json.split("\n", -1);
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < lines.length; i++) {
+            String line = escape(lines[i]);
+            if (errorLine == i + 1) {
+                out.append("<div class=\"cc-badline\">").append(line).append("</div>");
+            } else {
+                out.append("<div class=\"cc-row\">").append(line).append("</div>");
+            }
+        }
+        return out.toString();
+    }
+
+    private static String copyPathScript() {
+        return "(function(){var nodes=document.querySelectorAll('.cc-path');"
+                + "for(var i=0;i<nodes.length;i++){nodes[i].addEventListener('click',function(ev){"
+                + "ev.preventDefault();ev.stopPropagation();"
+                + "var t=this.getAttribute('data-path')||'';"
+                + "var box=document.createElement('textarea');box.value=t;"
+                + "document.body.appendChild(box);box.select();"
+                + "try{document.execCommand('copy');this.textContent='已复制';}catch(e){}"
+                + "box.remove();});}})();";
     }
 
     /** Colours JSON tokens without altering them. */
@@ -289,7 +337,9 @@ public final class PreviewPage {
             if (line.valid) {
                 body.append(escape(line.preview));
             } else {
-                body.append("<span class=\"cc-bad\">").append(escape(line.error)).append("</span><br>")
+                body.append("<span class=\"cc-bad\">").append(escape(line.error)).append("</span> ")
+                        .append("<a href=\"https://codecanvas.invalid/jump?line=").append(line.line)
+                        .append("\">定位</a><br>")
                         .append("<span style=\"color:var(--ink-2)\">").append(escape(line.preview)).append("</span>");
             }
             body.append("</span></div>");
@@ -320,12 +370,15 @@ public final class PreviewPage {
                 + "tbody tr:nth-child(odd) td{background:var(--bg)}"
                 + "tbody tr:nth-child(even) td{background:var(--surface)}";
         StringBuilder body = new StringBuilder();
-        body.append("<div class=\"cc-head\">").append(escape(CsvTable.describe(table, separator)));
+        body.append("<div class=\"cc-head\"><input id=\"cc-q\" placeholder=\"筛选行\" "
+                + "style=\"width:100%;box-sizing:border-box;margin:0 0 8px;padding:8px 10px;"
+                + "border:0;border-radius:10px;background:var(--surface);color:var(--ink);font:inherit\">");
+        body.append(escape(CsvTable.describe(table, separator)));
         if (!table.errors.isEmpty()) {
             body.append(" · <span class=\"cc-warn\">").append(table.errors.size()).append(" 处提示</span>");
         }
-        body.append(" · 横向滑动查看全部列</div>");
-        body.append("<div class=\"cc-wrap\"><table>");
+        body.append(" · 点表头排序，横向滑动看其余列</div>");
+        body.append("<div class=\"cc-wrap\"><table><thead>");
         int rows = table.rows.size();
         for (int r = 0; r < rows; r++) {
             CsvTable.Row row = table.rows.get(r);
@@ -338,8 +391,9 @@ public final class PreviewPage {
                         .append(escape(value)).append("</").append(r == 0 ? "th" : "td").append(">");
             }
             body.append("</tr>");
+            if (r == 0) body.append("</thead><tbody>");
         }
-        body.append("</table></div>");
+        body.append(rows == 0 ? "</thead></table></div>" : "</tbody></table></div>");
         if (!table.errors.isEmpty()) {
             body.append("<div class=\"cc-err\">");
             for (int i = 0; i < Math.min(6, table.errors.size()); i++) {
@@ -347,7 +401,23 @@ public final class PreviewPage {
             }
             body.append("</div>");
         }
-        return shell(request.dark, extra, body.toString(), null);
+        String script = "(function(){var q=document.getElementById('cc-q');"
+                + "var table=document.querySelector('table');if(!q||!table||!table.tBodies[0])return;"
+                + "var rows=[].slice.call(table.tBodies[0].rows);"
+                + "q.addEventListener('input',function(){var s=q.value.toLowerCase();"
+                + "rows.forEach(function(r){r.style.display=!s||r.textContent.toLowerCase().indexOf(s)>=0?'':'none';});});"
+                + "var heads=table.tHead?table.tHead.rows[0].cells:[];"
+                + "for(var c=1;c<heads.length;c++){(function(col){var dir=1;"
+                + "heads[col].style.cursor='pointer';"
+                + "heads[col].addEventListener('click',function(){dir=-dir;rows.sort(function(a,b){"
+                + "var av=(a.cells[col]&&a.cells[col].textContent)||'';"
+                + "var bv=(b.cells[col]&&b.cells[col].textContent)||'';"
+                + "var an=parseFloat(av),bn=parseFloat(bv);"
+                + "if(av.trim()!==''&&bv.trim()!==''&&!isNaN(an)&&!isNaN(bn))return(an-bn)*dir;"
+                + "return av.localeCompare(bv)*dir;});"
+                + "rows.forEach(function(r){table.tBodies[0].appendChild(r);});});})(c);}"
+                + "})();";
+        return shell(request.dark, extra, body.toString(), script);
     }
 
     // ------------------------------------------------------------------ XML
