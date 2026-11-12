@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "versionName": "0.5.3",
-  "versionCode": 53,
+  "versionName": "0.5.9",
+  "versionCode": 59,
   "channel": "stable",
-  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.5.3.apk?v=522a30462576",
-  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.3/code-canvas-0.5.3.apk",
-  "sha256": "522a304625765b2351cb66e367302c5b3bbd5c5dd61b108e7e7a9a9b09c129d5",
-  "size": 1354270,
-  "notes": "v0.5.3 更新\n\n· 第一阶段格式预览：HTML、SVG、Markdown、Mermaid、JSON、JSONL、XML、YAML、CSV、TXT 与常见代码可预览可编辑；图片、GIF、PDF 仅预览。\n· 先保存原始字节再解码：类型按文件特征→扩展名→MIME 判断，编码按 BOM→UTF-8→GB18030 识别，保存用同一编码与换行写回；图片与 PDF 未修改导出哈希不变。\n· Markdown 表格、任务列表、代码块、公式、Mermaid 全部离线可用。\n· JSON 格式化只调缩进（1.0 仍是 1.0）；JSONL 逐行解析；CSV 正确处理引号与单元格内换行。\n· 代码搜索：计数、上一处/下一处、循环、区分大小写、全部匹配高亮。\n· SVG 交互视口：完整居中、双指缩放、拖动、双击、适应窗口/内容、全屏；查看不改动文件。\n· 修复更新对话框：说明较长时按钮不再被挤出屏幕。\n\n完整说明见 GitHub Release 页面。",
+  "apkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.9/code-canvas-0.5.9.apk",
+  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.9/code-canvas-0.5.9.apk",
+  "sha256": "54d7038c020d34325e2904cc2da4aeb0eed66835795e58ceb42571445818fa26",
+  "size": 1389702,
+  "notes": "v0.5.9 更新\n\n· Markdown 预览补了标题下划线、引用色块、列表和代码块，公式和表格仍离线渲染。\n· JSON 可以折叠对象和数组，点路径复制 $.a.b。格式错误会标出那一行，并跳回代码。\n· JSONL 坏行单独标出，可以定位到源码行。\n· CSV 增加筛选框和点表头排序。宽表仍可横向滑动。\n· PDF 点页码弹出跳转。图片和 PDF 沿用双指缩放、双击放大。\n· 编辑器菜单增加「查找与替换」：上一处、下一处、替换一处、全部替换。\n\n完整说明见 GitHub Release 页面。",
   "minSdk": 26
 }

@@ -6,7 +6,7 @@ AI 聊天窗口里的代码，复制出来往往是一坨没有后缀的文本�
 
 原生 Android（系统 WebView，不打包浏览器内核）+ Windows 电脑版（原生 C# + WebView2，安装包 793 KB）。
 
-目前可下载的签名包仍是 [Android APK v0.5.6](https://relay.zhuquan.xyz/dl/code-canvas-0.5.6.apk)（自建源，国内可直连）。源码版本已是 **0.5.9**，签名 APK 还没上传，见 [v0.5.9 发版说明](docs/RELEASE-v0.5.9.md)。[Windows 版 v0.5.0](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [验收与边界](docs/VERIFICATION.md)
+目前可下载的签名包是 [Android APK v0.5.9](https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.9/code-canvas-0.5.9.apk)（[Release v0.5.9](https://github.com/zhuquan7237/code-canvas/releases/tag/v0.5.9)）。说明见 [v0.5.9 发版说明](docs/RELEASE-v0.5.9.md)。[Windows 版 v0.5.0](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [验收与边界](docs/VERIFICATION.md)
 
 ## 它解决什么问题
 
@@ -70,7 +70,7 @@ Office 文档、压缩包、音视频不在本阶段范围。
 - PDF 用系统渲染器在应用内翻页。YAML 按缩进展开并标出行号，界面写明没有做完整语法校验。
 - 代码文件可以查看和修改，界面不暗示能执行。
 
-界面在模拟器 API 34、360dp 宽、1.3 倍字号下看过，截图见文末。签名包尚未上传，下载链接仍指向 v0.5.6。
+界面在模拟器 API 34、360dp 宽、1.3 倍字号下看过，截图见文末。
 
 ## v0.5.6 本次更新（修复发布版所有格式打不开：枚举名被混淆 · 首页标签错误）
 
