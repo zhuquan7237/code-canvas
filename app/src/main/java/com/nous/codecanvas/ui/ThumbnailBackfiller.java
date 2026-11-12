@@ -69,6 +69,8 @@ final class ThumbnailBackfiller {
     private boolean running;
     /** While the list is flinging, don't start another WebView capture. */
     private boolean paused;
+    /** The document whose capture is in flight, so a scroll can put it back on the queue. */
+    private CanvasDocument inflight;
 
     ThumbnailBackfiller(Activity activity, Runnable onThumbnailStored) {
         this.activity = activity;
@@ -93,21 +95,28 @@ final class ThumbnailBackfiller {
     }
 
     void setPaused(boolean value) {
-        paused = value;
-        if (!value && !running && !queue.isEmpty()) startNext();
+        if (value) {
+            paused = true;
+            if (inflight != null) {
+                queue.addFirst(inflight);
+                inflight = null;
+            }
+            // A WebView left in the window is what makes the list stutter while it scrolls.
+            releaseWeb();
+            running = false;
+            return;
+        }
+        if (!paused) return;
+        paused = false;
+        if (!running && !queue.isEmpty()) startNext();
     }
 
     void stop() {
         running = false;
+        paused = true;
+        inflight = null;
         queue.clear();
-        if (web != null) {
-            try {
-                web.stopLoading();
-                web.destroy();
-            } catch (Exception ignored) {
-            }
-            web = null;
-        }
+        releaseWeb();
     }
 
     private boolean hasThumbnail(CanvasDocument doc) {
@@ -146,9 +155,11 @@ final class ThumbnailBackfiller {
         CanvasDocument doc = queue.pollFirst();
         if (doc == null) {
             running = false;
+            releaseWeb();
             return;
         }
         running = true;
+        inflight = doc;
         final String key = darkKeyFor(doc);
         final boolean dark = isDark();
         if (!canThumbnail(doc)) {
@@ -157,13 +168,15 @@ final class ThumbnailBackfiller {
         }
         if (doc.kind() == com.nous.codecanvas.data.DocumentKind.TEXT
                 || doc.kind() == com.nous.codecanvas.data.DocumentKind.CODE) {
+            releaseWeb();
             final String text = doc.getContent();
             tiles.execute(() -> {
-                Bitmap tile = TextTile.draw(text, dark, 480, 270);
+                Bitmap tile = TextTile.draw(text, dark, PreviewThumbnailCache.CARD_W, PreviewThumbnailCache.CARD_H);
                 Bitmap shown = tile.copy(Bitmap.Config.ARGB_8888, false);
                 memoryPut(key, shown);
                 PreviewThumbnailCache.store(activity.getApplicationContext(), key, tile);
                 activity.runOnUiThread(() -> {
+                    inflight = null;
                     if (onThumbnailStored != null) onThumbnailStored.run();
                     startNext();
                 });
@@ -199,67 +212,87 @@ final class ThumbnailBackfiller {
             public void onPageFinished(WebView view, String url) {
                 // Markdown and Mermaid fill in after deferred scripts. The first paint is
                 // an empty page; wait until there is ink, then give up and keep the tile.
-                captureWhenReady(view, key, 0);
+                captureWhenReady(view, key, doc.kind(), 0);
             }
         });
         web.loadDataWithBaseURL("https://codecanvas.invalid/gallery/" + Math.abs(key.hashCode()) + "/",
                 page, "text/html", "UTF-8", null);
     }
 
-    private void captureWhenReady(WebView view, String key, int attempt) {
+    private void captureWhenReady(WebView view, String key,
+                                  com.nous.codecanvas.data.DocumentKind kind, int attempt) {
         view.postDelayed(() -> {
-            if (view != web) return;
+            if (view != web || paused) return;
             Bitmap shot = PreviewThumbnailCache.capture(view);
-            Bitmap framed = PreviewThumbnailCache.cropToContent(shot);
+            Bitmap framed = kind == com.nous.codecanvas.data.DocumentKind.SVG
+                    ? PreviewThumbnailCache.letterbox(shot)
+                    : PreviewThumbnailCache.topSlice(shot);
             if (framed != null && framed != shot && shot != null) shot.recycle();
-            shot = PreviewThumbnailCache.fitSlot(framed, 480);
-            if (shot != null && shot != framed && framed != null) framed.recycle();
-            boolean ready = shot != null;
-            boolean last = attempt >= 14;
+            boolean ready = framed != null && !PreviewThumbnailCache.lacksContent(framed);
+            boolean last = attempt >= 8;
             if (ready) {
-                Bitmap copy = shot.copy(shot.getConfig() != null
-                        ? shot.getConfig() : android.graphics.Bitmap.Config.ARGB_8888, false);
+                Bitmap copy = framed.copy(Bitmap.Config.ARGB_8888, false);
                 memoryPut(key, copy);
-                PreviewThumbnailCache.store(activity.getApplicationContext(), key, shot);
+                PreviewThumbnailCache.store(activity.getApplicationContext(), key, framed);
+                inflight = null;
                 if (onThumbnailStored != null) onThumbnailStored.run();
                 startNext();
                 return;
             }
-            if (shot != null) shot.recycle();
+            if (framed != null) framed.recycle();
             if (last) {
+                inflight = null;
                 startNext();
             } else {
-                captureWhenReady(view, key, attempt + 1);
+                captureWhenReady(view, key, kind, attempt + 1);
             }
-        }, attempt == 0 ? 400 : 700);
+        }, attempt == 0 ? 350 : 500);
     }
 
     /**
      * SVG is captured at its own viewBox aspect, so a wide drawing fills the bitmap.
      * HTML is captured as the first phone screen, then cropped.
      */
+    /**
+     * HTML is one phone screen, 390×844 CSS pixels, so the top crop matches the preview.
+     * SVG is the whole viewBox, so a later letterbox does not cut the drawing.
+     */
     private void sizeWebView(CanvasDocument doc) {
         if (web == null) return;
-        float density = activity.getResources().getDisplayMetrics().density;
-        int w = Math.round(360 * density);
-        int h = Math.round(640 * density);
+        int w = 390;
+        int h = 844;
         if (doc.kind() == com.nous.codecanvas.data.DocumentKind.SVG) {
+            w = 480;
+            h = 320;
             com.nous.codecanvas.util.SvgGeometry.Box box =
                     com.nous.codecanvas.util.SvgGeometry.measure(doc.getContent());
             if (box != null && box.isValid() && box.aspect() > 0) {
-                h = Math.max(Math.round(72 * density), Math.round(w / (float) box.aspect()));
-                int cap = Math.round(720 * density);
-                if (h > cap) {
-                    h = cap;
-                    w = Math.max(1, Math.round(h * (float) box.aspect()));
+                h = Math.max(48, Math.round(w / (float) box.aspect()));
+                if (h > 480) {
+                    h = 480;
+                    w = Math.max(48, Math.round(h * (float) box.aspect()));
                 }
             }
         }
-        web.setLayoutParams(new FrameLayout.LayoutParams(Math.max(1, w), Math.max(1, h)));
+        web.setLayoutParams(new FrameLayout.LayoutParams(w, h));
         int ws = View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY);
         int hs = View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY);
         web.measure(ws, hs);
         web.layout(0, 0, w, h);
+    }
+
+    private void releaseWeb() {
+        if (web == null) return;
+        WebView dying = web;
+        web = null;
+        try {
+            dying.stopLoading();
+            if (dying.getParent() instanceof android.view.ViewGroup) {
+                ((android.view.ViewGroup) dying.getParent()).removeView(dying);
+            }
+            dying.destroy();
+        } catch (Exception ignored) {
+        }
     }
 
     /** Off-screen but attached and laid out: a WebView that is not in the hierarchy will not paint. */
@@ -277,7 +310,7 @@ final class ThumbnailBackfiller {
             web.setTranslationX(-30000f);
             // VISIBLE so deferred scripts actually paint. It sits off-screen at alpha 0.
             web.setVisibility(View.VISIBLE);
-            web.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+            web.setLayerType(View.LAYER_TYPE_NONE, null);
             web.setBackgroundColor(Color.WHITE);
             WebSettings s = web.getSettings();
             // Same sandbox as the editor: no file/content access, no network, zoomed to page width.
