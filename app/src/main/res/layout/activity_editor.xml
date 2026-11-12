@@ -49,6 +49,19 @@
                 android:singleLine="true"
                 android:ellipsize="middle" />
 
+            <!-- The unsaved marker. A dot, not a colour change: the title stays readable
+                 and the state is still unmistakable. -->
+            <TextView
+                android:id="@+id/txt_unsaved_dot"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:text="●"
+                android:textSize="9sp"
+                android:textColor="@color/canvas_primary"
+                android:visibility="gone"
+                android:contentDescription="有未保存的修改" />
+
             <ImageView
                 android:layout_width="13dp"
                 android:layout_height="13dp"
@@ -58,13 +71,31 @@
         </LinearLayout>
 
         <ImageButton
+            android:id="@+id/btn_search"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:padding="11dp"
+            android:background="@drawable/bg_icon_button"
+            android:src="@drawable/ic_find"
+            android:contentDescription="搜索代码" />
+
+        <ImageButton
+            android:id="@+id/btn_save"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:padding="11dp"
+            android:background="@drawable/bg_icon_button"
+            android:src="@drawable/ic_check"
+            android:contentDescription="保存" />
+
+        <ImageButton
             android:id="@+id/btn_export_saf"
             android:layout_width="44dp"
             android:layout_height="44dp"
             android:padding="11dp"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_export"
-            android:contentDescription="导出源码文件" />
+            android:contentDescription="另存为" />
 
         <ImageButton
             android:id="@+id/btn_share"
@@ -73,7 +104,7 @@
             android:padding="11dp"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_share"
-            android:contentDescription="分享源码" />
+            android:contentDescription="分享" />
     </LinearLayout>
 
     <!-- Segmented code / preview switch: one trough, one rounded pill. -->
@@ -118,6 +149,89 @@
                 android:textColor="@color/canvas_ink_secondary"
                 android:background="@drawable/bg_segment_item" />
         </LinearLayout>
+    </LinearLayout>
+
+    <!-- Search bar: shown instead of the code toolbar while searching, so it never
+         covers the code it is pointing at. -->
+    <LinearLayout
+        android:id="@+id/search_bar"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="6dp"
+        android:background="@color/canvas_surface"
+        android:visibility="gone">
+
+        <EditText
+            android:id="@+id/edit_search_query"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_search"
+            android:paddingHorizontal="10dp"
+            android:hint="查找关键词或整段代码"
+            android:textSize="13sp"
+            android:singleLine="true"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:importantForAutofill="no"
+            android:textColor="@color/canvas_ink_primary"
+            android:textColorHint="@color/canvas_ink_secondary"
+            android:contentDescription="搜索内容" />
+
+        <TextView
+            android:id="@+id/txt_search_counter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:minWidth="52dp"
+            android:gravity="center"
+            android:text="0 / 0"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:textColor="@color/canvas_ink_secondary" />
+
+        <ImageButton
+            android:id="@+id/btn_search_prev"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:padding="9dp"
+            android:background="@drawable/bg_icon_button"
+            android:src="@drawable/ic_arrow_up"
+            android:contentDescription="上一处" />
+
+        <ImageButton
+            android:id="@+id/btn_search_next"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:padding="9dp"
+            android:background="@drawable/bg_icon_button"
+            android:src="@drawable/ic_arrow_down"
+            android:contentDescription="下一处" />
+
+        <TextView
+            android:id="@+id/btn_search_case"
+            android:layout_width="38dp"
+            android:layout_height="30dp"
+            android:layout_marginStart="4dp"
+            android:gravity="center"
+            android:text="Aa"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:background="@drawable/bg_segment_item"
+            android:textColor="@color/canvas_ink_secondary"
+            android:contentDescription="区分大小写" />
+
+        <ImageButton
+            android:id="@+id/btn_search_close"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:padding="9dp"
+            android:background="@drawable/bg_icon_button"
+            android:src="@drawable/ic_close"
+            android:contentDescription="关闭搜索" />
     </LinearLayout>
 
     <!-- Code actions: one row. Undo/redo are bare glyphs, paste is a text
@@ -183,14 +297,16 @@
             android:textColor="@color/canvas_ink_secondary" />
     </LinearLayout>
 
-    <!-- Preview controls: appear only in preview mode. -->
+    <!-- Preview controls: appear only in preview mode. Row one is the type badge and the
+         page-level actions; row two is the viewport toolbar, which is only meaningful for
+         content the app can zoom (SVG and images). -->
     <LinearLayout
         android:id="@+id/toolbar_preview_controls"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingHorizontal="16dp"
-        android:paddingBottom="10dp"
+        android:paddingBottom="8dp"
         android:background="@color/canvas_surface"
         android:visibility="gone">
 
@@ -246,6 +362,74 @@
                 android:textSize="12sp"
                 android:textColor="@color/canvas_ink_primary"
                 android:layout_marginStart="8dp" />
+        </LinearLayout>
+
+        <!-- Viewport toolbar: 适应窗口 is always present because it is the one action that
+             always recovers the drawing. -->
+        <LinearLayout
+            android:id="@+id/viewport_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btn_viewport_fit"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_button_subtle"
+                android:text="适应窗口"
+                android:textSize="12sp"
+                android:textColor="@color/canvas_ink_primary"
+                android:stateListAnimator="@null" />
+
+            <Button
+                android:id="@+id/btn_viewport_fit_content"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_button_subtle"
+                android:text="适应内容"
+                android:textSize="12sp"
+                android:textColor="@color/canvas_ink_primary"
+                android:stateListAnimator="@null" />
+
+            <Button
+                android:id="@+id/btn_viewport_zoom_out"
+                android:layout_width="42dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_button_subtle"
+                android:text="−"
+                android:textSize="16sp"
+                android:textColor="@color/canvas_ink_primary"
+                android:stateListAnimator="@null"
+                android:contentDescription="缩小" />
+
+            <TextView
+                android:id="@+id/txt_viewport_zoom"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="46dp"
+                android:gravity="center"
+                android:text="100%"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:textColor="@color/canvas_ink_secondary" />
+
+            <Button
+                android:id="@+id/btn_viewport_zoom_in"
+                android:layout_width="42dp"
+                android:layout_height="32dp"
+                android:background="@drawable/bg_button_subtle"
+                android:text="+"
+                android:textSize="16sp"
+                android:textColor="@color/canvas_ink_primary"
+                android:stateListAnimator="@null"
+                android:contentDescription="放大" />
         </LinearLayout>
 
         <Switch
@@ -337,9 +521,9 @@
                         android:fontFamily="monospace"
                         android:textSize="13sp"
                         android:lineSpacingMultiplier="1.35"
-                    android:textColor="@color/canvas_code_ink"
-                    android:hint="输入或粘贴 HTML / SVG / XML 代码…"
-                    android:textColorHint="@color/canvas_ink_secondary"
+                        android:textColor="@color/canvas_code_ink"
+                        android:hint="输入或粘贴代码，或从文件导入…"
+                        android:textColorHint="@color/canvas_ink_secondary"
                         android:inputType="textMultiLine|textNoSuggestions"
                         android:importantForAutofill="no"
                         android:saveEnabled="false" />
@@ -364,25 +548,26 @@
                 android:background="@drawable/bg_canvas_card"
                 android:clipToOutline="true">
 
-                <WebView
-                    android:id="@+id/web_preview"
+                <!-- The interactive viewport. It owns pan/pinch for vector and image content;
+                     for everything else it stays passive so the page scrolls itself. -->
+                <com.nous.codecanvas.ui.SvgViewport
+                    android:id="@+id/preview_viewport"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent" />
+                    android:layout_height="match_parent">
 
-                <!-- Floating exit fullscreen button -->
-                <Button
-                    android:id="@+id/btn_exit_fullscreen"
-                    android:layout_width="wrap_content"
-                    android:layout_height="32dp"
-                    android:layout_gravity="top|end"
-                    android:layout_margin="12dp"
-                    android:background="@drawable/bg_button_subtle"
-                    android:paddingHorizontal="12dp"
-                    android:text="退出全屏"
-                    android:textSize="12sp"
-                    android:textColor="@color/canvas_ink_primary"
-                    android:elevation="4dp"
-                    android:visibility="gone" />
+                    <WebView
+                        android:id="@+id/web_preview"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" />
+
+                    <ImageView
+                        android:id="@+id/preview_image"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="fitCenter"
+                        android:visibility="gone"
+                        android:contentDescription="图片预览" />
+                </com.nous.codecanvas.ui.SvgViewport>
 
                 <!-- XML structure / validation panel -->
                 <ScrollView
@@ -421,6 +606,21 @@
                             android:textIsSelectable="true" />
                     </LinearLayout>
                 </ScrollView>
+
+                <!-- Floating exit fullscreen button -->
+                <Button
+                    android:id="@+id/btn_exit_fullscreen"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="12dp"
+                    android:background="@drawable/bg_button_subtle"
+                    android:paddingHorizontal="12dp"
+                    android:text="退出全屏"
+                    android:textSize="12sp"
+                    android:textColor="@color/canvas_ink_primary"
+                    android:elevation="4dp"
+                    android:visibility="gone" />
 
                 <TextView
                     android:id="@+id/preview_loading"
@@ -519,8 +719,8 @@
                 android:layout_marginStart="12dp"
                 android:minWidth="112dp"
                 android:text="返回"
-                android:textColor="@color/canvas_primary"
-                android:background="?android:attr/selectableItemBackground"
+                android:textColor="@color/canvas_ink_primary"
+                android:background="@drawable/bg_button_subtle"
                 android:stateListAnimator="@null" />
         </LinearLayout>
     </LinearLayout>

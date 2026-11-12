@@ -1,0 +1,227 @@
+package com.nous.codecanvas.data;
+
+import android.content.ContentResolver;
+import android.content.Context;
+import android.database.Cursor;
+import android.net.Uri;
+import android.provider.OpenableColumns;
+
+import com.nous.codecanvas.model.CanvasDocument;
+import com.nous.codecanvas.util.TextCodec;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.UUID;
+
+/**
+ * Reads a file's bytes once, then hands out a document that knows what it is.
+ *
+ * <p>The rule this class exists to enforce: <b>bytes first, decoding second</b>. Every import keeps
+ * the original payload on disk under {@code files/blobs/<id>}, so an image or PDF can be exported
+ * again with a byte-identical hash, and a text file remembers the charset and line ending it was
+ * read with instead of silently rewriting it as UTF-8 with LF.</p>
+ */
+public final class FileImporter {
+
+    /** Hard ceiling for a text file we are willing to put in an EditText. */
+    public static final long MAX_TEXT_BYTES = 8L * 1024L * 1024L;
+    /** Hard ceiling for a binary payload we are willing to copy into app storage. */
+    public static final long MAX_BLOB_BYTES = 64L * 1024L * 1024L;
+    /** How many leading bytes are enough to sniff magic numbers. */
+    private static final int SNIFF_BYTES = 8192;
+
+    private FileImporter() {
+    }
+
+    /** Everything needed to build a document, and to explain a refusal. */
+    public static final class Imported {
+        public final CanvasDocument document;
+        public final DocumentKind kind;
+        public final byte[] bytes;
+
+        Imported(CanvasDocument document, DocumentKind kind, byte[] bytes) {
+            this.document = document;
+            this.kind = kind;
+            this.bytes = bytes;
+        }
+    }
+
+    public static Imported importFrom(Context context, Uri uri) throws IOException {
+        String name = displayName(context, uri);
+        String mime = mimeType(context, uri);
+
+        byte[] head = new byte[0];
+        byte[] all;
+        try (InputStream in = open(context, uri)) {
+            if (in == null) throw new IOException("无法读取这个文件");
+            head = readAtMost(in, SNIFF_BYTES);
+            all = head;
+            if (head.length == SNIFF_BYTES) {
+                // Only now read the rest: the sniff already told us whether this is binary.
+                ByteArrayOutputStream rest = new ByteArrayOutputStream();
+                byte[] buffer = new byte[8192];
+                int n;
+                long total = head.length;
+                while ((n = in.read(buffer)) != -1) {
+                    total += n;
+                    if (total > MAX_BLOB_BYTES) throw new IOException("文件超过 64MB 上限，暂不支持");
+                    rest.write(buffer, 0, n);
+                }
+                byte[] tail = rest.toByteArray();
+                all = new byte[head.length + tail.length];
+                System.arraycopy(head, 0, all, 0, head.length);
+                System.arraycopy(tail, 0, all, head.length, tail.length);
+            }
+        }
+
+        DocumentKind kind = FileKindDetector.detect(name, mime, head);
+        if (kind == DocumentKind.BINARY) {
+            throw new IOException("这是二进制文件（不是文本、图片或 PDF），本阶段不打开");
+        }
+
+        CanvasDocument doc = new CanvasDocument(UUID.randomUUID().toString(), name, "", System.currentTimeMillis());
+        doc.setSourceUri(uri.toString());
+        doc.setMimeType(mime);
+        doc.setKindName(kind.name());
+        doc.setByteSize(all.length);
+
+        if (kind.editable()) {
+            if (all.length > MAX_TEXT_BYTES) {
+                throw new IOException("文本超过 8MB，编辑器打开会很慢，暂不支持");
+            }
+            TextCodec.Decoded decoded = TextCodec.decode(all);
+            doc.setContent(decoded.text);
+            doc.setEncoding(decoded.encoding);
+            doc.setLineEnding(decoded.lineEnding);
+            doc.setBlob(false);
+        } else {
+            doc.setBlob(true);
+            doc.setContent("");
+        }
+        return new Imported(doc, kind, all);
+    }
+
+    /** Persist the original bytes so the document survives a cache wipe and can be exported. */
+    public static File writeBlob(Context context, String documentId, byte[] bytes) throws IOException {
+        File dir = blobDir(context);
+        if (!dir.exists() && !dir.mkdirs()) throw new IOException("无法创建缓存目录");
+        File target = new File(dir, documentId);
+        File temp = new File(dir, documentId + ".tmp");
+        try (FileOutputStream out = new FileOutputStream(temp)) {
+            out.write(bytes);
+            out.flush();
+        }
+        if (target.exists() && !target.delete()) throw new IOException("无法替换旧的原始文件");
+        if (!temp.renameTo(target)) throw new IOException("无法保存原始文件");
+        return target;
+    }
+
+    public static File blobFile(Context context, String documentId) {
+        return new File(blobDir(context), documentId);
+    }
+
+    public static boolean hasBlob(Context context, String documentId) {
+        File f = blobFile(context, documentId);
+        return f.isFile() && f.length() > 0;
+    }
+
+    public static byte[] readBlob(Context context, String documentId) throws IOException {
+        File f = blobFile(context, documentId);
+        if (!f.isFile()) throw new IOException("原始文件已不在本地缓存里");
+        try (InputStream in = new FileInputStream(f)) {
+            return TextCodec.readAll(in);
+        }
+    }
+
+    private static File blobDir(Context context) {
+        return new File(context.getFilesDir(), "blobs");
+    }
+
+    /** Write bytes to the location the document came from. Returns false when not permitted. */
+    public static boolean writeBackToSource(Context context, CanvasDocument doc, byte[] bytes) {
+        String uriString = doc.getSourceUri();
+        if (uriString == null || uriString.isEmpty()) return false;
+        Uri uri = Uri.parse(uriString);
+        try (OutputStream out = context.getContentResolver().openOutputStream(uri, "wt")) {
+            if (out == null) return false;
+            out.write(bytes);
+            out.flush();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static boolean canWriteSource(Context context, CanvasDocument doc) {
+        String uriString = doc.getSourceUri();
+        if (uriString == null || uriString.isEmpty()) return false;
+        try {
+            Uri uri = Uri.parse(uriString);
+            // Documents opened with a read grant only cannot be written back; ask the provider.
+            try (OutputStream probe = context.getContentResolver().openOutputStream(uri, "wt")) {
+                return probe != null;
+            } catch (Exception e) {
+                return false;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static String displayName(Context context, Uri uri) {
+        String name = null;
+        try (Cursor cursor = context.getContentResolver().query(uri, null, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (index >= 0) {
+                    String value = cursor.getString(index);
+                    if (value != null && !value.trim().isEmpty()) name = value;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        if (name == null) {
+            String last = uri.getLastPathSegment();
+            if (last != null && !last.trim().isEmpty()) {
+                int slash = last.lastIndexOf('/');
+                name = slash >= 0 ? last.substring(slash + 1) : last;
+            }
+        }
+        if (name == null) name = "imported.txt";
+        return com.nous.codecanvas.util.FileUtils.sanitizeFileName(name);
+    }
+
+    public static String mimeType(Context context, Uri uri) {
+        try {
+            String type = context.getContentResolver().getType(uri);
+            if (type != null && !type.isEmpty()) return type;
+        } catch (Exception ignored) {
+        }
+        String ext = FileKindDetector.extensionOf(displayName(context, uri));
+        String guessed = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext);
+        return guessed != null ? guessed : "application/octet-stream";
+    }
+
+    private static InputStream open(Context context, Uri uri) throws IOException {
+        ContentResolver resolver = context.getContentResolver();
+        if ("file".equalsIgnoreCase(uri.getScheme()) && uri.getPath() != null) {
+            return new FileInputStream(uri.getPath());
+        }
+        return resolver.openInputStream(uri);
+    }
+
+    private static byte[] readAtMost(InputStream in, int limit) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream(limit);
+        byte[] buffer = new byte[4096];
+        int n;
+        while (out.size() < limit && (n = in.read(buffer, 0, Math.min(buffer.length, limit - out.size()))) != -1) {
+            out.write(buffer, 0, n);
+        }
+        return out.toByteArray();
+    }
+}

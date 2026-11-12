@@ -55,6 +55,15 @@ public final class ShareExporter {
      */
     public static Staged stage(Context context, String authority, String displayName, String source)
             throws IOException {
+        return stageBytes(context, authority, displayName, source.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Stage raw bytes. Images and PDFs go through here so what the receiver gets is exactly what
+     * the file was — a text-encoded copy would corrupt them.
+     */
+    public static Staged stageBytes(Context context, String authority, String displayName, byte[] bytes)
+            throws IOException {
         File cacheDir = context.getCacheDir();
         File sharesRoot = new File(cacheDir, "shares");
         if (!sharesRoot.exists() && !sharesRoot.mkdirs()) {
@@ -73,7 +82,7 @@ public final class ShareExporter {
         String safeName = shareSafeName(displayName);
         File target = new File(dir, safeName);
         try (FileOutputStream fos = new FileOutputStream(target)) {
-            fos.write(source.getBytes(StandardCharsets.UTF_8));
+            fos.write(bytes);
             fos.flush();
         }
 

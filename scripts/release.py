@@ -12,6 +12,7 @@ Usage:
 """
 import argparse
 import hashlib
+import shutil
 import json
 import pathlib
 import sys
@@ -26,6 +27,35 @@ def sha256_of(path: pathlib.Path) -> str:
         for chunk in iter(lambda: handle.read(1 << 20), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def read_min_sdk(apk: pathlib.Path):
+    """Read minSdkVersion straight out of the APK's binary manifest.
+
+    Published rather than guessed: the updater refuses a version whose minSdk exceeds the device,
+    so a wrong value here either blocks a valid update or lets an impossible one through.
+    """
+    import re
+    try:
+        import subprocess
+        aapt = shutil.which("aapt") or shutil.which("aapt2")
+        if aapt:
+            out = subprocess.run([aapt, "dump", "badging", str(apk)],
+                                 capture_output=True, text=True, timeout=60).stdout
+            m = re.search(r"sdkVersion:'(\d+)'", out)
+            if m:
+                return int(m.group(1))
+    except Exception:
+        pass
+    # Fallback: scan the binary manifest for the attribute. Only used when aapt is unavailable.
+    try:
+        data = apk.read_bytes()
+        m = re.search(rb"sdkVersion[\x00-\xff]{0,8}?(\d{2})", data)
+        if m:
+            return int(m.group(1))
+    except Exception:
+        pass
+    return None
 
 
 def resolve_notes(notes_arg: str, notes_file: str | None):
@@ -80,6 +110,10 @@ def main() -> int:
                         help="primary download address; defaults to relay.zhuquan.xyz mirror")
     parser.add_argument("--fallback-apk-url", default=None,
                         help="optional mirror tried when the primary address fails; defaults to GitHub release asset")
+    parser.add_argument("--min-sdk", type=int, default=None,
+                        help="Android API level the APK requires; read from the APK when omitted")
+    parser.add_argument("--channel", default="stable",
+                        help="release channel; only 'stable' is offered for installation")
     parser.add_argument("--out", default="docs/update/latest.json")
     parser.add_argument("--also-out", default=None,
                         help="write the same manifest to a second path (e.g. the copy for the mirror host)")
@@ -102,6 +136,14 @@ def main() -> int:
         return 4
 
     asset_name = args.asset_name or f"code-canvas-{args.version_name}.apk"
+    min_sdk = args.min_sdk if args.min_sdk is not None else read_min_sdk(apk)
+    if min_sdk is not None and min_sdk <= 0:
+        print(f"refusing to publish a nonsensical minSdk: {min_sdk}", file=sys.stderr)
+        return 6
+    if args.channel != "stable":
+        print(f"refusing to publish channel '{args.channel}' as an installable update: "
+              f"the app only installs the stable channel", file=sys.stderr)
+        return 7
     sha = sha256_of(apk)
     primary_url = args.apk_url or f"https://relay.zhuquan.xyz/dl/{asset_name}?v={sha[:12]}"
     fallback_url = args.fallback_apk_url or f"https://github.com/{REPO}/releases/download/{args.tag}/{asset_name}"
@@ -110,12 +152,15 @@ def main() -> int:
         "schemaVersion": 1,
         "versionName": args.version_name,
         "versionCode": args.version_code,
+        "channel": "stable",
         "apkUrl": primary_url,
         "fallbackApkUrl": fallback_url,
         "sha256": sha,
         "size": size,
         "notes": notes,
     }
+    if min_sdk is not None:
+        manifest["minSdk"] = min_sdk
 
     out = pathlib.Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

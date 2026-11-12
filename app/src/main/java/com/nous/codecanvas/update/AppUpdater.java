@@ -241,6 +241,19 @@ public final class AppUpdater {
             final UpdateManifest result = manifest;
             ui(() -> {
                 if (result.versionCode > installedCode) {
+                    // A version this device cannot run is not an update; saying so beats letting
+                    // the installer reject it with an opaque error after a full download.
+                    String unsupported = result.minSdkNote(Build.VERSION.SDK_INT);
+                    if (unsupported != null) {
+                        available = null;
+                        button.setText("已是最新 · " + installedName);
+                        button.setTextColor(activity.getResources().getColor(R.color.canvas_ink_secondary));
+                        if (manual) {
+                            com.nous.codecanvas.ui.CanvasConfirmDialog.show(activity,
+                                    "这个版本不适用于当前设备", unsupported, "知道了", null, false, null, null);
+                        }
+                        return;
+                    }
                     available = result;
                     button.setText("新版本 " + result.versionName + " · 更新");
                     button.setTextColor(activity.getResources().getColor(R.color.canvas_primary));
@@ -427,6 +440,12 @@ public final class AppUpdater {
                 || archive.versionCode != m.versionCode
                 || !m.versionName.equals(archive.versionName)) {
             throw new IOException("安装包版本或应用标识不匹配");
+        }
+        // The archive's own requirement, not just the manifest's claim about it.
+        android.content.pm.ApplicationInfo archiveInfo = archive.applicationInfo;
+        if (archiveInfo != null && archiveInfo.minSdkVersion > Build.VERSION.SDK_INT) {
+            throw new IOException("安装包要求 Android API " + archiveInfo.minSdkVersion
+                    + "，当前设备是 " + Build.VERSION.SDK_INT);
         }
         Signature[] downloaded = Build.VERSION.SDK_INT >= 28
                 ? archive.signingInfo.getApkContentsSigners() : archive.signatures;

@@ -1017,15 +1017,9 @@ public class MainActivity extends Activity {
     private void writeDocumentToUri(final CanvasDocument doc, final Uri target) {
         new Thread(() -> {
             try {
-                java.io.OutputStream out = getContentResolver().openOutputStream(target);
-                if (out == null) {
-                    throw new java.io.IOException("无法写入所选位置");
-                }
-                try {
-                    out.write(doc.getContent().getBytes(StandardCharsets.UTF_8));
-                } finally {
-                    out.close();
-                }
+                byte[] payload = com.nous.codecanvas.util.SourceWriter.payloadBytes(
+                        this, doc, doc.getContent());
+                com.nous.codecanvas.util.SourceWriter.writeToUri(this, target, payload);
                 runOnUiThread(() -> Toast.makeText(MainActivity.this,
                         "已导出 " + doc.getTitle(), Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
@@ -1035,73 +1029,37 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    /**
+     * Import a file handed over by another app or picked in the system picker.
+     *
+     * <p>This used to decode every payload as UTF-8 and cap it at 2MB, which meant an image arrived
+     * as mojibake and a 3MB PDF was refused outright. {@link FileImporter} now reads the bytes
+     * first, decides what the file is, and only then decodes text — binary payloads are kept as
+     * bytes in app storage so an unmodified export stays byte-identical.</p>
+     */
     private void importFromUri(Uri uri) {
         new Thread(() -> {
             try {
-                String fileName = "imported.txt";
-                if ("file".equalsIgnoreCase(uri.getScheme())) {
-                    String last = uri.getLastPathSegment();
-                    if (last != null && !last.trim().isEmpty()) {
-                        fileName = last;
-                    }
-                } else {
-                    try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
-                        if (cursor != null && cursor.moveToFirst()) {
-                            int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-                            if (nameIndex >= 0) {
-                                String name = cursor.getString(nameIndex);
-                                if (name != null && !name.trim().isEmpty()) {
-                                    fileName = name;
-                                }
-                            }
-                        }
-                    } catch (Exception ignored) {
-                        String last = uri.getLastPathSegment();
-                        if (last != null && !last.trim().isEmpty()) fileName = last;
-                    }
+                com.nous.codecanvas.data.FileImporter.Imported imported =
+                        com.nous.codecanvas.data.FileImporter.importFrom(this, uri);
+                CanvasDocument doc = imported.document;
+                if (doc.isBlob()) {
+                    com.nous.codecanvas.data.FileImporter.writeBlob(this, doc.getId(), imported.bytes);
                 }
+                repository.saveDocument(doc);
 
-                fileName = FileUtils.sanitizeFileName(fileName);
-
-                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                long totalBytes = 0;
-                long MAX_IMPORT_SIZE = 2 * 1024 * 1024; // 2MB
-                try (InputStream is = "file".equalsIgnoreCase(uri.getScheme()) && uri.getPath() != null
-                        ? new java.io.FileInputStream(uri.getPath())
-                        : getContentResolver().openInputStream(uri)) {
-                    if (is != null) {
-                        byte[] data = new byte[8192];
-                        int nRead;
-                        while ((nRead = is.read(data, 0, data.length)) != -1) {
-                            totalBytes += nRead;
-                            if (totalBytes > MAX_IMPORT_SIZE) {
-                                throw new IllegalStateException("导入文件超过大小限制 (最大 2MB)");
-                            }
-                            buffer.write(data, 0, nRead);
-                        }
-                    }
-                }
-                String content = new String(buffer.toByteArray(), StandardCharsets.UTF_8);
-                if (content.trim().isEmpty()) {
-                    throw new IllegalStateException("文件是空的，没有可导入的内容");
-                }
-
-                CanvasDocument importedDoc = new CanvasDocument(
-                        UUID.randomUUID().toString(),
-                        fileName,
-                        content,
-                        System.currentTimeMillis()
-                );
-                repository.saveDocument(importedDoc);
-
+                final String kindLabel = imported.kind.label();
                 runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this, "成功导入: " + importedDoc.getTitle(), Toast.LENGTH_SHORT).show();
-                    openEditor(importedDoc.getId(), true);
+                    Toast.makeText(MainActivity.this,
+                            "已导入 " + kindLabel + " · " + doc.getTitle(), Toast.LENGTH_SHORT).show();
+                    openEditor(doc.getId(), true);
                 });
 
             } catch (Exception e) {
                 android.util.Log.e("CodeCanvasImport", "import failed: " + uri, e);
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "导入失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                final String message = e.getMessage() == null ? e.toString() : e.getMessage();
+                runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                        "导入失败: " + message, Toast.LENGTH_LONG).show());
             }
         }).start();
     }
@@ -1248,17 +1206,19 @@ public class MainActivity extends Activity {
         });
     }
 
+    /** Share the document's real bytes: an image or PDF must not be re-encoded as text. */
     private void shareDocument(CanvasDocument doc) {
         if (doc == null) return;
         final String docTitle = doc.getTitle();
-        final String docContent = doc.getContent();
         new Thread(() -> {
             try {
+                byte[] payload = com.nous.codecanvas.util.SourceWriter.payloadBytes(
+                        this, doc, doc.getContent());
                 String authority = getPackageName() + com.nous.codecanvas.provider.CanvasFileProvider.AUTHORITY_SUFFIX;
                 com.nous.codecanvas.util.ShareExporter.Staged staged =
-                        com.nous.codecanvas.util.ShareExporter.stage(this, authority, docTitle, docContent);
+                        com.nous.codecanvas.util.ShareExporter.stageBytes(this, authority, docTitle, payload);
                 runOnUiThread(() -> startActivity(
-                        com.nous.codecanvas.util.ShareExporter.chooserIntent(staged, "分享源码")));
+                        com.nous.codecanvas.util.ShareExporter.chooserIntent(staged, "分享")));
             } catch (Exception e) {
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "分享失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }

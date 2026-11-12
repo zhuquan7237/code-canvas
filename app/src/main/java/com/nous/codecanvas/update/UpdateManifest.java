@@ -24,6 +24,14 @@ public final class UpdateManifest {
     public final String sha256;
     public final String notes;
     public final long size;
+    /**
+     * The Android API level the package was built for, when the publisher states it. An update that
+     * needs a newer system than this device has must be refused here rather than failing inside the
+     * installer with an opaque error.
+     */
+    public final int minSdk;
+    /** Free-form channel marker; only {@code stable} (or absent) is offered for installation. */
+    public final String channel;
 
     private static final long MAX_APK_BYTES = 8L * 1024L * 1024L;
     private static final int MAX_MANIFEST_CHARS = 65536;
@@ -38,6 +46,9 @@ public final class UpdateManifest {
         sha256 = j.getString("sha256");
         size = j.getLong("size");
         notes = j.optString("notes", "");
+        minSdk = j.optInt("minSdk", 0);
+        String declaredChannel = j.optString("channel", "stable").trim().toLowerCase(Locale.ROOT);
+        channel = declaredChannel.isEmpty() ? "stable" : declaredChannel;
         // A bad fallback address is not fatal — it is simply never used.
         String candidate = j.optString("fallbackApkUrl", "").trim();
         fallbackApkUrl = (candidate.isEmpty() || !trustedDownloadAddress(candidate)) ? null : candidate;
@@ -47,6 +58,11 @@ public final class UpdateManifest {
                 || size < 1
                 || size > MAX_APK_BYTES) {
             throw new IllegalArgumentException("更新清单无效");
+        }
+        // A manifest that says "beta" must never be installed by the stable channel: the whole
+        // point of the channel field is that a pre-release cannot masquerade as a release.
+        if (!"stable".equals(channel)) {
+            throw new IllegalArgumentException("这不是正式版本（channel=" + channel + "），不提供安装");
         }
         if (!trustedDownloadAddress(apkUrl)) {
             throw new IllegalArgumentException("不受信任的更新地址");
@@ -66,6 +82,17 @@ public final class UpdateManifest {
             throw new IllegalArgumentException("清单过大");
         }
         return new UpdateManifest(new JSONObject(json));
+    }
+
+    /** True when this update can run on a device with {@code deviceSdk} (0 = unknown, allow). */
+    public boolean supportsDevice(int deviceSdk) {
+        return minSdk <= 0 || deviceSdk <= 0 || deviceSdk >= minSdk;
+    }
+
+    /** A short, honest description of the system requirement, or null when there is none. */
+    public String minSdkNote(int deviceSdk) {
+        if (supportsDevice(deviceSdk)) return null;
+        return "这个版本需要 Android API " + minSdk + " 及以上，当前设备是 API " + deviceSdk;
     }
 
     /** Where an installer package may come from: this project's own host, or GitHub's. */
