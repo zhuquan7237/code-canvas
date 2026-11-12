@@ -30,6 +30,12 @@ public class SyntaxHighlighter {
     private static final Pattern XML_ATTR_PATTERN = Pattern.compile("\\s([a-zA-Z0-9_:-]+)=");
     private static final Pattern STRING_PATTERN = Pattern.compile("\"[^\"]*\"|'[^']*'");
     private static final Pattern COMMENT_PATTERN = Pattern.compile("<!--[\\s\\S]*?-->|/\\*[\\s\\S]*?\\*/|//.*");
+    private static final Pattern CODE_COMMENT = Pattern.compile("(?m)#.*$|//.*$|/\\*[\\s\\S]*?\\*/");
+    private static final Pattern CODE_KEYWORD = Pattern.compile(
+            "\\b(def|class|import|from|return|if|elif|else|for|while|try|except|finally|"
+                    + "function|const|let|var|async|await|public|private|static|void|int|new|"
+                    + "select|where|and|or|not|true|false|null|None|True|False)\\b");
+    private static final Pattern CODE_NUMBER = Pattern.compile("\\b\\d+(?:\\.\\d+)?\\b");
 
     public static void highlight(Editable editable, boolean isDark) {
         if (editable == null || editable.length() == 0) return;
@@ -85,6 +91,32 @@ public class SyntaxHighlighter {
         while (commentMatcher.find()) {
             setSpan(editable, from, commentMatcher.start(), commentMatcher.end(), commentColor);
         }
+    }
+
+    /**
+     * Colour for ordinary source files. Keywords, strings, numbers and comments only.
+     * This does not parse or run the language.
+     */
+    public static void highlightCode(Editable editable, boolean isDark, int start, int end) {
+        if (editable == null || editable.length() == 0) return;
+        int from = Math.max(0, Math.min(start, editable.length()));
+        int to = Math.max(from, Math.min(end, editable.length()));
+        ForegroundColorSpan[] spans = editable.getSpans(from, to, ForegroundColorSpan.class);
+        for (ForegroundColorSpan span : spans) editable.removeSpan(span);
+        if (to <= from) return;
+        int keyColor = isDark ? NIGHT_ATTR : DAY_ATTR;
+        int strColor = isDark ? NIGHT_STRING : DAY_STRING;
+        int numColor = isDark ? NIGHT_TAG : DAY_TAG;
+        int commentColor = isDark ? NIGHT_COMMENT : DAY_COMMENT;
+        String window = editable.subSequence(from, to).toString();
+        apply(editable, from, CODE_KEYWORD.matcher(window), keyColor);
+        apply(editable, from, CODE_NUMBER.matcher(window), numColor);
+        apply(editable, from, STRING_PATTERN.matcher(window), strColor);
+        apply(editable, from, CODE_COMMENT.matcher(window), commentColor);
+    }
+
+    private static void apply(Editable editable, int offset, Matcher matcher, int color) {
+        while (matcher.find()) setSpan(editable, offset, matcher.start(), matcher.end(), color);
     }
 
     private static void setSpan(Editable editable, int offset, int start, int end, int color) {

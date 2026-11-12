@@ -367,9 +367,10 @@ public final class PreviewPage {
 
     private static String yaml(Request request) {
         List<String> problems = StructuredText.checkYaml(request.content);
-        String extra = "body{padding:12px 14px 32px}"
-                + "pre{white-space:pre;overflow-x:auto}"
-                + ".cc-line{display:flex}";
+        String extra = "body{padding:16px 16px 32px}"
+                + ".cc-yaml{margin:0 0 8px;padding:10px 12px;border-radius:12px;background:var(--surface)}"
+                + ".cc-yaml.bad{background:var(--bad-bg, #FBE4E1)}"
+                + ".cc-ln{display:inline-block;min-width:2.2em;opacity:.6;font-variant-numeric:tabular-nums}";
         StringBuilder body = new StringBuilder();
         String verdict = StructuredText.yamlVerdict(problems);
         body.append("<div class=\"cc-note ").append(problems.isEmpty() ? "cc-ok" : "cc-warn").append("\">")
@@ -381,7 +382,12 @@ public final class PreviewPage {
             }
             body.append("</div>");
         }
-        body.append("<pre>").append(escape(request.content)).append("</pre>");
+        for (StructuredText.YamlRow row : StructuredText.yamlOutline(request.content)) {
+            body.append("<div class=\"cc-yaml").append(row.problem ? " bad" : "").append("\" style=\"margin-left:")
+                    .append(row.depth * 16).append("px\"><span class=\"cc-ln\">")
+                    .append(row.line).append("</span> ")
+                    .append(escape(row.label)).append("</div>");
+        }
         return shell(request.dark, extra, body.toString(), null);
     }
 

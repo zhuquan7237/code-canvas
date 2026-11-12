@@ -120,6 +120,9 @@ public class EditorActivity extends Activity {
     private Button btnViewportZoomOut;
     private TextView txtViewportZoom;
     private ImageView previewImage;
+    private View pdfPager;
+    private TextView txtPdfPage;
+    private int pdfPageIndex;
     /** Preview-only viewBox for "fit to content"; null means the document's own. */
     private String svgViewBoxOverride;
 
@@ -377,6 +380,12 @@ public class EditorActivity extends Activity {
         btnViewportZoomOut = findViewById(R.id.btn_viewport_zoom_out);
         txtViewportZoom = findViewById(R.id.txt_viewport_zoom);
         previewImage = findViewById(R.id.preview_image);
+        pdfPager = findViewById(R.id.pdf_pager);
+        txtPdfPage = findViewById(R.id.txt_pdf_page);
+        View pdfPrev = findViewById(R.id.btn_pdf_prev);
+        View pdfNext = findViewById(R.id.btn_pdf_next);
+        if (pdfPrev != null) pdfPrev.setOnClickListener(v -> showPdfPage(pdfPageIndex - 1));
+        if (pdfNext != null) pdfNext.setOnClickListener(v -> showPdfPage(pdfPageIndex + 1));
 
         searchBar = findViewById(R.id.search_bar);
         editSearchQuery = findViewById(R.id.edit_search_query);
@@ -665,9 +674,9 @@ public class EditorActivity extends Activity {
             isAllowJs = isChecked;
             com.nous.codecanvas.util.CanvasPrefs.setScriptsAllowed(this, isChecked);
             if (webPreview != null) webPreview.getSettings().setJavaScriptEnabled(isAllowJs);
-            if (isAllowJs) {
+            if (isAllowJs && pageScriptsKind()) {
                 Toast.makeText(this, "已启用页面按钮与动态效果；仅运行你信任的代码", Toast.LENGTH_SHORT).show();
-            } else {
+            } else if (!isAllowJs && pageScriptsKind()) {
                 Toast.makeText(this, "已关闭脚本，页面仍可静态预览", Toast.LENGTH_SHORT).show();
             }
             previewState.invalidate();
@@ -1564,13 +1573,28 @@ public class EditorActivity extends Activity {
      * Python or YAML, which was both wrong and expensive.</p>
      */
     private void applySyntaxHighlight() {
-        if (!isMarkupKind()) {
-            clearSyntaxSpans();
-            return;
-        }
         int[] window = visibleTextWindow();
         if (window == null) return;
-        SyntaxHighlighter.highlightRange(editCode.getText(), isDark(), window[0], window[1]);
+        if (isMarkupKind()) {
+            SyntaxHighlighter.highlightRange(editCode.getText(), isDark(), window[0], window[1]);
+        } else if (isCodeHighlightKind()) {
+            SyntaxHighlighter.highlightCode(editCode.getText(), isDark(), window[0], window[1]);
+        } else {
+            clearSyntaxSpans();
+        }
+    }
+
+    /** HTML, SVG, Markdown and Mermaid can run page scripts. A .py file cannot. */
+    private boolean pageScriptsKind() {
+        return kind == DocumentKind.HTML || kind == DocumentKind.SVG
+                || kind == DocumentKind.MARKDOWN || kind == DocumentKind.MERMAID;
+    }
+
+    /** Code, data and config files get keyword colour. That is not an interpreter. */
+    private boolean isCodeHighlightKind() {
+        return kind == DocumentKind.CODE || kind == DocumentKind.JSON
+                || kind == DocumentKind.JSONL || kind == DocumentKind.YAML
+                || kind == DocumentKind.CSV || kind == DocumentKind.TEXT;
     }
 
     private boolean isMarkupKind() {
@@ -1629,10 +1653,11 @@ public class EditorActivity extends Activity {
         }
         // "Fit to content" is an SVG-only idea.
         btnViewportFitContent.setVisibility(kind == DocumentKind.SVG ? View.VISIBLE : View.GONE);
-        boolean zoomable = kind == DocumentKind.SVG || kind == DocumentKind.MERMAID || isImageKind();
+        boolean zoomable = kind == DocumentKind.SVG || kind == DocumentKind.MERMAID
+                || isImageKind() || kind == DocumentKind.PDF;
         viewportToolbar.setVisibility(zoomable ? View.VISIBLE : View.GONE);
         if (previewViewport != null) {
-            if (isImageKind()) {
+            if (isImageKind() || kind == DocumentKind.PDF) {
                 previewViewport.setViewTransformTarget(previewImage);
                 previewViewport.setUseViewTransform(true);
             } else {
@@ -1643,7 +1668,8 @@ public class EditorActivity extends Activity {
         // a CSV table has to keep scrolling normally, so the viewport stays passive there.
         previewViewport.setInteractive(zoomable);
         // The script switch is meaningless for a raster image or a PDF.
-        switchAllowJs.setVisibility(hasSource ? View.VISIBLE : View.GONE);
+        switchAllowJs.setVisibility(hasSource && pageScriptsKind() ? View.VISIBLE : View.GONE);
+        if (pdfPager != null) pdfPager.setVisibility(kind == DocumentKind.PDF ? View.VISIBLE : View.GONE);
         applyEditorChrome();
     }
 
@@ -1823,16 +1849,49 @@ public class EditorActivity extends Activity {
     private void renderPdf() {
         if (webPreview != null) webPreview.setVisibility(View.GONE);
         layoutXmlView.setVisibility(View.GONE);
-        previewImage.setVisibility(View.GONE);
         findViewById(R.id.preview_loading).setVisibility(View.GONE);
         previewState.invalidate();
-        txtRenderModeBadge.setText("PDF · 原始文件已保留");
-        // Android's WebView cannot render PDFs. The honest surface is a message plus the actions
-        // that do work, which the toolbar already provides.
+        previewImage.setVisibility(View.VISIBLE);
+        if (pdfPager != null) pdfPager.setVisibility(View.VISIBLE);
+        if (previewViewport != null) {
+            previewViewport.setViewTransformTarget(previewImage);
+            previewViewport.setUseViewTransform(true);
+        }
+        txtRenderModeBadge.setText("PDF 阅读");
         TextView advice = findViewById(R.id.txt_preview_advice);
-        advice.setText("这一版还不能在应用内翻页预览 PDF。用「更多 → 用其他应用打开原文件」交给系统 PDF 阅读器，"
-                + "或直接分享——导出的文件与原始字节完全一致。");
-        advice.setVisibility(View.VISIBLE);
+        if (advice != null) advice.setVisibility(View.GONE);
+        showPdfPage(pdfPageIndex);
+    }
+
+    private void showPdfPage(int index) {
+        if (currentDocument == null) return;
+        File blob = FileImporter.blobFile(this, currentDocument.getId());
+        int target = Math.max(480, getResources().getDisplayMetrics().widthPixels);
+        final int requested = index;
+        new Thread(() -> {
+            try {
+                PdfPageRenderer.Page page = PdfPageRenderer.render(blob, requested, target);
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed() || kind != DocumentKind.PDF) return;
+                    pdfPageIndex = page.index;
+                    previewImage.setImageBitmap(page.bitmap);
+                    if (txtPdfPage != null) {
+                        txtPdfPage.setText((page.index + 1) + " / " + page.count);
+                    }
+                    if (previewViewport != null) previewViewport.fitToWindow();
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    TextView note = findViewById(R.id.txt_preview_advice);
+                    if (note != null) {
+                        note.setText("这份 PDF 打不开：" + describe(e)
+                                + "。原始字节仍在，可以用其他应用打开或分享。");
+                        note.setVisibility(View.VISIBLE);
+                    }
+                });
+            }
+        }, "canvas-pdf").start();
     }
 
     private static String badgeFor(DocumentKind kind) {

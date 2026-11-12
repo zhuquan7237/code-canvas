@@ -241,11 +241,12 @@
     <LinearLayout
         android:id="@+id/toolbar_editor_actions"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/touch_min"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingStart="12dp"
-        android:paddingEnd="16dp"
+        android:paddingStart="@dimen/space_12"
+        android:paddingEnd="@dimen/space_16"
         android:background="@color/canvas_surface">
 
         <ImageButton
@@ -285,6 +286,8 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="end"
+            android:maxLines="1"
+            android:ellipsize="end"
             android:text="1 行 · 0 字符"
             android:textSize="12sp"
             android:fontFamily="monospace"
@@ -541,9 +544,9 @@
             android:id="@+id/container_preview_canvas"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingHorizontal="12dp"
-            android:paddingTop="12dp"
-            android:paddingBottom="14dp">
+            android:paddingHorizontal="@dimen/space_16"
+            android:paddingTop="@dimen/space_16"
+            android:paddingBottom="@dimen/space_16">
 
             <FrameLayout
                 android:id="@+id/preview_canvas_card"
@@ -572,6 +575,49 @@
                         android:visibility="gone"
                         android:contentDescription="图片预览" />
                 </com.nous.codecanvas.ui.SvgViewport>
+
+                <LinearLayout
+                    android:id="@+id/pdf_pager"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/touch_min"
+                    android:layout_gravity="top"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingHorizontal="@dimen/space_8"
+                    android:background="@color/canvas_surface"
+                    android:visibility="gone">
+
+                    <Button
+                        android:id="@+id/btn_pdf_prev"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:minWidth="0dp"
+                        android:background="@drawable/bg_button_subtle"
+                        android:text="上一页"
+                        android:textSize="13sp"
+                        android:textColor="@color/canvas_ink_primary" />
+
+                    <TextView
+                        android:id="@+id/txt_pdf_page"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="72dp"
+                        android:gravity="center"
+                        android:text="1 / 1"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/canvas_ink_primary" />
+
+                    <Button
+                        android:id="@+id/btn_pdf_next"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:minWidth="0dp"
+                        android:background="@drawable/bg_button_subtle"
+                        android:text="下一页"
+                        android:textSize="13sp"
+                        android:textColor="@color/canvas_ink_primary" />
+                </LinearLayout>
 
                 <!-- XML structure / validation panel -->
                 <ScrollView

@@ -68,6 +68,19 @@
                 <data android:mimeType="text/csv" />
                 <data android:mimeType="application/x-yaml" />
                 <data android:mimeType="text/yaml" />
+                <data android:mimeType="text/x-yaml" />
+                <data android:mimeType="application/yaml" />
+                <data android:mimeType="image/png" />
+                <data android:mimeType="image/jpeg" />
+                <data android:mimeType="image/webp" />
+                <data android:mimeType="image/gif" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="text/x-python" />
+                <data android:mimeType="text/x-java" />
+                <data android:mimeType="text/x-kotlin" />
+                <data android:mimeType="text/x-sql" />
+                <data android:mimeType="text/x-sh" />
+                <data android:mimeType="application/x-sh" />
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>
 
@@ -97,6 +110,12 @@
                 <data android:mimeType="application/javascript" />
                 <data android:mimeType="text/markdown" />
                 <data android:mimeType="text/csv" />
+                <data android:mimeType="text/yaml" />
+                <data android:mimeType="image/png" />
+                <data android:mimeType="image/jpeg" />
+                <data android:mimeType="image/webp" />
+                <data android:mimeType="image/gif" />
+                <data android:mimeType="application/pdf" />
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>
 

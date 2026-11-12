@@ -123,6 +123,10 @@ public class StructuredTextTest {
         List<String> problems = StructuredText.checkYaml("a:\n  b: 1\n  c:\n    - x\n    - y\n");
         assertTrue(problems.toString(), problems.isEmpty());
         assertTrue(StructuredText.yamlVerdict(problems).contains("未做完整"));
+        List<StructuredText.YamlRow> rows = StructuredText.yamlOutline("a:\n  b: 1\n  c:\n    - x\n");
+        assertFalse(rows.isEmpty());
+        assertEquals(1, rows.get(0).line);
+        assertTrue(rows.get(1).depth >= 1);
         assertTrue("a failing verdict must also state the limit",
                 StructuredText.yamlVerdict(java.util.Arrays.asList("x")).contains("未做完整"));
     }

@@ -8,7 +8,7 @@
         android:minHeight="72dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="12dp"
+        android:padding="@dimen/space_16"
         android:background="@android:color/transparent">
 
     <ImageView
