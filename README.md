@@ -6,7 +6,7 @@ AI 聊天窗口里的代码，复制出来往往是一坨没有后缀的文本�
 
 原生 Android（系统 WebView，不打包浏览器内核）+ Windows 电脑版（原生 C# + WebView2，安装包 793 KB）。
 
-目前可下载的签名包仍是 [Android APK v0.5.6](https://relay.zhuquan.xyz/dl/code-canvas-0.5.6.apk)（自建源，国内可直连）。源码版本已是 **0.5.8**，签名 APK 还没上传，见 [v0.5.8 发版说明](docs/RELEASE-v0.5.8.md)。[Windows 版 v0.5.0](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [验收与边界](docs/VERIFICATION.md)
+目前可下载的签名包仍是 [Android APK v0.5.6](https://relay.zhuquan.xyz/dl/code-canvas-0.5.6.apk)（自建源，国内可直连）。源码版本已是 **0.5.9**，签名 APK 还没上传，见 [v0.5.9 发版说明](docs/RELEASE-v0.5.9.md)。[Windows 版 v0.5.0](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [验收与边界](docs/VERIFICATION.md)
 
 ## 它解决什么问题
 
@@ -44,6 +44,15 @@ Office 文档、压缩包、音视频不在本阶段范围。
 - **不替用户改数据。** JSON 格式化只动缩进；XML 只在结构安全时格式化，否则原样展示；CSV 不做类型推断。
 - **离线优先。** Markdown、公式、Mermaid 的依赖都在安装包里；HTML 的远程字体和脚本加载不到时会明确说明，而不是假装渲染成功。
 - **渲染与应用隔离。** 预览 WebView 关闭文件访问、关闭网络（除非用户显式允许）、没有 JS 桥接，导入的 HTML/SVG 不能调用 Android 接口。
+
+## v0.5.9 本次更新（预览和编辑器）
+
+- Markdown 预览更接近常见排版：标题下划线、引用色块、列表、代码块、表格和公式。
+- JSON 预览可以折叠对象，点路径会复制 `$.a.b`。出错的一行会标出，并能跳回代码。
+- JSONL 坏行单独标出，并可以定位到那一行。
+- CSV 可以筛选行、点表头排序，宽表仍可横滑。
+- PDF 点页码可以跳转，画面可以缩放。图片支持双指和双击缩放。
+- 编辑器菜单里有「查找与替换」：上一处、下一处、替换、全部替换。
 
 ## v0.5.8 本次更新（缩略图、列表信息和底部按钮）
 
@@ -328,17 +337,15 @@ keyPassword=your_password
 
 ## 截图
 
-v0.5.8 手机界面（模拟器 360dp、字号 1.3）：
+v0.5.9 预览（模拟器 360dp、字号 1.3）：
 
-![首页](docs/screenshots/android/v3-home.png)
-![列表底部](docs/screenshots/android/v3-home-bottom.png)
-![深色首页](docs/screenshots/android/v3-home-dark.png)
-![编辑器](docs/screenshots/android/v3-editor.png)
-![横屏](docs/screenshots/android/v3-editor-landscape.png)
-![Markdown](docs/screenshots/android/v3-markdown.png)
-![Mermaid](docs/screenshots/android/v3-mermaid.png)
-![PDF](docs/screenshots/android/v3-pdf.png)
-![设置](docs/screenshots/android/v3-settings.png)
+![Markdown](docs/screenshots/android/v4-markdown.png)
+![Markdown 深色](docs/screenshots/android/v4-markdown-dark.png)
+![JSON](docs/screenshots/android/v4-json.png)
+![JSONL 错误](docs/screenshots/android/v4-jsonl.png)
+![CSV](docs/screenshots/android/v4-csv.png)
+![PDF 跳转](docs/screenshots/android/v4-pdf-jump.png)
+![查找与替换](docs/screenshots/android/v4-find-replace.png)
 
 更早的验收图仍在 `docs/evidence/`。
 

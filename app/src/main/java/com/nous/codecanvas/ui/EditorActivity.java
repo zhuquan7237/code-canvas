@@ -127,6 +127,7 @@ public class EditorActivity extends Activity {
     private View pdfPager;
     private TextView txtPdfPage;
     private int pdfPageIndex;
+    private int pdfPageCount = 1;
     /** Preview-only viewBox for "fit to content"; null means the document's own. */
     private String svgViewBoxOverride;
 
@@ -424,6 +425,7 @@ public class EditorActivity extends Activity {
         View pdfNext = findViewById(R.id.btn_pdf_next);
         if (pdfPrev != null) pdfPrev.setOnClickListener(v -> showPdfPage(pdfPageIndex - 1));
         if (pdfNext != null) pdfNext.setOnClickListener(v -> showPdfPage(pdfPageIndex + 1));
+        if (txtPdfPage != null) txtPdfPage.setOnClickListener(v -> askPdfPage());
 
         searchBar = findViewById(R.id.search_bar);
         editSearchQuery = findViewById(R.id.edit_search_query);
@@ -526,6 +528,7 @@ public class EditorActivity extends Activity {
         }
 
         private boolean leavePreviewFor(String url) {
+            if (jumpToSourceLine(url)) return true;
             // A local document must never navigate the preview away. http(s) links open in the
             // system browser; javascript: and file: are dropped so they cannot leave the sandbox.
             if (url != null && !url.startsWith("https://" + PreviewAssets.HOST)) {
@@ -1013,6 +1016,133 @@ public class EditorActivity extends Activity {
             refreshSearch(false);
         });
         btnSearchCase.setSelected(false);
+    }
+
+    /** A preview link of the form codecanvas.invalid/jump?line=N opens that line in the editor. */
+    private boolean jumpToSourceLine(String url) {
+        String prefix = "https://" + com.nous.codecanvas.util.PreviewAssets.HOST + "/jump";
+        if (url == null || !url.startsWith(prefix) || !kind.hasSourceTab()) return false;
+        int line = 1;
+        try {
+            String query = android.net.Uri.parse(url).getQueryParameter("line");
+            if (query != null) line = Integer.parseInt(query);
+        } catch (Exception ignored) {
+            line = 1;
+        }
+        final int target = Math.max(1, line);
+        switchToTab(0);
+        editCode.post(() -> {
+            int offset = com.nous.codecanvas.editor.EditorCommands.lineOffset(
+                    editCode.getText().toString(), target);
+            editCode.requestFocus();
+            editCode.setSelection(Math.min(offset, editCode.length()));
+        });
+        return true;
+    }
+
+    private void askPdfPage() {
+        activeDialog = UiDialogHelper.createThemedInputDialog(this, "跳转到页",
+                "页码", String.valueOf(pdfPageIndex + 1),
+                android.text.InputType.TYPE_CLASS_NUMBER, "打开", false, false, raw -> {
+                    try {
+                        int page = Integer.parseInt(raw.trim());
+                        if (page < 1 || page > pdfPageCount) {
+                            Toast.makeText(this, "页码要在 1 到 " + pdfPageCount + " 之间",
+                                    Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        showPdfPage(page - 1);
+                    } catch (Exception ex) {
+                        Toast.makeText(this, "请输入页码", Toast.LENGTH_SHORT).show();
+                    }
+                });
+        activeDialog.show();
+    }
+
+    private void showFindReplace() {
+        if (kind == null || !kind.hasSourceTab()) return;
+        if (viewFlipper.getDisplayedChild() != 0) switchToTab(0);
+        android.view.View content = android.view.LayoutInflater.from(this)
+                .inflate(R.layout.dialog_find_replace, null);
+        android.widget.EditText query = content.findViewById(R.id.find_query);
+        android.widget.EditText replacement = content.findViewById(R.id.find_replacement);
+        android.widget.TextView status = content.findViewById(R.id.find_status);
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(this)
+                .setView(content).create();
+        Runnable refresh = () -> {
+            String find = query.getText().toString();
+            int count = 0;
+            if (!find.isEmpty()) {
+                String text = editCode.getText().toString();
+                int from = 0;
+                while ((from = text.indexOf(find, from)) >= 0) {
+                    count++;
+                    from += find.length();
+                }
+            }
+            status.setText(find.isEmpty() ? "" : "找到 " + count + " 处");
+        };
+        query.addTextChangedListener(new android.text.TextWatcher() {
+            public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+            public void onTextChanged(CharSequence s, int a, int b, int c) {}
+            public void afterTextChanged(android.text.Editable s) { refresh.run(); }
+        });
+        content.findViewById(R.id.find_next).setOnClickListener(v ->
+                replaceOnce(query.getText().toString(), null, false));
+        content.findViewById(R.id.find_prev).setOnClickListener(v ->
+                replaceOnce(query.getText().toString(), null, true));
+        content.findViewById(R.id.find_replace_one).setOnClickListener(v ->
+                replaceOnce(query.getText().toString(), replacement.getText().toString(), false));
+        content.findViewById(R.id.dialog_btn_negative).setOnClickListener(v -> dialog.dismiss());
+        content.findViewById(R.id.dialog_btn_positive).setOnClickListener(v -> {
+            try {
+                String next = com.nous.codecanvas.editor.EditorCommands.replaceAll(
+                        editCode.getText().toString(),
+                        query.getText().toString(),
+                        replacement.getText().toString());
+                discreteEdit = true;
+                editCode.setText(next);
+                editCode.setSelection(next.length());
+                refresh.run();
+                Toast.makeText(this, "已全部替换", Toast.LENGTH_SHORT).show();
+            } catch (Exception ex) {
+                Toast.makeText(this, ex.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+        dialog.setOnShowListener(d -> {
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(
+                        new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            }
+        });
+        activeDialog = dialog;
+        dialog.show();
+        refresh.run();
+    }
+
+    /** Move to the next or previous match. When replacement is non-null, replace that match. */
+    private void replaceOnce(String find, String replacement, boolean backward) {
+        if (find == null || find.isEmpty()) {
+            Toast.makeText(this, "请输入查找内容", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String text = editCode.getText().toString();
+        int start = Math.max(0, editCode.getSelectionStart());
+        int end = Math.max(start, editCode.getSelectionEnd());
+        int at = backward ? text.lastIndexOf(find, Math.max(0, start - 1)) : text.indexOf(find, end);
+        if (at < 0) at = backward ? text.lastIndexOf(find) : text.indexOf(find);
+        if (at < 0) {
+            Toast.makeText(this, "没有找到", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (replacement == null) {
+            editCode.requestFocus();
+            editCode.setSelection(at, at + find.length());
+            return;
+        }
+        discreteEdit = true;
+        editCode.getText().replace(at, at + find.length(), replacement);
+        editCode.setSelection(at, at + replacement.length());
     }
 
     private void toggleSearch() {
@@ -1636,7 +1766,9 @@ public class EditorActivity extends Activity {
 
     /** The script switch is an HTML concern. Markdown and Mermaid run the bundled renderer. */
     private boolean previewJavaScriptEnabled() {
-        return isAllowJs || kind == DocumentKind.MARKDOWN || kind == DocumentKind.MERMAID;
+        return isAllowJs || kind == DocumentKind.MARKDOWN || kind == DocumentKind.MERMAID
+                || kind == DocumentKind.JSON || kind == DocumentKind.JSONL
+                || kind == DocumentKind.CSV;
     }
 
     private void showEditorOverflow(View anchor) {
@@ -1644,6 +1776,7 @@ public class EditorActivity extends Activity {
         boolean preview = viewFlipper != null && viewFlipper.getDisplayedChild() == 1;
         if (kind != null && kind.hasSourceTab()) {
             menu.getMenu().add(0, 1, 0, "查找");
+            menu.getMenu().add(0, 7, 0, "查找与替换");
         }
         menu.getMenu().add(0, 2, 0, "另存为");
         menu.getMenu().add(0, 3, 0, "分享");
@@ -1654,6 +1787,7 @@ public class EditorActivity extends Activity {
         }
         menu.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == 1) toggleSearch();
+            else if (item.getItemId() == 7) showFindReplace();
             else if (item.getItemId() == 2) startSafExport();
             else if (item.getItemId() == 3) shareFile();
             else if (item.getItemId() == 4) findViewById(R.id.btn_preview_refresh).performClick();
@@ -1950,6 +2084,7 @@ public class EditorActivity extends Activity {
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed() || kind != DocumentKind.PDF) return;
                     pdfPageIndex = page.index;
+                    pdfPageCount = page.count;
                     previewImage.setImageBitmap(page.bitmap);
                     if (txtPdfPage != null) {
                         txtPdfPage.setText((page.index + 1) + " / " + page.count);
