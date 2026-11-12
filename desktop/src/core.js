@@ -181,6 +181,8 @@
   function formatMarkup(code, kind) {
     let text = String(code || '').trim();
     if (!text) return '';
+    // Splitting on every tag corrupts scripts and CDATA. Leave those documents unchanged.
+    if (/<script\b|<!\[CDATA\[/i.test(text)) return text;
     // Repair accidental space after '<' such as '< radii unit="dp">'
     text = text.replace(/<\s+([a-zA-Z_][\w:.-]*)/g, '<$1').replace(/<\/\s+([a-zA-Z_][\w:.-]*)/g, '</$1');
     if (kind === RenderKind.RAW) return text;
@@ -495,11 +497,18 @@
   /**
    * Build visual miniature thumbnail HTML for sidebar document items.
    */
+  function sanitizeSvgThumbnail(svg) {
+    return String(svg || '')
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
+      .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      .replace(/\s(?:href|xlink:href)\s*=\s*(["'])\s*javascript:[\s\S]*?\1/gi, '');
+  }
+
   function buildThumbnailMarkup(doc, kind) {
     const content = String((doc && doc.content) || '').trim();
     if (kind === RenderKind.SVG && /^<svg\b/i.test(stripLeadingCommentsAndDoctype(content))) {
-      let svg = stripLeadingCommentsAndDoctype(content);
-      svg = svg.replace(/<script[\s\S]*?<\/script>/gi, '');
+      let svg = sanitizeSvgThumbnail(stripLeadingCommentsAndDoctype(content));
       if (!/\bviewBox\s*=/i.test(svg)) {
         const wMatch = svg.match(/\bwidth\s*=\s*["']([0-9.]+)(?:px)?["']/i);
         const hMatch = svg.match(/\bheight\s*=\s*["']([0-9.]+)(?:px)?["']/i);
@@ -665,16 +674,16 @@
 
   function parseDesktopUpdateManifest(jsonStr) {
     const obj = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
-    if (!obj || obj.schemaVersion !== 1) {
+    if (!obj || (obj.schemaVersion != null && obj.schemaVersion !== 1)) {
       throw new Error('更新清单版本不支持');
     }
     const versionCode = Number(obj.versionCode);
     const versionName = String(obj.versionName || '').trim();
     const setupUrl = String(obj.setupUrl || obj.apkUrl || '').trim();
-    const fallbackRaw = String(obj.fallbackSetupUrl || obj.fallbackApkUrl || '').trim();
+    const fallbackRaw = String(obj.fallbackSetupUrl || obj.githubUrl || obj.fallbackApkUrl || '').trim();
     const sha256 = String(obj.sha256 || '').trim().toLowerCase();
-    const size = Number(obj.size);
-    const notes = String(obj.notes || '');
+    const size = Number(obj.size || obj.fileSizeBytes);
+    const notes = String(obj.notes || obj.changelog || '');
 
     if (!versionCode || versionCode <= 0 || !/^\d+\.\d+\.\d+$/.test(versionName) || !/^[0-9a-f]{64}$/.test(sha256) || !size || size <= 0) {
       throw new Error('更新清单字段无效');
@@ -696,6 +705,24 @@
       sha256,
       size,
       notes
+    };
+  }
+
+  function describeDesktopUpdate(manifest, currentVersionCode) {
+    const current = Number(currentVersionCode == null ? CURRENT_VERSION_CODE : currentVersionCode);
+    return {
+      status: 'ok',
+      hasUpdate: manifest.versionCode > current,
+      versionCode: manifest.versionCode,
+      versionName: manifest.versionName,
+      setupUrl: manifest.setupUrl,
+      fallbackSetupUrl: manifest.fallbackSetupUrl,
+      downloadUrls: manifest.downloadUrls,
+      sha256: manifest.sha256,
+      size: manifest.size,
+      fileSizeBytes: manifest.size,
+      notes: manifest.notes,
+      changelog: manifest.notes
     };
   }
 
@@ -721,6 +748,8 @@
     buildPreviewDocument,
     detectClipboardSummary,
     trustedDesktopSetupUrl,
-    parseDesktopUpdateManifest
+    parseDesktopUpdateManifest,
+    describeDesktopUpdate,
+    sanitizeSvgThumbnail
   };
 });

@@ -11,7 +11,12 @@ import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.ImageDecoder;
+import android.graphics.Movie;
+import android.graphics.drawable.AnimatedImageDrawable;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -245,7 +250,7 @@ public class EditorActivity extends Activity {
         if (savedInstanceState != null) {
             // A recreation races the debounced save the previous instance queued. Wait briefly so
             // the reload below cannot read an older revision and then overwrite the last edits.
-            com.nous.codecanvas.data.DocumentSaveCoordinator.drainAndWait(1000);
+            com.nous.codecanvas.data.DocumentSaveCoordinator.drainAndWait(2500);
         }
         String loadFailure = null;
         if (docId != null) {
@@ -436,11 +441,27 @@ public class EditorActivity extends Activity {
      */
     private final class PreviewWebViewClient extends WebViewClient {
         @Override
+        public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+            if (request == null || request.getUrl() == null) return true;
+            // Subresources stay inside the sandbox interceptor. Only a main-frame navigation
+            // can leave this screen, and only for a real http(s) link.
+            if (!request.isForMainFrame()) return false;
+            return leavePreviewFor(request.getUrl().toString());
+        }
+
+        @Override
         public boolean shouldOverrideUrlLoading(WebView v, String url) {
-            // A local document must never navigate the preview away. Links open in the system
-            // browser instead, so the editor and its unsaved state stay exactly where they are.
+            return leavePreviewFor(url);
+        }
+
+        private boolean leavePreviewFor(String url) {
+            // A local document must never navigate the preview away. http(s) links open in the
+            // system browser; javascript: and file: are dropped so they cannot leave the sandbox.
             if (url != null && !url.startsWith("https://" + PreviewAssets.HOST)) {
-                openExternally(url);
+                String lower = url.toLowerCase(java.util.Locale.ROOT);
+                if (lower.startsWith("https://") || lower.startsWith("http://")) {
+                    openExternally(url);
+                }
             }
             return true;
         }
@@ -464,7 +485,7 @@ public class EditorActivity extends Activity {
                     if (previewLoadingView != null) previewLoadingView.setVisibility(View.GONE);
                     boolean dark = isDark();
                     String key = PreviewKey.forDocument(currentDocument.getId(),
-                            editCode.getText().toString(), dark);
+                            editorTextOrStored(), dark);
                     if (viewFlipper.getDisplayedChild() == 1 && supportsThumbnail()) {
                         Bitmap image = PreviewThumbnailCache.capture(view);
                         if (image != null && !saveExecutor.isShutdown()) {
@@ -862,7 +883,7 @@ public class EditorActivity extends Activity {
             Toast.makeText(this, "只有 SVG 支持按内容边界适应", Toast.LENGTH_SHORT).show();
             return;
         }
-        String content = editCode.getText().toString();
+        String content = editorTextOrStored();
         SvgGeometry.Box box = SvgGeometry.measure(content);
         if (!box.isValid()) {
             Toast.makeText(this, "这个 SVG 没有可用的坐标范围（无 viewBox、宽高是百分比），只能用适应窗口", Toast.LENGTH_LONG).show();
@@ -1237,7 +1258,7 @@ public class EditorActivity extends Activity {
             return;
         }
         isProgrammaticChange = true;
-        editCode.setText(currentDocument.getContent());
+        editCode.setText(currentDocument.getContent() != null ? currentDocument.getContent() : "");
         refreshLineNumbers(1);
         isProgrammaticChange = false;
 
@@ -1248,6 +1269,19 @@ public class EditorActivity extends Activity {
         // Highlighting waits for the first layout: the visible window is not known before it, and a
         // whole-document pass on open is what made a large file feel like it hung.
         editCode.post(this::applySyntaxHighlight);
+    }
+
+    /**
+     * Text the preview, share and export must use. A file too large for the EditText still lives
+     * on the document; reading the empty editor used to preview and share a blank file.
+     */
+    private String editorTextOrStored() {
+        if (currentDocument == null) return "";
+        if (sourceTooLarge || editCode == null) {
+            String stored = currentDocument.getContent();
+            return stored != null ? stored : "";
+        }
+        return editCode.getText().toString();
     }
 
     /**
@@ -1573,6 +1607,14 @@ public class EditorActivity extends Activity {
         btnViewportFitContent.setVisibility(kind == DocumentKind.SVG ? View.VISIBLE : View.GONE);
         boolean zoomable = kind == DocumentKind.SVG || kind == DocumentKind.MERMAID || isImageKind();
         viewportToolbar.setVisibility(zoomable ? View.VISIBLE : View.GONE);
+        if (previewViewport != null) {
+            if (isImageKind()) {
+                previewViewport.setViewTransformTarget(previewImage);
+                previewViewport.setUseViewTransform(true);
+            } else {
+                previewViewport.setUseViewTransform(false);
+            }
+        }
         // Only content that must not scroll hands its touches to the viewport. A Markdown page or
         // a CSV table has to keep scrolling normally, so the viewport stays passive there.
         previewViewport.setInteractive(zoomable);
@@ -1590,7 +1632,7 @@ public class EditorActivity extends Activity {
             kind = current;
             applyKindToChrome();
         }
-        String content = editCode.getText().toString();
+        String content = editorTextOrStored();
         String title = currentDocument.getTitle();
 
         // A .html file whose body is a single inline <svg> is artwork, not a web page. DocumentKind
@@ -1603,7 +1645,9 @@ public class EditorActivity extends Activity {
             kind = DocumentKind.SVG;
             applyKindToChrome();
         }
-        ((TextView) findViewById(R.id.txt_preview_advice)).setVisibility(View.GONE);
+        if (!sourceTooLarge) {
+            ((TextView) findViewById(R.id.txt_preview_advice)).setVisibility(View.GONE);
+        }
 
         if (kind == DocumentKind.XML) {
             renderXmlStructure(content);
@@ -1622,7 +1666,7 @@ public class EditorActivity extends Activity {
         previewImage.setVisibility(View.GONE);
         if (webPreview != null) webPreview.setVisibility(View.VISIBLE);
 
-        String fingerprint = PreviewKey.forDocument(title, content, isDark())
+        String fingerprint = PreviewKey.forDocument(currentDocument.getId(), content, isDark())
                 + kind.name() + isAllowJs + isAllowNetwork + svgViewBoxOverride;
         if (!force && content.equals(lastRenderedContent)
                 && java.util.Objects.equals(svgViewBoxOverride, lastRenderedViewBox)) {
@@ -1633,8 +1677,8 @@ public class EditorActivity extends Activity {
 
         // Only markup can have "external resource" problems; scanning a 300KB YAML or code file with
         // five regexes on every preview refresh was pure cost.
-        java.util.List<String> warnings = (kind == DocumentKind.HTML || kind == DocumentKind.SVG
-                || kind == DocumentKind.MARKDOWN)
+        java.util.List<String> warnings = (!sourceTooLarge && (kind == DocumentKind.HTML || kind == DocumentKind.SVG
+                || kind == DocumentKind.MARKDOWN))
                 ? com.nous.codecanvas.util.RenderingAdvisor.inspect(content)
                 : java.util.Collections.emptyList();
         if (!warnings.isEmpty()) {
@@ -1688,11 +1732,19 @@ public class EditorActivity extends Activity {
         previewState.invalidate();
         previewImage.setVisibility(View.VISIBLE);
         txtRenderModeBadge.setText(kind == DocumentKind.GIF ? "动图预览" : "图片预览");
+        if (previewViewport != null) {
+            previewViewport.setViewTransformTarget(previewImage);
+            previewViewport.setUseViewTransform(true);
+        }
 
         File blob = FileImporter.blobFile(this, currentDocument.getId());
         if (!blob.isFile()) {
             previewImage.setImageDrawable(null);
             Toast.makeText(this, "原始图片不在本地缓存里了，可以重新导入或用其他应用打开", Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (kind == DocumentKind.GIF && showAnimatedGif(blob)) {
+            previewViewport.fitToWindow();
             return;
         }
         // Large images are decoded downsampled: a 4000px photo at full size would exhaust the heap
@@ -1709,6 +1761,27 @@ public class EditorActivity extends Activity {
         }
         previewImage.setImageBitmap(bitmap);
         previewViewport.fitToWindow();
+    }
+
+    /** Keep a GIF playing. A still bitmap would freeze on the first frame. */
+    private boolean showAnimatedGif(File blob) {
+        try {
+            if (Build.VERSION.SDK_INT >= 28) {
+                ImageDecoder.Source source = ImageDecoder.createSource(blob);
+                Drawable drawable = ImageDecoder.decodeDrawable(source);
+                previewImage.setImageDrawable(drawable);
+                if (drawable instanceof AnimatedImageDrawable) {
+                    ((AnimatedImageDrawable) drawable).start();
+                }
+                return true;
+            }
+            Movie movie = Movie.decodeFile(blob.getAbsolutePath());
+            if (movie == null) return false;
+            previewImage.setImageDrawable(new LoopingGifDrawable(movie));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /** Power-of-two downsample that keeps a decoded image under roughly 12 megapixels. */
@@ -1824,7 +1897,14 @@ public class EditorActivity extends Activity {
                 "离开前要先保存吗？「放弃」会丢掉这次编辑。", "保存并离开", "放弃修改", true,
                 () -> {
                     saveCurrentDocument(true);
-                    finish();
+                    // The write is queued. Leaving before it runs drops the edit the user just
+                    // asked to keep, so wait for that queue and only then close the screen.
+                    new Thread(() -> {
+                        com.nous.codecanvas.data.DocumentSaveCoordinator.drainAndWait(8000);
+                        runOnUiThread(() -> {
+                            if (!isFinishing()) finish();
+                        });
+                    }, "canvas-leave-save").start();
                 },
                 this::finish);
     }
@@ -1907,8 +1987,12 @@ public class EditorActivity extends Activity {
     private void saveCurrentDocument(boolean explicit) {
         if (documentLoadFailed || currentDocument == null || editCode == null) return;
         // The source was never loaded into the editor, so there is nothing to write back and
-        // saving an empty buffer would destroy the file.
-        if (sourceTooLarge) return;
+        // saving an empty buffer would destroy the file. Images and PDFs are the same case:
+        // the editor buffer is empty, and the bytes live beside the document.
+        if (sourceTooLarge || currentDocument.isBlob() || !kind.editable()) return;
+        // Opening a file and leaving used to rewrite it and bump the timestamp even when
+        // nothing had changed. Only an explicit save, or an edit that is still dirty, writes.
+        if (!explicit && !dirty) return;
         final String content = editCode.getText().toString();
         final String title = currentDocument.getTitle();
         final long capturedEdit = editRevision;
@@ -1982,10 +2066,23 @@ public class EditorActivity extends Activity {
                                     persistFailed("文件已被删除，本次修改没有保存");
                                     return;
                                 }
-                                persistedRevision = latest.getRevision();
-                                documentIsNew = false;
-                                handler.removeCallbacks(autoSaveRunnable);
-                                handler.postDelayed(autoSaveRunnable, 0);
+                                String mine = editorTextOrStored();
+                                if (mine.equals(latest.getContent())) {
+                                    adoptStoredMetadata(latest);
+                                    markDirty(false);
+                                    if (txtSaveIndicator != null) txtSaveIndicator.setText("已保存");
+                                    return;
+                                }
+                                final CanvasDocument newer = latest.snapshot();
+                                activeDialog = CanvasConfirmDialog.show(EditorActivity.this,
+                                        "文件刚刚在别处更新了",
+                                        "保留正在编辑的内容会覆盖那一版；改用已保存版本会丢掉这次编辑。",
+                                        "保留我的修改", "改用已保存版本", false,
+                                        () -> {
+                                            adoptStoredMetadata(newer);
+                                            saveCurrentDocument(true);
+                                        },
+                                        () -> reloadStoredDocument(newer));
                             });
                             return;
                         }
@@ -1995,6 +2092,42 @@ public class EditorActivity extends Activity {
                                 : "保存失败：" + describe(error)));
                     }
                 });
+    }
+
+    /** Take the stored identity (revision, charset, kind) without replacing the text on screen. */
+    private void adoptStoredMetadata(CanvasDocument latest) {
+        if (latest == null || currentDocument == null) return;
+        currentDocument.setRevision(latest.getRevision());
+        currentDocument.setKindName(latest.getKindName());
+        currentDocument.setEncoding(latest.getEncoding());
+        currentDocument.setLineEnding(latest.getLineEnding());
+        currentDocument.setSourceUri(latest.getSourceUri());
+        currentDocument.setMimeType(latest.getMimeType());
+        currentDocument.setBlob(latest.isBlob());
+        currentDocument.setByteSize(latest.getByteSize());
+        currentDocument.setTitle(latest.getTitle());
+        persistedRevision = latest.getRevision();
+        documentIsNew = false;
+        kind = currentDocument.kind();
+        if (txtEditorTitle != null) txtEditorTitle.setText(latest.getTitle());
+    }
+
+    /** Replace the editor with the copy already stored. */
+    private void reloadStoredDocument(CanvasDocument latest) {
+        currentDocument = latest.snapshot();
+        persistedRevision = currentDocument.getRevision();
+        documentIsNew = false;
+        kind = currentDocument.kind();
+        sourceTooLarge = false;
+        bindDocumentData();
+        applyKindToChrome();
+        if (sourceTooLarge) showSourceTooLarge(currentDocument.getContent().length());
+        markDirty(false);
+        if (txtSaveIndicator != null) txtSaveIndicator.setText("已改用保存的版本");
+        if (viewFlipper != null && viewFlipper.getDisplayedChild() == 1) {
+            previewState.invalidate();
+            renderPreview(true);
+        }
     }
 
     private void persistFailed(String reason) {
@@ -2028,6 +2161,11 @@ public class EditorActivity extends Activity {
         if (layoutEditorTabs != null) layoutEditorTabs.setVisibility(View.GONE);
         if (txtSaveIndicator != null) txtSaveIndicator.setText("");
         if (txtEditorTitle != null) txtEditorTitle.setText("打不开这个文件");
+        if (btnShare != null) btnShare.setEnabled(false);
+        if (btnExportSaf != null) btnExportSaf.setEnabled(false);
+        if (btnSave != null) btnSave.setEnabled(false);
+        if (btnSearch != null) btnSearch.setEnabled(false);
+        if (layoutTitleClickable != null) layoutTitleClickable.setOnClickListener(null);
 
         TextView msg = findViewById(R.id.txt_editor_error_message);
         if (msg != null) msg.setText(message);
@@ -2040,6 +2178,7 @@ public class EditorActivity extends Activity {
     }
 
     private void showRenameDialog() {
+        if (documentLoadFailed || currentDocument == null) return;
         AlertDialog dialog = UiDialogHelper.createThemedInputDialog(
                 this,
                 "重命名 (可包含任意后缀)",
@@ -2047,6 +2186,9 @@ public class EditorActivity extends Activity {
                 currentDocument.getTitle(),
                 newTitle -> {
                     currentDocument.setTitle(newTitle);
+                    if (!currentDocument.isBlob()) {
+                        com.nous.codecanvas.data.FileKindDetector.applyTo(currentDocument);
+                    }
                     kind = currentDocument.kind();
                     txtEditorTitle.setText(newTitle);
                     applyKindToChrome();
@@ -2060,6 +2202,7 @@ public class EditorActivity extends Activity {
 
     /** "Save as": a copy in a location the user picks. The original is untouched. */
     private void startSafExport() {
+        if (documentLoadFailed || currentDocument == null) return;
         saveCurrentDocument(false);
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -2082,7 +2225,8 @@ public class EditorActivity extends Activity {
     }
 
     private void writeToSafUri(Uri uri) {
-        final String content = editCode.getText().toString();
+        if (currentDocument == null) return;
+        final String content = editorTextOrStored();
         new Thread(() -> {
             try {
                 byte[] payload = SourceWriter.payloadBytes(this, currentDocument, content);
@@ -2097,9 +2241,10 @@ public class EditorActivity extends Activity {
     }
 
     private void shareFile() {
+        if (documentLoadFailed || currentDocument == null) return;
         saveCurrentDocument(false);
         final String docTitle = currentDocument.getTitle();
-        final String docContent = editCode.getText().toString();
+        final String docContent = editorTextOrStored();
         new Thread(() -> {
             try {
                 byte[] payload = SourceWriter.payloadBytes(this, currentDocument, docContent);

@@ -241,6 +241,10 @@ public class MainActivity extends Activity {
 
         repository = new DocumentRepository(this);
         appearanceAtCreate = com.nous.codecanvas.util.AppearanceManager.getMode(this);
+        if (savedInstanceState != null) {
+            handledIncomingUri = savedInstanceState.getString("handled_incoming");
+            typeFilter = savedInstanceState.getString("type_filter");
+        }
         try {
             repository.seedDefaultTemplatesIfEmpty();
         } catch (Exception e) {
@@ -250,6 +254,13 @@ public class MainActivity extends Activity {
         initViews();
         setupListeners();
         handleIncomingIntent(getIntent());
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (handledIncomingUri != null) outState.putString("handled_incoming", handledIncomingUri);
+        if (typeFilter != null) outState.putString("type_filter", typeFilter);
     }
 
     @Override
@@ -293,12 +304,9 @@ public class MainActivity extends Activity {
             String shared = intent.getStringExtra(Intent.EXTRA_TEXT);
             if (shared != null && !shared.trim().isEmpty()) {
                 pendingSharedText = shared;
-                List<AiCodeExtractor.CodeBlock> blocks = AiCodeExtractor.extract(shared);
-                if (blocks.isEmpty()) {
-                    createAndLaunchQuickPaste(shared, "");
-                } else {
-                    createAndLaunchQuickPaste(blocks.get(0).code, blocks.get(0).language);
-                }
+                // Same chooser as a paste: several fenced blocks must be picked, not silently
+                // reduced to the first one.
+                offerIncomingText(shared);
             }
         }
     }
@@ -422,9 +430,13 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void loadDocuments() {
-        final boolean dark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+    private boolean isDarkTheme() {
+        return (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                 == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    private void loadDocuments() {
+        final boolean dark = isDarkTheme();
         new Thread(() -> {
             try {
                 List<CanvasDocument> docs = repository.getAllDocuments();
@@ -470,7 +482,7 @@ public class MainActivity extends Activity {
                 com.nous.codecanvas.data.DocumentKind kind = presentation != null
                         ? presentation.kind
                         : doc.kind();
-                if (!kind.name().equals(typeFilter)) continue;
+                if (!matchesTypeFilter(kind)) continue;
             }
             if (!q.isEmpty()) {
                 if (!doc.getTitle().toLowerCase(Locale.ROOT).contains(q)) {
@@ -495,11 +507,24 @@ public class MainActivity extends Activity {
         viewEmpty.setVisibility(filteredDocuments.isEmpty() ? View.VISIBLE : View.GONE);
     }
 
+    /** "其它" is everything that is not HTML, SVG or XML. There is no DocumentKind named RAW. */
+    private static final String FILTER_OTHER = "OTHER";
+
+    private boolean matchesTypeFilter(com.nous.codecanvas.data.DocumentKind kind) {
+        if (typeFilter == null) return true;
+        if (FILTER_OTHER.equals(typeFilter)) {
+            return kind != com.nous.codecanvas.data.DocumentKind.HTML
+                    && kind != com.nous.codecanvas.data.DocumentKind.SVG
+                    && kind != com.nous.codecanvas.data.DocumentKind.XML;
+        }
+        return kind.name().equals(typeFilter);
+    }
+
     private static String filterLabel(String kind) {
         if (RenderKind.HTML.name().equals(kind)) return "HTML 画布";
         if (RenderKind.SVG.name().equals(kind)) return "SVG 矢量图";
         if (RenderKind.XML.name().equals(kind)) return "XML 文档";
-        if (RenderKind.RAW.name().equals(kind)) return "其它文本";
+        if (FILTER_OTHER.equals(kind)) return "其它";
         return "我的文件";
     }
 
@@ -547,7 +572,7 @@ public class MainActivity extends Activity {
                 {"HTML", RenderKind.HTML.name()},
                 {"SVG", RenderKind.SVG.name()},
                 {"XML", RenderKind.XML.name()},
-                {"其它", RenderKind.RAW.name()},
+                {"其它", FILTER_OTHER},
         };
         LayoutInflater inflater = LayoutInflater.from(this);
         for (String[] option : options) {
@@ -756,23 +781,42 @@ public class MainActivity extends Activity {
                 }).start());
     }
 
-    /** Share the selected sources concatenated as one text block. */
+    /** Share the selection. Text files are joined; any image or PDF is shared as its own file. */
     private void shareSelection() {
         List<CanvasDocument> docs = selectedDocuments();
         if (docs.isEmpty()) return;
+        boolean binary = false;
+        for (CanvasDocument d : docs) {
+            if (d.isBlob() || !d.kind().editable()) binary = true;
+        }
+        final boolean shareEach = binary;
         new Thread(() -> {
             try {
-                StringBuilder sb = new StringBuilder();
-                for (CanvasDocument d : docs) {
-                    if (sb.length() > 0) sb.append("\n\n");
-                    sb.append(d.getContent());
-                }
                 String authority = getPackageName() + com.nous.codecanvas.provider.CanvasFileProvider.AUTHORITY_SUFFIX;
-                String name = docs.size() == 1 ? docs.get(0).getTitle() : "code-canvas-" + docs.size() + "-files.txt";
-                com.nous.codecanvas.util.ShareExporter.Staged staged =
-                        com.nous.codecanvas.util.ShareExporter.stage(this, authority, name, sb.toString());
-                runOnUiThread(() -> startActivity(
-                        com.nous.codecanvas.util.ShareExporter.chooserIntent(this, staged, "分享源码")));
+                Intent chooser;
+                if (shareEach) {
+                    java.util.List<com.nous.codecanvas.util.ShareExporter.Staged> staged = new java.util.ArrayList<>();
+                    for (CanvasDocument d : docs) {
+                        byte[] payload = com.nous.codecanvas.util.SourceWriter.payloadBytes(
+                                MainActivity.this, d, d.getContent());
+                        staged.add(com.nous.codecanvas.util.ShareExporter.stageBytes(
+                                MainActivity.this, authority, d.getTitle(), payload));
+                    }
+                    chooser = com.nous.codecanvas.util.ShareExporter.chooserIntent(
+                            MainActivity.this, staged, "分享");
+                } else {
+                    StringBuilder sb = new StringBuilder();
+                    for (CanvasDocument d : docs) {
+                        if (sb.length() > 0) sb.append("\n\n");
+                        sb.append(d.getContent());
+                    }
+                    String name = docs.size() == 1 ? docs.get(0).getTitle() : "code-canvas-" + docs.size() + "-files.txt";
+                    com.nous.codecanvas.util.ShareExporter.Staged staged =
+                            com.nous.codecanvas.util.ShareExporter.stage(this, authority, name, sb.toString());
+                    chooser = com.nous.codecanvas.util.ShareExporter.chooserIntent(this, staged, "分享源码");
+                }
+                final Intent send = chooser;
+                runOnUiThread(() -> startActivity(send));
             } catch (Exception e) {
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "分享失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
@@ -879,8 +923,24 @@ public class MainActivity extends Activity {
             return;
         }
 
-        final String rawString = rawText.toString();
+        offerIncomingText(rawText.toString());
+    }
+
+    /**
+     * Turn pasted or shared text into a document. Several fenced blocks are offered one by one;
+     * they are never concatenated, and a reply that mixes prose with unmarked code asks first.
+     */
+    private void offerIncomingText(String rawString) {
+        if (rawString == null || rawString.isEmpty()) {
+            Toast.makeText(this, "剪贴板内容为空", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (rawString.length() > 2 * 1024 * 1024) {
+            Toast.makeText(this, "剪贴板代码过大 (超过 2MB 限制)", Toast.LENGTH_LONG).show();
+            return;
+        }
         lastHandledClipHash = rawString.hashCode();
+        pendingSharedText = null;
         List<AiCodeExtractor.CodeBlock> blocks = AiCodeExtractor.extract(rawString);
 
         if (blocks.size() > 1) {
@@ -1038,7 +1098,12 @@ public class MainActivity extends Activity {
                 doc.getTitle(),
                 newTitle -> new Thread(() -> {
                     try {
-                        repository.updateDocument(doc.getId(), newTitle, doc.getContent(), doc.getRevision());
+                        CanvasDocument renamed = doc.snapshot();
+                        renamed.setTitle(newTitle);
+                        if (!renamed.isBlob()) {
+                            com.nous.codecanvas.data.FileKindDetector.applyTo(renamed);
+                        }
+                        repository.updateDocument(renamed.getId(), renamed.getTitle(), renamed.getContent(), doc.getRevision());
                         runOnUiThread(() -> {
                             loadDocuments();
                             Toast.makeText(MainActivity.this, "已重命名为 " + newTitle, Toast.LENGTH_SHORT).show();
@@ -1063,7 +1128,11 @@ public class MainActivity extends Activity {
     private void exportDocument(final CanvasDocument doc) {
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("text/plain");
+        String mime = doc.getMimeType();
+        if (mime == null || mime.isEmpty() || "*/*".equals(mime) || "application/octet-stream".equals(mime)) {
+            mime = com.nous.codecanvas.util.ShareExporter.mimeTypeFor(doc.getTitle());
+        }
+        intent.setType(mime);
         intent.putExtra(Intent.EXTRA_TITLE, doc.getTitle());
         try {
             startActivityForResult(intent, REQ_EXPORT_DOCUMENT);
@@ -1190,7 +1259,10 @@ public class MainActivity extends Activity {
 
             android.widget.ImageView cover = convertView.findViewById(R.id.img_doc_preview);
             DocumentPresentation presentation = presentations.get(doc.getId());
-            if (presentation == null) throw new IllegalStateException("Missing prepared document metadata");
+            if (presentation == null) {
+                presentation = new DocumentPresentation(doc, isDarkTheme());
+                presentations.put(doc.getId(), presentation);
+            }
             String key = presentation.previewKey;
             com.nous.codecanvas.data.DocumentKind coverKind = presentation.kind;
             Drawable typeCover = getResources().getDrawable(

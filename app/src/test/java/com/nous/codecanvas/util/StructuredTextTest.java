@@ -180,10 +180,11 @@ public class StructuredTextTest {
     }
 
     @Test
-    public void separatorIsGuessedFromTheFirstLine() {
+    public void separatorIsGuessedFromTheFirstRecords() {
         assertEquals('\t', CsvTable.guessSeparator("a\tb\tc\n1\t2\t3"));
         assertEquals(',', CsvTable.guessSeparator("a,b,c"));
         assertEquals(';', CsvTable.guessSeparator("a;b;c"));
+        assertEquals('\t', CsvTable.guessSeparator("name\na\tb\nc\td"));
     }
 
     @Test

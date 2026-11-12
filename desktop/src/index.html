@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>代码画布 · Code Canvas</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="icon-64.png">
 </head>
 <body>
   <div class="app-shell" id="appShell">
@@ -246,6 +247,13 @@
             <div class="setting-desc">在浏览器或聊天软件复制 HTML / SVG / XML 代码时，右下角滑出 4 秒轻提示，点击即刻预览</div>
           </div>
           <input type="checkbox" class="setting-switch" id="chkClipboardFloat" checked />
+        </label>
+        <label class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">在应用内识别剪贴板代码</div>
+            <div class="setting-desc">回到窗口时，若剪贴板里是可预览的代码，在列表上方询问是否导入。普通聊天文字不会触发</div>
+          </div>
+          <input type="checkbox" class="setting-switch" id="chkClipboardBanner" checked />
         </label>
         <label class="setting-row">
           <div class="setting-info">

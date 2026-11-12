@@ -132,6 +132,7 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:text="代码"
+                android:contentDescription="代码"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:textColor="@color/canvas_on_primary"
@@ -144,6 +145,7 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:text="预览"
+                android:contentDescription="预览"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:textColor="@color/canvas_ink_secondary"
@@ -272,6 +274,7 @@
             android:background="?android:attr/selectableItemBackground"
             android:paddingHorizontal="12dp"
             android:text="粘贴"
+            android:contentDescription="粘贴"
             android:textSize="13sp"
             android:textStyle="bold"
             android:textColor="@color/canvas_primary" />
@@ -336,6 +339,7 @@
                 android:background="@drawable/bg_button_subtle"
                 android:paddingHorizontal="12dp"
                 android:text="刷新"
+                android:contentDescription="刷新预览"
                 android:textSize="12sp"
                 android:textColor="@color/canvas_ink_primary"
                 android:layout_marginEnd="8dp" />
@@ -348,6 +352,7 @@
                 android:background="@drawable/bg_button_subtle"
                 android:paddingHorizontal="12dp"
                 android:text="联网加载"
+                android:contentDescription="联网加载"
                 android:textSize="12sp"
                 android:textColor="@color/canvas_ink_primary" />
 
@@ -359,6 +364,7 @@
                 android:background="@drawable/bg_button_subtle"
                 android:paddingHorizontal="12dp"
                 android:text="全屏"
+                android:contentDescription="全屏预览"
                 android:textSize="12sp"
                 android:textColor="@color/canvas_ink_primary"
                 android:layout_marginStart="8dp" />

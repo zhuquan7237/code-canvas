@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Light theme: derive from Theme.DeviceDefault.Light.NoActionBar for full light consistency -->
-    <style name="AppTheme" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+    <style name="AppTheme.Base" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
         <item name="android:windowBackground">@color/canvas_bg</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
         <item name="android:statusBarColor">@color/canvas_bg</item>
         <item name="android:navigationBarColor">@color/canvas_bg</item>
         <item name="android:textColorPrimary">@color/canvas_ink_primary</item>
@@ -20,6 +19,9 @@
         <item name="android:dialogTheme">@style/AppDialogTheme</item>
         <item name="android:alertDialogTheme">@style/AppDialogTheme</item>
     </style>
+
+    <!-- API 26 cannot read windowLightNavigationBar. The v27 overlay adds it. -->
+    <style name="AppTheme" parent="AppTheme.Base" />
 
     <style name="AppDialogTheme" parent="@android:style/Theme.DeviceDefault.Light.Dialog">
         <item name="android:windowBackground">@drawable/bg_dialog_surface</item>

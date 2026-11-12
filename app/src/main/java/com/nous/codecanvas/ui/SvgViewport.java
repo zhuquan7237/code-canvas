@@ -65,6 +65,9 @@ public class SvgViewport extends FrameLayout {
 
     private View content;
     private TransformSink sink;
+    /** When true, scale {@link #viewTarget} itself (raster images). SVG uses {@link #sink} instead. */
+    private boolean useViewTransform;
+    private View viewTarget;
     /** Uniform scale applied to the content; 1 means "at the fitted size". */
     private float scale = 1f;
     private float minScale = MIN_ZOOM_FACTOR;
@@ -176,6 +179,27 @@ public class SvgViewport extends FrameLayout {
     public void setTransformSink(TransformSink sink) {
         this.sink = sink;
         reset();
+    }
+
+    /**
+     * Raster images cannot take a CSS transform inside the WebView. Scale this view instead.
+     * Turning it off restores the target to identity so a later SVG page is not also zoomed.
+     */
+    public void setUseViewTransform(boolean use) {
+        this.useViewTransform = use;
+        if (!use && viewTarget != null) {
+            viewTarget.setScaleX(1f);
+            viewTarget.setScaleY(1f);
+            viewTarget.setTranslationX(0f);
+            viewTarget.setTranslationY(0f);
+        }
+        applyTransform();
+    }
+
+    /** The view that receives the raster transform. Does not reparent it. */
+    public void setViewTransformTarget(View view) {
+        this.viewTarget = view;
+        applyTransform();
     }
 
     public void setOnViewportListener(OnViewportListener listener) {
@@ -298,6 +322,15 @@ public class SvgViewport extends FrameLayout {
     }
 
     private void applyTransform() {
+        if (useViewTransform && viewTarget != null) {
+            viewTarget.setPivotX(0f);
+            viewTarget.setPivotY(0f);
+            viewTarget.setScaleX(scale);
+            viewTarget.setScaleY(scale);
+            viewTarget.setTranslationX(translateX);
+            viewTarget.setTranslationY(translateY);
+            return;
+        }
         if (sink != null) {
             sink.onTransform(scale, translateX, translateY);
             return;

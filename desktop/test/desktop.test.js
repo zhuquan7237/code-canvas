@@ -1,4 +1,6 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const Core = require('../src/core.js');
 
 // 1. RenderKind Detection
@@ -89,4 +91,40 @@ assert.throws(() => {
   }));
 }, /不受信任/);
 
-console.log('✓ All Code Canvas Desktop core unit tests passed (28 assertions).');
+const published = Core.parseDesktopUpdateManifest(
+  fs.readFileSync(path.join(__dirname, '../../docs/update/desktop-latest.json'), 'utf8')
+);
+assert.strictEqual(published.versionCode, 50);
+assert.strictEqual(published.size, 812032);
+assert.ok(published.downloadUrls.length >= 2);
+const described = Core.describeDesktopUpdate(published, 50);
+assert.strictEqual(described.status, 'ok');
+assert.strictEqual(described.hasUpdate, false);
+assert.strictEqual(described.fileSizeBytes, 812032);
+assert.ok(described.changelog.includes('灵动预览浮窗'));
+
+const legacy = Core.parseDesktopUpdateManifest(JSON.stringify({
+  versionName: '0.5.0',
+  versionCode: 50,
+  setupUrl: 'https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe',
+  githubUrl: 'https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.0/CodeCanvas-Setup-0.5.0.exe',
+  sha256: 'b'.repeat(64),
+  fileSizeBytes: 1000,
+  changelog: '旧清单'
+}));
+assert.strictEqual(legacy.size, 1000);
+assert.strictEqual(legacy.fallbackSetupUrl, 'https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.0/CodeCanvas-Setup-0.5.0.exe');
+assert.strictEqual(Core.describeDesktopUpdate(legacy, 40).hasUpdate, true);
+
+const evilSvg = Core.buildThumbnailMarkup({
+  content: '<svg viewBox="0 0 10 10" onload="alert(1)"><script>alert(1)</script><foreignObject><div></div></foreignObject><rect width="10" height="10"/></svg>'
+}, Core.RenderKind.SVG);
+assert.ok(evilSvg.includes('<svg'));
+assert.ok(!/<script/i.test(evilSvg));
+assert.ok(!/onload\s*=/i.test(evilSvg));
+assert.ok(!/foreignObject/i.test(evilSvg));
+
+const scripty = '<div><script>alert(1)</script><p>a</p></div>';
+assert.strictEqual(Core.formatMarkup(scripty, Core.RenderKind.HTML), scripty);
+
+console.log('✓ All Code Canvas Desktop core unit tests passed.');

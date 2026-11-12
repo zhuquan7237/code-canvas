@@ -574,7 +574,7 @@ namespace CodeCanvasNative
                 TraceLog("EnsureCoreWebView2Async succeeded!");
 
                 _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
-                _webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+                _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
                 _webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
 
                 await _webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(GetBridgeInjectionScript());
@@ -582,6 +582,10 @@ namespace CodeCanvasNative
                 _webView.CoreWebView2.NavigationCompleted += (s, args) =>
                 {
                     TraceLog("NavigationCompleted IsSuccess=" + args.IsSuccess + " WebErrorStatus=" + args.WebErrorStatus);
+                    if (!args.IsSuccess)
+                    {
+                        return;
+                    }
                     _webViewReady = true;
                     if (!string.IsNullOrEmpty(_pendingClipTextToPreview))
                     {
@@ -681,7 +685,7 @@ namespace CodeCanvasNative
 
         private void SendRpcResponse(int reqId, object payload, string error)
         {
-            if (IsDisposed || !_webViewReady && _webView.CoreWebView2 == null) return;
+            if (IsDisposed || !_webViewReady || _webView == null || _webView.CoreWebView2 == null) return;
             string payloadJson = _json.Serialize(payload);
             string errJson = error == null ? "null" : _json.Serialize(error);
             ExecuteRendererScript("window.__canvasResolveRpc(" + reqId + ", " + payloadJson + ", " + errJson + ");");
@@ -698,7 +702,11 @@ namespace CodeCanvasNative
             switch (method)
             {
                 case "docs:list":
-                    return ReadDocuments();
+                {
+                    List<Dictionary<string, object>> listed = ReadDocuments();
+                    listed.Sort((a, b) => UpdatedAtMillis(b).CompareTo(UpdatedAtMillis(a)));
+                    return listed;
+                }
 
                 case "docs:save":
                 {
@@ -761,8 +769,15 @@ namespace CodeCanvasNative
                         }
                         List<Dictionary<string, object>> docs = ReadDocuments();
                         List<Dictionary<string, object>> imported = new List<Dictionary<string, object>>();
+                        int skippedLarge = 0;
                         foreach (string filePath in ofd.FileNames)
                         {
+                            FileInfo info = new FileInfo(filePath);
+                            if (info.Length > 2L * 1024L * 1024L)
+                            {
+                                skippedLarge++;
+                                continue;
+                            }
                             string content = File.ReadAllText(filePath, Encoding.UTF8);
                             Dictionary<string, object> rec = new Dictionary<string, object>
                             {
@@ -776,6 +791,10 @@ namespace CodeCanvasNative
                             imported.Add(rec);
                         }
                         WriteDocuments(docs);
+                        if (skippedLarge > 0 && imported.Count == 0)
+                        {
+                            throw new InvalidOperationException("文件超过 2MB，这一版暂不导入");
+                        }
                         return imported;
                     }
                 }
@@ -879,10 +898,23 @@ namespace CodeCanvasNative
                         string remoteName = data.ContainsKey("versionName") ? Convert.ToString(data["versionName"]) : "";
                         string setupUrl = data.ContainsKey("setupUrl") ? Convert.ToString(data["setupUrl"]) : (data.ContainsKey("downloadUrl") ? Convert.ToString(data["downloadUrl"]) : "");
                         string sha256 = data.ContainsKey("sha256") ? Convert.ToString(data["sha256"]).ToLowerInvariant() : "";
-                        long fileSize = data.ContainsKey("fileSizeBytes") ? Convert.ToInt64(data["fileSizeBytes"]) : 0;
+                        long fileSize = 0;
+                        if (data.ContainsKey("fileSizeBytes") && data["fileSizeBytes"] != null)
+                        {
+                            fileSize = Convert.ToInt64(data["fileSizeBytes"]);
+                        }
+                        else if (data.ContainsKey("size") && data["size"] != null)
+                        {
+                            fileSize = Convert.ToInt64(data["size"]);
+                        }
                         string changelog = data.ContainsKey("changelog") ? Convert.ToString(data["changelog"]) : "";
+                        if (string.IsNullOrEmpty(changelog) && data.ContainsKey("notes"))
+                        {
+                            changelog = Convert.ToString(data["notes"]);
+                        }
+                        bool shaOk = System.Text.RegularExpressions.Regex.IsMatch(sha256 ?? "", "^[0-9a-f]{64}$");
 
-                        if (remoteCode > 0 && !string.IsNullOrEmpty(remoteName) && IsTrustedSetupUrl(setupUrl))
+                        if (remoteCode > 0 && !string.IsNullOrEmpty(remoteName) && shaOk && fileSize > 0 && IsTrustedSetupUrl(setupUrl))
                         {
                             return new Dictionary<string, object>
                             {
@@ -976,15 +1008,21 @@ namespace CodeCanvasNative
             {
                 Uri u = new Uri(url);
                 if (!string.Equals(u.Scheme, "https", StringComparison.OrdinalIgnoreCase)) return false;
+                if (!string.IsNullOrEmpty(u.UserInfo)) return false;
                 string h = u.Host.ToLowerInvariant();
-                if (h != "relay.zhuquan.xyz" &&
-                    h != "github.com" &&
-                    h != "objects.githubusercontent.com" &&
-                    h != "release-assets.githubusercontent.com")
+                string path = u.AbsolutePath ?? "";
+                if (!path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) return false;
+                if (h == "relay.zhuquan.xyz")
                 {
-                    return false;
+                    return path.StartsWith("/dl/", StringComparison.OrdinalIgnoreCase);
                 }
-                return u.AbsolutePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
+                if (h == "github.com")
+                {
+                    return path.StartsWith("/zhuquan7237/code-canvas/releases/download/", StringComparison.OrdinalIgnoreCase);
+                }
+                // GitHub's download redirect lands on these hosts. The path is an opaque CDN id,
+                // so the host plus an .exe name is the check; the SHA-256 is checked after download.
+                return h == "objects.githubusercontent.com" || h == "release-assets.githubusercontent.com";
             }
             catch { return false; }
         }
@@ -1096,9 +1134,18 @@ namespace CodeCanvasNative
         {
             try
             {
-                File.WriteAllText(_prefsFile, _json.Serialize(prefs), new UTF8Encoding(false));
+                Dictionary<string, object> stored = new Dictionary<string, object>(prefs);
+                stored.Remove("systemDark");
+                File.WriteAllText(_prefsFile, _json.Serialize(stored), new UTF8Encoding(false));
             }
             catch { }
+        }
+
+        private static long UpdatedAtMillis(Dictionary<string, object> doc)
+        {
+            if (doc == null || !doc.ContainsKey("updatedAt") || doc["updatedAt"] == null) return 0L;
+            try { return Convert.ToInt64(doc["updatedAt"]); }
+            catch { return 0L; }
         }
 
         private bool GetPrefBool(string key, bool fallback)

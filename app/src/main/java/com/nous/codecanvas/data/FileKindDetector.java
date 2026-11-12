@@ -1,5 +1,8 @@
 package com.nous.codecanvas.data;
 
+import com.nous.codecanvas.model.CanvasDocument;
+
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
@@ -139,6 +142,24 @@ public final class FileKindDetector {
             if (b < 0x09 || (b > 0x0D && b < 0x20)) control++;
         }
         return control * 100 / sample > 5;
+    }
+
+    /**
+     * Re-decide a text document's kind from its current title and a prefix of its text.
+     *
+     * <p>Stored {@code kind} used to win forever, so renaming {@code notes.txt} to {@code art.svg}
+     * left the file opening as plain text. Blobs are left alone: an image's bytes are the type,
+     * and a renamed {@code .png} must not become a text file just because the editor has no text.</p>
+     */
+    public static void applyTo(CanvasDocument doc) {
+        if (doc == null || doc.isBlob()) return;
+        String content = doc.getContent() == null ? "" : doc.getContent();
+        int n = Math.min(content.length(), 4096);
+        byte[] head = content.substring(0, n).getBytes(StandardCharsets.UTF_8);
+        DocumentKind detected = detect(doc.getTitle(), doc.getMimeType(), head);
+        if (detected != null) {
+            doc.setKindName(detected.name());
+        }
     }
 
     private static boolean startsWith(byte[] data, byte[] prefix) {
