@@ -40,16 +40,15 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            getWindow().setDecorFitsSystemWindows(false);
+        }
         setContentView(R.layout.activity_settings);
 
         View root = findViewById(R.id.root_settings);
         if (root != null) {
             root.setOnApplyWindowInsetsListener((v, insets) -> {
-                v.setPadding(
-                        insets.getSystemWindowInsetLeft(),
-                        insets.getSystemWindowInsetTop(),
-                        insets.getSystemWindowInsetRight(),
-                        insets.getSystemWindowInsetBottom());
+                SystemBarInsets.apply(v, insets);
                 return insets;
             });
         }
@@ -63,6 +62,10 @@ public class SettingsActivity extends Activity {
         setupCache();
         setupAbout();
         setupUpdater();
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::finish);
+        }
     }
 
     /**

@@ -227,17 +227,15 @@ public class EditorActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            getWindow().setDecorFitsSystemWindows(false);
+        }
         setContentView(R.layout.activity_editor);
 
         View rootView = findViewById(R.id.root_editor);
         if (rootView != null) {
             rootView.setOnApplyWindowInsetsListener((v, insets) -> {
-                v.setPadding(
-                        insets.getSystemWindowInsetLeft(),
-                        insets.getSystemWindowInsetTop(),
-                        insets.getSystemWindowInsetRight(),
-                        insets.getSystemWindowInsetBottom()
-                );
+                SystemBarInsets.apply(v, insets);
                 return insets;
             });
         }
@@ -245,6 +243,10 @@ public class EditorActivity extends Activity {
         repository = new DocumentRepository(this);
         initViews();
         setupListeners();
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::onBackInvoked);
+        }
 
         String docId = getIntent().getStringExtra(EXTRA_DOC_ID);
         if (savedInstanceState != null) {
@@ -303,6 +305,28 @@ public class EditorActivity extends Activity {
             startPreview = true;
         }
         switchToTab(startPreview ? 1 : 0);
+        applyEditorChrome();
+    }
+
+    @Override
+    public void onConfigurationChanged(android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        applyEditorChrome();
+    }
+
+    /**
+     * A landscape phone is only about 360dp tall. The preview chrome (badge row, script switch)
+     * was leaving the artwork as a postage stamp. Those controls come back in portrait; zoom stays.
+     */
+    private void applyEditorChrome() {
+        boolean land = getResources().getConfiguration().orientation
+                == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        View actions = findViewById(R.id.preview_action_row);
+        if (actions != null) actions.setVisibility(land ? View.GONE : View.VISIBLE);
+        if (switchAllowJs != null && kind != null) {
+            boolean showScript = !land && kind.hasSourceTab() && !sourceTooLarge;
+            switchAllowJs.setVisibility(showScript ? View.VISIBLE : View.GONE);
+        }
     }
 
     @Override
@@ -1620,6 +1644,7 @@ public class EditorActivity extends Activity {
         previewViewport.setInteractive(zoomable);
         // The script switch is meaningless for a raster image or a PDF.
         switchAllowJs.setVisibility(hasSource ? View.VISIBLE : View.GONE);
+        applyEditorChrome();
     }
 
     // ------------------------------------------------------------------ preview
@@ -1875,14 +1900,34 @@ public class EditorActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        // Back means: leave fullscreen first, then close the search, then the page (with a prompt
-        // when something is unsaved). Never silently drop edits.
+        if (!consumeEditorBack()) super.onBackPressed();
+    }
+
+    /** Fullscreen and search close first. Leaving a dirty file still asks. */
+    private boolean consumeEditorBack() {
+        if (activeSheet != null && activeSheet.isShowing()) {
+            activeSheet.dismiss();
+            return true;
+        }
+        if (activeDialog != null && activeDialog.isShowing()) {
+            activeDialog.dismiss();
+            return true;
+        }
         if (isFullscreen) {
             setFullscreen(false);
-            return;
+            return true;
         }
-        if (searchBar.getVisibility() == View.VISIBLE) {
+        if (searchBar != null && searchBar.getVisibility() == View.VISIBLE) {
             closeSearch();
+            return true;
+        }
+        return false;
+    }
+
+    private void onBackInvoked() {
+        if (consumeEditorBack()) return;
+        if (!dirty) {
+            finish();
             return;
         }
         confirmLeave();

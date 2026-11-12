@@ -16,17 +16,19 @@
          page, not a separate slab - no surface break, no divider. -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="60dp"
+        android:layout_height="wrap_content"
+        android:minHeight="64dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp">
+        android:paddingVertical="8dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp">
 
         <ImageButton
             android:id="@+id/btn_drawer"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:padding="9dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
             android:scaleType="fitCenter"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_menu"
@@ -54,16 +56,18 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="1dp"
-                android:text="粘贴代码，立即看见"
+                android:text="粘贴即可预览"
                 android:textSize="12sp"
+                android:singleLine="true"
+                android:ellipsize="end"
                 android:textColor="@color/canvas_ink_tertiary" />
         </LinearLayout>
 
         <ImageButton
             android:id="@+id/btn_import"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:padding="9dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
             android:scaleType="fitCenter"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_import"
@@ -71,10 +75,10 @@
 
         <ImageButton
             android:id="@+id/btn_new"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:layout_marginStart="6dp"
-            android:padding="9dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="2dp"
+            android:padding="12dp"
             android:scaleType="fitCenter"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_add"
@@ -82,10 +86,10 @@
 
         <ImageButton
             android:id="@+id/btn_settings"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:layout_marginStart="6dp"
-            android:padding="9dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="2dp"
+            android:padding="12dp"
             android:scaleType="fitCenter"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_settings"
@@ -143,7 +147,18 @@
             android:textColorHint="@color/canvas_ink_tertiary"
             android:inputType="text"
             android:singleLine="true"
+            android:imeOptions="actionSearch"
             android:importantForAutofill="no" />
+
+        <ImageButton
+            android:id="@+id/btn_search_clear"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="10dp"
+            android:background="@drawable/bg_icon_button"
+            android:src="@drawable/ic_close"
+            android:visibility="gone"
+            android:contentDescription="清空搜索" />
     </LinearLayout>
 
     <!-- Section header: count on the left, update + view-mode on the right. -->
@@ -236,11 +251,13 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
-            android:gravity="center"
-            android:paddingHorizontal="48dp"
+            android:gravity="center_horizontal|top"
+            android:paddingHorizontal="32dp"
+            android:paddingTop="28dp"
             android:visibility="gone">
 
             <ImageView
+                android:id="@+id/img_empty"
                 android:layout_width="96dp"
                 android:layout_height="96dp"
                 android:src="@drawable/ic_empty_canvas"

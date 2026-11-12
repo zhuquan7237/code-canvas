@@ -4,7 +4,8 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="68dp"
+        android:layout_height="wrap_content"
+        android:minHeight="72dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:padding="12dp"
@@ -55,32 +56,33 @@
                 android:paddingHorizontal="6dp"
                 android:paddingVertical="2dp"
                 android:text="HTML"
-                android:textSize="10sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:textColor="@color/canvas_ink_secondary" />
 
             <TextView
                 android:id="@+id/txt_doc_size"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="1 KB"
-                android:textSize="11sp"
-                android:textColor="@color/canvas_ink_secondary" />
-
-            <TextView
-                android:id="@+id/txt_doc_time"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
-                android:text="刚刚"
-                android:textSize="11sp"
-                android:gravity="end"
+                android:text="1 KB"
+                android:textSize="12sp"
                 android:singleLine="true"
                 android:ellipsize="end"
                 android:textColor="@color/canvas_ink_secondary" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/txt_doc_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="刚刚"
+            android:textSize="12sp"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:textColor="@color/canvas_ink_tertiary" />
     </LinearLayout>
 
     <ImageButton

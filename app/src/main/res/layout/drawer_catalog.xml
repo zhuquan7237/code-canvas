@@ -69,21 +69,15 @@
                 android:contentDescription="关闭目录" />
         </LinearLayout>
 
-        <!-- Type filter: one row of pills, single-select. -->
-        <HorizontalScrollView
+        <!-- Type filters wrap onto a second line. A single scrolling row hid 「其它」
+             off the edge of a 360dp phone, and nothing showed that it could scroll. -->
+        <LinearLayout
+            android:id="@+id/drawer_filters"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:paddingHorizontal="18dp"
-            android:clipToPadding="false"
-            android:scrollbars="none">
-
-            <LinearLayout
-                android:id="@+id/drawer_filters"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal" />
-        </HorizontalScrollView>
+            android:layout_marginTop="12dp"
+            android:paddingHorizontal="12dp"
+            android:orientation="vertical" />
 
         <View
             android:layout_width="match_parent"

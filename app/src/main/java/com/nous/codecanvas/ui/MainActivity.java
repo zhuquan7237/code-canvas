@@ -10,8 +10,11 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -224,17 +227,15 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (Build.VERSION.SDK_INT >= 30) {
+            getWindow().setDecorFitsSystemWindows(false);
+        }
         setContentView(R.layout.activity_main);
 
         View rootView = findViewById(R.id.root_main);
         if (rootView != null) {
             rootView.setOnApplyWindowInsetsListener((v, insets) -> {
-                v.setPadding(
-                        insets.getSystemWindowInsetLeft(),
-                        insets.getSystemWindowInsetTop(),
-                        insets.getSystemWindowInsetRight(),
-                        insets.getSystemWindowInsetBottom()
-                );
+                SystemBarInsets.apply(v, insets);
                 return insets;
             });
         }
@@ -331,16 +332,56 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    public void onConfigurationChanged(android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        applyHomeChrome();
+        buildFilterChips();
+    }
+
+    /** Landscape phones are short. Drop the subtitle and tighten the hero so the list stays usable. */
+    private void applyHomeChrome() {
+        boolean land = getResources().getConfiguration().orientation
+                == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        TextView sub = findViewById(R.id.txt_brand_sub);
+        if (sub != null) sub.setVisibility(land ? View.GONE : View.VISIBLE);
+        if (btnQuickPaste != null && btnQuickPaste.getLayoutParams() instanceof android.widget.LinearLayout.LayoutParams) {
+            android.widget.LinearLayout.LayoutParams lp =
+                    (android.widget.LinearLayout.LayoutParams) btnQuickPaste.getLayoutParams();
+            lp.height = dp(land ? 44 : 50);
+            lp.topMargin = dp(land ? 4 : 10);
+            btnQuickPaste.setLayoutParams(lp);
+        }
+    }
+
+    @Override
     public void onBackPressed() {
+        if (consumeBack()) return;
+        super.onBackPressed();
+    }
+
+    /** Drawer and multi-select have to go first. The system back gesture uses the same path. */
+    private boolean consumeBack() {
+        if (activeSheet != null && activeSheet.isShowing()) {
+            activeSheet.dismiss();
+            return true;
+        }
+        if (activeDialog != null && activeDialog.isShowing()) {
+            activeDialog.dismiss();
+            return true;
+        }
         if (selectionMode) {
             exitSelectionMode();
-            return;
+            return true;
         }
         if (drawerRoot != null && drawerRoot.getVisibility() == View.VISIBLE) {
             closeDrawer();
-            return;
+            return true;
         }
-        super.onBackPressed();
+        return false;
+    }
+
+    private void onBackInvoked() {
+        if (!consumeBack()) finish();
     }
 
     private void initViews() {
@@ -375,6 +416,11 @@ public class MainActivity extends Activity {
         gridAdapter = new DocumentAdapter();
         gridDocuments.setAdapter(gridAdapter);
         setGrid(getPreferences(0).getBoolean("grid", false));
+        applyHomeChrome();
+        if (Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::onBackInvoked);
+        }
         findViewById(R.id.btn_layout_list).setOnClickListener(v -> setGrid(false));
         findViewById(R.id.btn_layout_grid).setOnClickListener(v -> setGrid(true));
 
@@ -415,9 +461,22 @@ public class MainActivity extends Activity {
             });
         }
 
+        View clear = findViewById(R.id.btn_search_clear);
+        if (clear != null) {
+            clear.setOnClickListener(v -> editSearch.setText(""));
+        }
+        editSearch.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                if (imm != null) imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+                return true;
+            }
+            return false;
+        });
         editSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (clear != null) clear.setVisibility(s.length() == 0 ? View.GONE : View.VISIBLE);
                 // Coalesce the rebuild. Filtering 120 documents and rebinding the whole ListView on
                 // every keystroke made typing feel heavy (measured 495ms per key in a large
                 // library); the query is applied once the burst settles.
@@ -504,7 +563,25 @@ public class MainActivity extends Activity {
                     ? "全部作品 · " + filteredDocuments.size()
                     : filterLabel(typeFilter) + " · " + filteredDocuments.size());
         }
-        viewEmpty.setVisibility(filteredDocuments.isEmpty() ? View.VISIBLE : View.GONE);
+        boolean noMatch = filteredDocuments.isEmpty();
+        viewEmpty.setVisibility(noMatch ? View.VISIBLE : View.GONE);
+        TextView emptyTitle = findViewById(R.id.txt_empty);
+        TextView emptyHint = findViewById(R.id.txt_empty_hint);
+        View emptyPaste = findViewById(R.id.btn_empty_paste);
+        View emptyImport = findViewById(R.id.btn_empty_import);
+        View emptyIcon = findViewById(R.id.img_empty);
+        boolean libraryEmpty = allDocuments.isEmpty();
+        if (emptyIcon != null) emptyIcon.setVisibility(libraryEmpty ? View.VISIBLE : View.GONE);
+        if (emptyTitle != null) {
+            emptyTitle.setText(libraryEmpty ? "把第一段代码变成作品" : "没有符合的作品");
+        }
+        if (emptyHint != null) {
+            emptyHint.setText(libraryEmpty
+                    ? "在 AI 聊天里复制 HTML、SVG 或 XML 代码，粘进来就能看到效果，不用装浏览器。"
+                    : "换个关键词，或在目录里改回「全部」。已有的作品还在。");
+        }
+        if (emptyPaste != null) emptyPaste.setVisibility(libraryEmpty ? View.VISIBLE : View.GONE);
+        if (emptyImport != null) emptyImport.setVisibility(libraryEmpty ? View.VISIBLE : View.GONE);
     }
 
     /** "其它" is everything that is not HTML, SVG or XML. There is no DocumentKind named RAW. */
@@ -564,7 +641,7 @@ public class MainActivity extends Activity {
         buildFilterChips();
     }
 
-    /** 全部 / HTML / SVG / XML / 其它 — one pill row, single-select. */
+    /** 全部 / HTML / SVG / XML / 其它. Chips wrap so the last one is not clipped on a narrow phone. */
     private void buildFilterChips() {
         drawerFilters.removeAllViews();
         String[][] options = {
@@ -574,9 +651,14 @@ public class MainActivity extends Activity {
                 {"XML", RenderKind.XML.name()},
                 {"其它", FILTER_OTHER},
         };
+        int max = drawerPanel.getWidth() - dp(24);
+        if (max < dp(160)) max = dp(240);
         LayoutInflater inflater = LayoutInflater.from(this);
+        LinearLayout row = newFilterRow();
+        drawerFilters.addView(row);
+        int used = 0;
         for (String[] option : options) {
-            View chip = inflater.inflate(R.layout.item_drawer_filter, drawerFilters, false);
+            View chip = inflater.inflate(R.layout.item_drawer_filter, row, false);
             boolean active = option[1] == null ? typeFilter == null : option[1].equals(typeFilter);
             chip.setSelected(active);
             TextView label = chip.findViewById(R.id.filter_label);
@@ -587,11 +669,30 @@ public class MainActivity extends Activity {
                 buildFilterChips();
                 applyFilters();
             });
-            drawerFilters.addView(chip);
+            chip.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+            int width = chip.getMeasuredWidth() + dp(8);
+            if (used > 0 && used + width > max) {
+                row = newFilterRow();
+                drawerFilters.addView(row);
+                used = 0;
+            }
+            // Pin the measured width. Otherwise a nearly full row squeezes the last
+            // chip and "XML" wraps into two letters.
+            row.addView(chip, new LinearLayout.LayoutParams(
+                    chip.getMeasuredWidth(), LinearLayout.LayoutParams.WRAP_CONTENT));
+            used += width;
         }
     }
 
+    private LinearLayout newFilterRow() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        return row;
+    }
+
     private void openDrawer() {
+        buildFilterChips();
         drawerAdapter.notifyDataSetChanged();
         View scrim = findViewById(R.id.drawer_scrim);
         drawerRoot.setVisibility(View.VISIBLE);
