@@ -136,13 +136,14 @@ public class CodeCanvasActivityE2ETest extends android.test.InstrumentationTestC
         instrumentation.waitForIdleSync();
         assertEquals("12REPLACED67890", editCode.getText().toString());
 
-        // Test undo of replaced text
+        // Test undo of replaced text. A paste is one deliberate action, so one undo must restore
+        // the text as it was immediately before the paste.
         runTestOnUiThread(() -> {
             assertTrue("Undo should be enabled after replace", btnUndo.isEnabled());
             btnUndo.performClick();
         });
         instrumentation.waitForIdleSync();
-        assertEquals("1234567890", editCode.getText().toString());
+        assertEquals("一次撤销必须回到粘贴前的内容", "1234567890", editCode.getText().toString());
 
         // Step 4: Test Edit, Undo, Redo
         runTestOnUiThread(() -> {

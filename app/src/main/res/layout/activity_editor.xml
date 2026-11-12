@@ -10,7 +10,7 @@
     <LinearLayout
         android:id="@+id/header_editor"
         android:layout_width="match_parent"
-        android:layout_height="52dp"
+        android:layout_height="56dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="12dp"
@@ -111,16 +111,16 @@
     <LinearLayout
         android:id="@+id/layout_editor_tabs"
         android:layout_width="match_parent"
-        android:layout_height="44dp"
+        android:layout_height="48dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingHorizontal="20dp"
-        android:paddingBottom="8dp"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="10dp"
         android:background="@color/canvas_surface">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:padding="3dp"
             android:background="@drawable/bg_segment_track">
@@ -156,7 +156,7 @@
     <LinearLayout
         android:id="@+id/search_bar"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="54dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="12dp"
@@ -167,7 +167,7 @@
         <EditText
             android:id="@+id/edit_search_query"
             android:layout_width="0dp"
-            android:layout_height="36dp"
+            android:layout_height="40dp"
             android:layout_weight="1"
             android:background="@drawable/bg_search"
             android:paddingHorizontal="10dp"
@@ -239,7 +239,7 @@
     <LinearLayout
         android:id="@+id/toolbar_editor_actions"
         android:layout_width="match_parent"
-        android:layout_height="44dp"
+        android:layout_height="48dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="12dp"
@@ -305,14 +305,14 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingHorizontal="16dp"
-        android:paddingBottom="8dp"
+        android:paddingHorizontal="14dp"
+        android:paddingBottom="10dp"
         android:background="@color/canvas_surface"
         android:visibility="gone">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="40dp"
+            android:layout_height="44dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
 
@@ -369,7 +369,7 @@
         <LinearLayout
             android:id="@+id/viewport_toolbar"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="46dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:visibility="gone">
@@ -377,7 +377,7 @@
             <Button
                 android:id="@+id/btn_viewport_fit"
                 android:layout_width="0dp"
-                android:layout_height="32dp"
+                android:layout_height="38dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_button_subtle"
                 android:text="适应窗口"
@@ -388,7 +388,7 @@
             <Button
                 android:id="@+id/btn_viewport_fit_content"
                 android:layout_width="0dp"
-                android:layout_height="32dp"
+                android:layout_height="38dp"
                 android:layout_weight="1"
                 android:layout_marginStart="6dp"
                 android:background="@drawable/bg_button_subtle"
@@ -399,8 +399,8 @@
 
             <Button
                 android:id="@+id/btn_viewport_zoom_out"
-                android:layout_width="42dp"
-                android:layout_height="32dp"
+                android:layout_width="46dp"
+                android:layout_height="38dp"
                 android:layout_marginStart="6dp"
                 android:background="@drawable/bg_button_subtle"
                 android:text="−"
@@ -422,8 +422,8 @@
 
             <Button
                 android:id="@+id/btn_viewport_zoom_in"
-                android:layout_width="42dp"
-                android:layout_height="32dp"
+                android:layout_width="46dp"
+                android:layout_height="38dp"
                 android:background="@drawable/bg_button_subtle"
                 android:text="+"
                 android:textSize="16sp"
@@ -499,20 +499,16 @@
                 android:layout_marginBottom="12dp"
                 android:background="@color/canvas_border" />
 
-            <HorizontalScrollView
+            <ScrollView
+                android:id="@+id/scroll_code"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:fillViewport="true">
-
-                <ScrollView
-                    android:id="@+id/scroll_code"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:fillViewport="true">
+                android:fillViewport="true"
+                android:scrollbars="vertical">
 
                     <com.nous.codecanvas.ui.CodeEditText
                         android:id="@+id/edit_code"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:minWidth="360dp"
                         android:gravity="top|start"
@@ -526,9 +522,9 @@
                         android:textColorHint="@color/canvas_ink_secondary"
                         android:inputType="textMultiLine|textNoSuggestions"
                         android:importantForAutofill="no"
-                        android:saveEnabled="false" />
-                </ScrollView>
-            </HorizontalScrollView>
+                        android:saveEnabled="false"
+                        android:scrollHorizontally="true" />
+            </ScrollView>
         </LinearLayout>
 
         <!-- Child 1: the preview canvas is a rounded card on the app background,
@@ -537,9 +533,9 @@
             android:id="@+id/container_preview_canvas"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingHorizontal="10dp"
-            android:paddingTop="10dp"
-            android:paddingBottom="12dp">
+            android:paddingHorizontal="12dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="14dp">
 
             <FrameLayout
                 android:id="@+id/preview_canvas_card"
@@ -641,7 +637,7 @@
     <HorizontalScrollView
         android:id="@+id/editor_helpers"
         android:layout_width="match_parent"
-        android:layout_height="46dp"
+        android:layout_height="50dp"
         android:fillViewport="false"
         android:scrollbars="none"
         android:requiresFadingEdge="horizontal"

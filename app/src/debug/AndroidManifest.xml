@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only overlay.
+
+  The instrumented suite opens dozens of WebView-backed screens in a single process; the default
+  heap plus a WebView sandbox ran out and the process was killed mid-run, which surfaces as
+  "Process crashed" with no Java exception. largeHeap applies to the debug build only — the release
+  APK keeps the default heap, because this is a test-harness need, not a product need.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:largeHeap="true" />
+</manifest>

@@ -12,8 +12,8 @@ android {
         applicationId = "com.nous.codecanvas"
         minSdk = 26
         targetSdk = 35
-        versionCode = 53
-        versionName = "0.5.3"
+        versionCode = 54
+        versionName = "0.5.4"
 
         testInstrumentationRunner = "android.test.InstrumentationTestRunner"
     }
@@ -70,6 +70,7 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
+
 
     useLibrary("android.test.runner")
     useLibrary("android.test.base")

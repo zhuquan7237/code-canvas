@@ -42,6 +42,9 @@ public class SvgViewport extends FrameLayout {
     private static final float DOUBLE_TAP_FACTOR = 2.5f;
     /** How much of the viewport must stay covered by content while panning. */
     private static final float MIN_VISIBLE_FRACTION = 0.15f;
+    /** Two taps closer than this (in time and space) are a double tap. */
+    private static final long DOUBLE_TAP_TIMEOUT_MS = 320L;
+    private static final float TAP_SLOP_PX = 60f;
 
     /** Where the transform goes when the renderer can apply it itself (the SVG WebView). */
     public interface TransformSink {
@@ -137,15 +140,9 @@ public class SvgViewport extends FrameLayout {
                 return true;
             }
 
-            @Override
-            public boolean onDoubleTap(MotionEvent e) {
-                if (isFitted()) {
-                    zoomTo(DOUBLE_TAP_FACTOR, e.getX(), e.getY());
-                } else {
-                    fitToWindow();
-                }
-                return true;
-            }
+            // Double tap is handled in onTouchEvent, not here: GestureDetector's double-tap window
+            // depends on platform timing constants and silently never fires for some synthetic and
+            // accessibility-generated streams, which made the gesture look unimplemented.
 
             @Override
             public boolean onSingleTapConfirmed(MotionEvent e) {
@@ -331,6 +328,13 @@ public class SvgViewport extends FrameLayout {
         return true;
     }
 
+    /** Double-tap bookkeeping, tracked here so the gesture does not depend on platform timing. */
+    private long lastTapTime = 0L;
+    private float lastTapX = 0f;
+    private float lastTapY = 0f;
+    /** A tap that becomes part of a double tap must not also be treated as a pan start. */
+    private boolean gestureMoved = false;
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (!interactive) return super.onTouchEvent(event);
@@ -338,13 +342,51 @@ public class SvgViewport extends FrameLayout {
         // ScaleGestureDetector its anchor. Without it a pinch silently produces no scale at all.
         boolean handled = scaleDetector.onTouchEvent(event);
         handled |= gestureDetector.onTouchEvent(event);
+
         int action = event.getActionMasked();
-        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+        if (action == MotionEvent.ACTION_POINTER_DOWN) {
+            // A second finger means this is a pinch, never a tap.
+            gestureMoved = true;
+        } else if (action == MotionEvent.ACTION_MOVE) {
+            if (event.getPointerCount() == 1 && !gestureMoved) {
+                float dx = event.getX() - lastTapX;
+                float dy = event.getY() - lastTapY;
+                if (dx * dx + dy * dy > TAP_SLOP_PX * TAP_SLOP_PX) gestureMoved = true;
+            }
+        } else if (action == MotionEvent.ACTION_UP) {
+            if (!gestureMoved && event.getPointerCount() == 1) {
+                long now = event.getEventTime();
+                if (now - lastTapTime <= DOUBLE_TAP_TIMEOUT_MS
+                        && Math.abs(event.getX() - lastTapX) <= TAP_SLOP_PX
+                        && Math.abs(event.getY() - lastTapY) <= TAP_SLOP_PX) {
+                    onDoubleTap(event.getX(), event.getY());
+                    lastTapTime = 0L;
+                } else {
+                    lastTapTime = now;
+                    lastTapX = event.getX();
+                    lastTapY = event.getY();
+                }
+            }
+            gestureMoved = false;
+            clampTranslation();
+            applyTransform();
+            notifyZoom();
+        } else if (action == MotionEvent.ACTION_CANCEL) {
+            gestureMoved = false;
             clampTranslation();
             applyTransform();
             notifyZoom();
         }
         return handled || super.onTouchEvent(event);
+    }
+
+    /** Zoom in about the tapped point, or return to the fitted view when already zoomed. */
+    private void onDoubleTap(float x, float y) {
+        if (isFitted()) {
+            zoomTo(DOUBLE_TAP_FACTOR, x, y);
+        } else {
+            fitToWindow();
+        }
     }
 
     // --- test hooks ----------------------------------------------------------------------------

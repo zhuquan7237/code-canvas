@@ -176,6 +176,27 @@ public class EditorActivity extends Activity {
         }
     };
 
+    /** Typing within this window folds into one undo step. */
+    private static final long UNDO_COALESCE_MS = 700;
+    /** -1 means "no burst in progress". */
+    private int pendingUndoCursor = -1;
+    /**
+     * The text as it was when the current typing burst began. Captured once per burst (not per
+     * keystroke) so a large document is not copied on every character.
+     */
+    private String pendingUndoText;
+    /** Text as it was immediately before a discrete edit, captured in beforeTextChanged. */
+    private String preDiscreteText;
+    private int preDiscreteCursor;
+    /** Set for edits that must be their own undo step (symbol insert, paste, replace). */
+    private boolean discreteEdit;
+    private final Runnable undoCommitRunnable = new Runnable() {
+        @Override
+        public void run() {
+            commitPendingUndo();
+        }
+    };
+
     private final Runnable highlightRunnable = new Runnable() {
         @Override
         public void run() {
@@ -218,7 +239,6 @@ public class EditorActivity extends Activity {
 
         repository = new DocumentRepository(this);
         initViews();
-        setupWebView();
         setupListeners();
 
         String docId = getIntent().getStringExtra(EXTRA_DOC_ID);
@@ -269,6 +289,7 @@ public class EditorActivity extends Activity {
         }
         switchAllowJs.setChecked(isAllowJs);
         applyKindToChrome();
+        if (sourceTooLarge) showSourceTooLarge(currentDocument.getContent().length());
 
         boolean startPreview = getIntent().getBooleanExtra(EXTRA_START_PREVIEW, false);
         if (!kind.hasSourceTab()) {
@@ -348,10 +369,30 @@ public class EditorActivity extends Activity {
         if (scrollCode != null && scrollLineNumbers != null) {
             scrollCode.setOnScrollChangeListener((v, sx, sy, ox, oy) -> scrollLineNumbers.scrollTo(0, sy));
         }
+        // The WebView is configured lazily (see ensureWebViewReady): creating and configuring a
+        // WebView costs well over a second on a cold start, and a file opened straight into the
+        // code tab has no preview to show. Paying that cost on open is what made ordinary files
+        // feel like they took seconds to appear.
         webPreview = findViewById(R.id.web_preview);
         layoutXmlView = findViewById(R.id.layout_xml_view);
         txtXmlStatus = findViewById(R.id.txt_xml_status);
         txtXmlContent = findViewById(R.id.txt_xml_content);
+    }
+
+    /** True once {@link #setupWebView()} has run for the current WebView. */
+    private boolean webViewConfigured = false;
+
+    /**
+     * Configure the WebView the first time a preview is needed.
+     *
+     * <p>Deferred on purpose: WebView construction plus settings plus client installation is the
+     * single most expensive thing this screen does, and a text file opened into the code tab never
+     * needs it. Doing it eagerly added roughly 1.5s to every open.</p>
+     */
+    private void ensureWebViewReady() {
+        if (webViewConfigured || webPreview == null) return;
+        webViewConfigured = true;
+        setupWebView();
     }
 
     private void setupWebView() {
@@ -512,13 +553,15 @@ public class EditorActivity extends Activity {
         webPreview = new WebView(this);
         host.addView(webPreview, 0, new ViewGroup.LayoutParams(-1, -1));
         previewRendererDead = false;
-        setupWebView();
+        webViewConfigured = false;
+        ensureWebViewReady();
     }
 
     private void loadPreview(String html, String fingerprint) {
         if (!previewState.request(fingerprint, false)) return;
         if (previewRendererDead || webPreview == null) rebuildPreviewRenderer();
         if (webPreview == null) return;
+        ensureWebViewReady();
         final long ticket = previewState.generation;
         final String base = "https://" + PreviewAssets.HOST + "/preview/" + ticket;
         previewBaseUrl = base;
@@ -590,7 +633,24 @@ public class EditorActivity extends Activity {
         setupSearchListeners();
 
         editCode.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                // A discrete edit needs the text as it was *before* the change: by the time
+                // afterTextChanged runs the new text is already in the buffer, and recording that
+                // would leave undo with nothing to go back to.
+                if (discreteEdit && !isProgrammaticChange && !isUndoRedoAction) {
+                    preDiscreteText = s.toString();
+                    preDiscreteCursor = Math.max(0, start);
+                } else if (!isProgrammaticChange && !isUndoRedoAction && start == 0 && count == s.length()) {
+                    // A whole-buffer replacement is one deliberate step, not typing. Without this a
+                    // setText followed by a paste collapses into a single history entry, and undo
+                    // jumps past both to the document's loaded state.
+                    preDiscreteText = s.toString();
+                    preDiscreteCursor = 0;
+                    discreteEdit = true;
+                }
+            }
+
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
 
             @Override
@@ -600,21 +660,52 @@ public class EditorActivity extends Activity {
                 markDirty(true);
 
                 if (!isUndoRedoAction) {
-                    undoRedoManager.pushState(s.toString(), editCode.getSelectionStart());
+                    // Coalesced: a burst of typing becomes one undo step. Pushing every keystroke
+                    // made undo feel like it did nothing (one character back per press) and burned
+                    // the whole history budget on a single sentence.
+                    if (discreteEdit) {
+                        // A symbol insert, a paste or a replace is one deliberate action, and it
+                        // must be exactly one undo step. Commit any typing still inside the
+                        // coalesce window first, then record the PRE-edit text captured in
+                        // beforeTextChanged.
+                        discreteEdit = false;
+                        handler.removeCallbacks(undoCommitRunnable);
+                        commitPendingUndo();
+                        if (preDiscreteText != null) {
+                            undoRedoManager.pushState(preDiscreteText, preDiscreteCursor);
+                            preDiscreteText = null;
+                        }
+                        // The history must end with the text now on screen, otherwise undo() steps
+                        // past it and lands on the state before the previous action.
+                        undoRedoManager.pushState(s.toString(), editCode.getSelectionStart());
+                        pendingUndoCursor = -1;
+                    } else {
+                        // Capture the burst-start text once, on the first keystroke of the burst.
+                        // Reading the live buffer at commit time would record the state *after* a
+                        // later paste and make that paste impossible to undo.
+                        if (pendingUndoCursor < 0) {
+                            pendingUndoCursor = Math.max(0, editCode.getSelectionStart() - 1);
+                            pendingUndoText = editCode.getText().toString();
+                        }
+                        handler.removeCallbacks(undoCommitRunnable);
+                        handler.postDelayed(undoCommitRunnable, UNDO_COALESCE_MS);
+                    }
                     updateUndoRedoButtons();
                 }
 
                 updateStats(s.toString());
-                refreshLineNumbers(com.nous.codecanvas.editor.LineNumberGutter.lineOf(s, editCode.getSelectionStart()));
+                refreshLineNumbers(currentCursorLine());
 
                 // Debounce Auto-Save (800ms)
                 txtSaveIndicator.setText("保存中…");
                 handler.removeCallbacks(autoSaveRunnable);
-                handler.postDelayed(autoSaveRunnable, 800);
+                // A big document is serialised into the JSON store on every save; 800ms of typing
+                // turned that into a steady stream of writes. Longer debounce for big files.
+                handler.postDelayed(autoSaveRunnable, editCode.length() > 200_000 ? 2500 : 800);
 
                 // Debounce Syntax Highlighter (300ms)
                 handler.removeCallbacks(highlightRunnable);
-                handler.postDelayed(highlightRunnable, 300);
+                handler.postDelayed(highlightRunnable, editCode.length() > 200_000 ? 600 : 250);
 
                 // Search results follow the text, and the preview follows the text.
                 if (searchBar.getVisibility() == View.VISIBLE) refreshSearch(false);
@@ -627,6 +718,18 @@ public class EditorActivity extends Activity {
     // ------------------------------------------------------------------ viewport
 
     private void setupViewportListeners() {
+        // When the chrome around the canvas changes height (a toolbar row appearing, the keyboard
+        // closing), the WebView's viewport changes but the page keeps centring against its old
+        // innerHeight — the drawing ends up visibly above or below centre. Re-fit on every size
+        // change that the user did not cause by zooming.
+        previewViewport.addOnLayoutChangeListener((v, left, top, right, bottom,
+                                                   oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (right - left == oldRight - oldLeft && bottom - top == oldBottom - oldTop) return;
+            if (!isVectorKind() || webPreview == null) return;
+            handler.removeCallbacks(refitRunnable);
+            handler.postDelayed(refitRunnable, 120);
+        });
+
         previewViewport.setOnViewportListener(new SvgViewport.OnViewportListener() {
             @Override
             public void onZoomChanged(float factor) {
@@ -682,7 +785,8 @@ public class EditorActivity extends Activity {
      */
     private void pushTransformToWeb(float scale, float dx, float dy) {
         if (webPreview == null || previewRendererDead) return;
-        if (scale == 1f && dx == 0f && dy == 0f) return;
+        // No early return for the identity transform: "fit to window" *is* the identity, and
+        // skipping it left the page stuck at whatever zoom the user had reached.
         final String js = "if(window.CCViewport){window.CCViewport.set(" + scale + "," + dx + "," + dy + ");}";
         handler.removeCallbacks(transformPushRunnable);
         transformPushRunnable = () -> {
@@ -694,6 +798,19 @@ public class EditorActivity extends Activity {
     }
 
     private Runnable transformPushRunnable;
+
+    /** Re-apply the fitted transform after the canvas changed size. */
+    private final Runnable refitRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (webPreview == null || previewRendererDead) return;
+            // Always re-push the viewport's current transform. When the user has zoomed, that keeps
+            // their magnification and centre across the resize; when they have not, it is the
+            // identity and the page re-centres. Resetting to identity here would throw away a zoom
+            // the user had just made.
+            applyViewportToWeb();
+        }
+    };
 
     private boolean isVectorKind() {
         return kind == DocumentKind.SVG || kind == DocumentKind.MERMAID;
@@ -773,6 +890,7 @@ public class EditorActivity extends Activity {
         }
         if (viewFlipper.getDisplayedChild() != 0) switchToTab(0);
         searchBar.setVisibility(View.VISIBLE);
+        // The query box owns the keyboard while searching; nothing else may claim it.
         // Pre-fill from a selection: searching for what you just selected is the common case.
         String prefill = TextSearch.queryFromSelection(editCode.getText(),
                 editCode.getSelectionStart(), editCode.getSelectionEnd());
@@ -789,8 +907,13 @@ public class EditorActivity extends Activity {
 
     private void closeSearch() {
         searchBar.setVisibility(View.GONE);
+        // Clear the query as well as the result. Leaving the text behind meant reopening search
+        // showed a stale keyword, and the highlight stayed painted on the code with no way to
+        // dismiss it.
+        editSearchQuery.setText("");
         searchResult = TextSearch.find("", "", false);
         searchIndex = -1;
+        clearSearchHighlights();
         android.view.inputmethod.InputMethodManager imm =
                 (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         if (imm != null && getCurrentFocus() != null) {
@@ -798,6 +921,19 @@ public class EditorActivity extends Activity {
         }
         // Leaving the selection where the last match was is right: closing the search should not
         // move the cursor away from what the user was reading.
+    }
+
+    /** Remove the match highlight without touching the text. */
+    private void clearSearchHighlights() {
+        if (editCode == null) return;
+        android.text.Editable text = editCode.getText();
+        if (text instanceof android.text.Spannable) {
+            android.text.Spannable sp = (android.text.Spannable) text;
+            for (android.text.style.BackgroundColorSpan span
+                    : sp.getSpans(0, sp.length(), android.text.style.BackgroundColorSpan.class)) {
+                sp.removeSpan(span);
+            }
+        }
     }
 
     /**
@@ -850,8 +986,20 @@ public class EditorActivity extends Activity {
     }
 
     /** Highlight every match, with the current one emphasised. */
+    /** Signature of the last painted match set, so an unchanged set is not repainted. */
+    private String lastHighlightSignature;
+
     private void applySearchHighlights() {
         Editable editable = editCode.getText();
+        StringBuilder signature = new StringBuilder();
+        signature.append(searchIndex).append('|');
+        for (TextSearch.Match match : searchResult.matches) {
+            signature.append(match.start).append(',').append(match.end).append(';');
+        }
+        String signatureText = signature.toString();
+        if (signatureText.equals(lastHighlightSignature)) return;
+        lastHighlightSignature = signatureText;
+
         android.text.style.BackgroundColorSpan[] spans =
                 editable.getSpans(0, editable.length(), android.text.style.BackgroundColorSpan.class);
         for (android.text.style.BackgroundColorSpan span : spans) {
@@ -867,12 +1015,19 @@ public class EditorActivity extends Activity {
         }
     }
 
-    /** Scroll the editor so the current match is visible, and put the caret on it. */
+    /**
+     * Scroll the editor so the current match is visible.
+     *
+     * <p>Deliberately does <b>not</b> call {@code editCode.requestFocus()}. That one call was a
+     * data-corruption bug: focusing the code editor moved the IME with it, so the next keystroke
+     * meant for the query box was typed into the document instead — "只能输入一个字母就退出输入状态，
+     * 而且退输入状态会直接修改 svg 代码". The caret still moves to the match (so the position is
+     * visible and the user can jump there deliberately), but focus stays where the user put it.</p>
+     */
     private void revealCurrentMatch() {
         if (searchIndex < 0 || searchIndex >= searchResult.count()) return;
-        TextSearch.Match match = searchResult.matches.get(searchIndex);
+        final TextSearch.Match match = searchResult.matches.get(searchIndex);
         editCode.setSelection(match.start, match.end);
-        editCode.requestFocus();
         // Let the layout settle before asking for the match's position on screen.
         editCode.post(() -> {
             android.text.Layout layout = editCode.getLayout();
@@ -900,10 +1055,15 @@ public class EditorActivity extends Activity {
             b.setElevation(0f);
             b.setMinWidth(0);
             b.setMinimumWidth(0);
-            b.setPadding(10, 0, 10, 0);
-            row.addView(b, new LinearLayout.LayoutParams(
-                    (int) ((label.length() > 4 ? 96 : label.equals("更多") ? 64 : 48)
-                            * getResources().getDisplayMetrics().density), -1));
+            // A key needs a finger-sized width and a little air on each side; the old 48dp keys sat
+            // flush against each other and read as one solid bar.
+            float density = getResources().getDisplayMetrics().density;
+            int width = label.length() > 4 ? 84 : label.equals("更多") ? 62 : 46;
+            b.setPadding((int) (6 * density), 0, (int) (6 * density), 0);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    (int) (width * density), -1);
+            params.setMarginEnd((int) (4 * density));
+            row.addView(b, params);
             b.setOnClickListener(v -> {
                 if (label.equals("查找")) {
                     toggleSearch();
@@ -915,6 +1075,7 @@ public class EditorActivity extends Activity {
                                 com.nous.codecanvas.editor.EditorCommands.insert(
                                         editCode.getText().toString(),
                                         editCode.getSelectionStart(), editCode.getSelectionEnd(), label);
+                        discreteEdit = true;
                         editCode.setText(r.text);
                         editCode.setSelection(r.cursor);
                     } catch (Exception e) {
@@ -977,6 +1138,7 @@ public class EditorActivity extends Activity {
             return;
         }
         int start = editCode.getSelectionStart();
+        discreteEdit = true;
         editCode.setText(result.formatted);
         editCode.setSelection(Math.min(start, editCode.length()));
         Toast.makeText(this, "已格式化（数字与字符串保持原样），可撤销", Toast.LENGTH_SHORT).show();
@@ -993,7 +1155,7 @@ public class EditorActivity extends Activity {
                     isProgrammaticChange = true;
                     editCode.setText(savedContent);
                     isProgrammaticChange = false;
-                    undoRedoManager.pushState(savedContent, 0);
+                    undoRedoManager.resetBaseline(savedContent, 0);
                     markDirty(false);
                     updateStats(savedContent);
                     applySyntaxHighlight();
@@ -1020,18 +1182,60 @@ public class EditorActivity extends Activity {
 
     // ------------------------------------------------------------------ document binding
 
+    /**
+     * Above this the code tab refuses to load the document into the EditText.
+     *
+     * <p>Measured, not guessed: a 535KB SVG put the editor into a 60-second ANR, because a single
+     * {@code EditText} lays out, measures and span-scans its whole buffer. The preview is unaffected
+     * (it is a WebView), so the honest behaviour is to show the preview and say the source is too
+     * large to edit here — not to freeze.</p>
+     */
+    private static final int MAX_EDITABLE_CHARS = 200_000;
+
+    private boolean sourceTooLarge;
+
     private void bindDocumentData() {
         txtEditorTitle.setText(currentDocument.getTitle());
+        String body = currentDocument.getContent();
+        if (body.length() > MAX_EDITABLE_CHARS) {
+            sourceTooLarge = true;
+            // Do not put the text into the EditText at all: that is the 60-second ANR. The preview
+            // renders from the document, so the file is still viewable, saveable and shareable.
+            // The banner itself is shown after applyKindToChrome(), which resets the chrome.
+            return;
+        }
         isProgrammaticChange = true;
         editCode.setText(currentDocument.getContent());
         refreshLineNumbers(1);
         isProgrammaticChange = false;
 
-        undoRedoManager.pushState(currentDocument.getContent(), 0);
+        undoRedoManager.resetBaseline(currentDocument.getContent(), 0);
         updateUndoRedoButtons();
         updateStats(currentDocument.getContent());
-        applySyntaxHighlight();
         markDirty(false);
+        // Highlighting waits for the first layout: the visible window is not known before it, and a
+        // whole-document pass on open is what made a large file feel like it hung.
+        editCode.post(this::applySyntaxHighlight);
+    }
+
+    /**
+     * Replace the code tab with an explanation. The preview, save, share and export all still work;
+     * only the in-place text editor is unavailable, and that is stated plainly.
+     */
+    private void showSourceTooLarge(int chars) {
+        View helpers = findViewById(R.id.editor_helpers);
+        if (helpers != null) helpers.setVisibility(View.GONE);
+        View actions = findViewById(R.id.toolbar_editor_actions);
+        if (actions != null) actions.setVisibility(View.GONE);
+        TextView advice = findViewById(R.id.txt_preview_advice);
+        if (advice != null) {
+            advice.setText("这个文件有 " + chars + " 个字符，超过编辑器能流畅处理的上限（"
+                    + MAX_EDITABLE_CHARS + "）。预览、保存、分享和另存为都正常；"
+                    + "需要改源码时请用「更多 → 用其他应用打开原文件」。");
+            advice.setVisibility(View.VISIBLE);
+        }
+        if (tabCode != null) tabCode.setEnabled(false);
+        if (viewFlipper != null) viewFlipper.setDisplayedChild(1);
     }
 
     /** Show or hide the unsaved dot; also decides whether leaving needs a prompt. */
@@ -1042,7 +1246,12 @@ public class EditorActivity extends Activity {
 
     private void updateStats(String text) {
         int charCount = text.length();
-        int lineCount = text.isEmpty() ? 1 : text.split("\r\n|\r|\n", -1).length;
+        // Counting newlines avoids String.split, which allocates an array of every line — on an
+        // 80KB document that is tens of thousands of objects per keystroke.
+        int lineCount = 1;
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == '\n') lineCount++;
+        }
         txtEditorStats.setText(lineCount + " 行 · " + charCount + " 字符");
     }
 
@@ -1054,28 +1263,78 @@ public class EditorActivity extends Activity {
     }
 
     private void performUndo() {
+        commitPendingUndo();
         UndoRedoManager.EditSnapshot snapshot = undoRedoManager.undo();
         if (snapshot != null) {
-            isUndoRedoAction = true;
-            editCode.setText(snapshot.text);
-            if (snapshot.cursorPosition <= snapshot.text.length()) {
-                editCode.setSelection(Math.max(0, snapshot.cursorPosition));
+            applyUndoSnapshot(snapshot);
+            Toast.makeText(this, "已撤销", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "没有可撤销的修改", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** Fold any pending typing into the history immediately, before an undo/redo acts. */
+    /**
+     * Fold the typing burst in progress into the history.
+     *
+     * <p>Uses the text captured when the burst <b>started</b>, never the live buffer: by the time a
+     * follow-up action (a paste, a symbol insert) asks for the commit, the buffer already holds that
+     * action's result, and pushing it would record the wrong state — which is how a paste ended up
+     * being impossible to undo.</p>
+     */
+    private void commitPendingUndo() {
+        handler.removeCallbacks(undoCommitRunnable);
+        if (pendingUndoCursor >= 0 && pendingUndoText != null) {
+            undoRedoManager.pushState(pendingUndoText, pendingUndoCursor);
+            // Then record where the burst ended, so the history always ends on the visible text.
+            if (editCode != null) {
+                undoRedoManager.pushState(editCode.getText().toString(), editCode.getSelectionStart());
             }
-            isUndoRedoAction = false;
-            updateUndoRedoButtons();
+        }
+        pendingUndoCursor = -1;
+        pendingUndoText = null;
+        updateUndoRedoButtons();
+    }
+
+    /**
+     * Put a history snapshot back on screen.
+     *
+     * <p>{@code isProgrammaticChange} suppresses the text watcher's own bookkeeping, and
+     * {@code isUndoRedoAction} stops the snapshot from being pushed onto the history again — the
+     * old code set the second flag but not the first, so every undo both re-pushed the state and
+     * ran the full syntax-highlight pass.</p>
+     */
+    private void applyUndoSnapshot(UndoRedoManager.EditSnapshot snapshot) {
+        isProgrammaticChange = true;
+        isUndoRedoAction = true;
+        editCode.setText(snapshot.text);
+        int caret = Math.max(0, Math.min(snapshot.cursorPosition, snapshot.text.length()));
+        editCode.setSelection(caret);
+        isUndoRedoAction = false;
+        isProgrammaticChange = false;
+
+        // The document really did change, so the unsaved marker and the counters must follow.
+        editRevision++;
+        markDirty(!snapshot.text.equals(savedContent));
+        updateStats(snapshot.text);
+        refreshLineNumbers(com.nous.codecanvas.editor.LineNumberGutter.lineOf(snapshot.text, caret));
+        updateUndoRedoButtons();
+        applySyntaxHighlight();
+        if (searchBar.getVisibility() == View.VISIBLE) refreshSearch(false);
+        if (viewFlipper.getDisplayedChild() == 1) {
+            handler.removeCallbacks(previewRefreshRunnable);
+            handler.postDelayed(previewRefreshRunnable, 300);
         }
     }
 
     private void performRedo() {
+        commitPendingUndo();
         UndoRedoManager.EditSnapshot snapshot = undoRedoManager.redo();
         if (snapshot != null) {
-            isUndoRedoAction = true;
-            editCode.setText(snapshot.text);
-            if (snapshot.cursorPosition <= snapshot.text.length()) {
-                editCode.setSelection(Math.max(0, snapshot.cursorPosition));
-            }
-            isUndoRedoAction = false;
-            updateUndoRedoButtons();
+            applyUndoSnapshot(snapshot);
+            Toast.makeText(this, "已重做", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "没有可重做的修改", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1155,6 +1414,7 @@ public class EditorActivity extends Activity {
     }
 
     private void insertTextIntoEditor(String text, boolean replaceAll) {
+        discreteEdit = true;
         if (replaceAll) {
             editCode.setText(text);
             editCode.setSelection(text.length());
@@ -1170,26 +1430,88 @@ public class EditorActivity extends Activity {
      * Repaint the gutter. Numbers must always describe the code beside them, so this is called
      * from the text watcher and from the cursor callback rather than on a timer.
      */
+    /** The caret's line, taken from the layout when it exists (O(1) instead of a buffer walk). */
+    private int currentCursorLine() {
+        android.text.Layout layout = editCode.getLayout();
+        int caret = Math.min(editCode.getSelectionStart(), editCode.length());
+        if (layout != null && caret >= 0) {
+            return layout.getLineForOffset(caret) + 1;
+        }
+        return com.nous.codecanvas.editor.LineNumberGutter.lineOf(editCode.getText(), Math.max(0, caret));
+    }
+
+    /** Last gutter state, so an unchanged gutter is not rebuilt on every keystroke. */
+    private int gutterLines = -1;
+    private int gutterCurrentLine = -1;
+
     private void refreshLineNumbers(int currentLine) {
         if (txtLineNumbers == null || editCode == null) return;
-        int lines = com.nous.codecanvas.editor.LineNumberGutter.lineCount(editCode.getText());
+        // The Layout already knows the line count; walking the buffer again per keystroke is what
+        // made typing feel heavy on a large file.
+        android.text.Layout layout = editCode.getLayout();
+        int lines = layout != null
+                ? Math.min(layout.getLineCount(), com.nous.codecanvas.editor.LineNumberGutter.MAX_LINES)
+                : com.nous.codecanvas.editor.LineNumberGutter.lineCount(editCode.getText());
+        if (lines == gutterLines && currentLine == gutterCurrentLine) return;
+        gutterLines = lines;
+        gutterCurrentLine = currentLine;
         int active = getResources().getColor(R.color.canvas_primary);
         int normal = getResources().getColor(R.color.canvas_line_number);
         txtLineNumbers.setText(com.nous.codecanvas.editor.LineNumberGutter.highlighted(lines, currentLine, normal, active));
     }
 
+    /**
+     * Repaint syntax colours.
+     *
+     * <p>Two things made this the main source of typing lag on a large SVG:</p>
+     * <ul>
+     *   <li>It ran four whole-document regex passes. On a 300KB drawing that is tens of thousands
+     *       of matches, each one a span object, on the UI thread after every keystroke.</li>
+     *   <li>It then reset the selection, which forces the editor to re-lay-out from the caret.</li>
+     * </ul>
+     * <p>So: only the visible window is scanned, and only markup gets coloured. Plain code and
+     * text documents skip it entirely — the old behaviour there was to paint XML tag colours over
+     * Python or YAML, which was both wrong and expensive.</p>
+     */
     private void applySyntaxHighlight() {
-        int selStart = editCode.getSelectionStart();
-        int selEnd = editCode.getSelectionEnd();
-        isProgrammaticChange = true;
-        SyntaxHighlighter.highlight(editCode.getText(), isDark());
-        isProgrammaticChange = false;
-        int len = editCode.length();
-        if (selStart >= 0 && selEnd >= 0 && selStart <= len && selEnd <= len) {
-            editCode.setSelection(selStart, selEnd);
-        } else if (selStart >= 0 && selStart <= len) {
-            editCode.setSelection(selStart);
+        if (!isMarkupKind()) {
+            clearSyntaxSpans();
+            return;
         }
+        int[] window = visibleTextWindow();
+        if (window == null) return;
+        SyntaxHighlighter.highlightRange(editCode.getText(), isDark(), window[0], window[1]);
+    }
+
+    private boolean isMarkupKind() {
+        return kind == DocumentKind.HTML || kind == DocumentKind.SVG
+                || kind == DocumentKind.XML || kind == DocumentKind.MARKDOWN;
+    }
+
+    private void clearSyntaxSpans() {
+        android.text.Editable editable = editCode.getText();
+        android.text.style.ForegroundColorSpan[] spans = editable.getSpans(
+                0, editable.length(), android.text.style.ForegroundColorSpan.class);
+        if (spans.length == 0) return;
+        for (android.text.style.ForegroundColorSpan span : spans) editable.removeSpan(span);
+    }
+
+    /**
+     * The character range actually on screen, with a screenful of slack on each side so a small
+     * scroll does not need a repaint. Returns null when the layout is not ready yet.
+     */
+    private int[] visibleTextWindow() {
+        android.text.Layout layout = editCode.getLayout();
+        if (layout == null) return null;
+        int scrollY = scrollCode.getScrollY();
+        int height = scrollCode.getHeight();
+        if (height <= 0) return null;
+        int firstLine = Math.max(0, layout.getLineForVertical(Math.max(0, scrollY - height)));
+        int lastLine = Math.min(layout.getLineCount() - 1,
+                layout.getLineForVertical(scrollY + height * 2));
+        int start = layout.getLineStart(firstLine);
+        int end = layout.getLineEnd(lastLine);
+        return new int[]{start, end};
     }
 
     private boolean isDark() {
@@ -1205,7 +1527,7 @@ public class EditorActivity extends Activity {
      * kind of dead UI that reads as a bug.
      */
     private void applyKindToChrome() {
-        boolean hasSource = kind.hasSourceTab();
+        boolean hasSource = kind.hasSourceTab() && !sourceTooLarge;
         layoutEditorTabs.setVisibility(hasSource ? View.VISIBLE : View.GONE);
         btnSearch.setVisibility(hasSource ? View.VISIBLE : View.GONE);
         btnSave.setVisibility(hasSource ? View.VISIBLE : View.GONE);
@@ -1266,7 +1588,12 @@ public class EditorActivity extends Activity {
         lastRenderedContent = content;
         lastRenderedViewBox = svgViewBoxOverride;
 
-        java.util.List<String> warnings = com.nous.codecanvas.util.RenderingAdvisor.inspect(content);
+        // Only markup can have "external resource" problems; scanning a 300KB YAML or code file with
+        // five regexes on every preview refresh was pure cost.
+        java.util.List<String> warnings = (kind == DocumentKind.HTML || kind == DocumentKind.SVG
+                || kind == DocumentKind.MARKDOWN)
+                ? com.nous.codecanvas.util.RenderingAdvisor.inspect(content)
+                : java.util.Collections.emptyList();
         if (!warnings.isEmpty()) {
             StringBuilder sb = new StringBuilder();
             for (String w : warnings) sb.append("• ").append(w).append("\n");
@@ -1416,9 +1743,9 @@ public class EditorActivity extends Activity {
             if (toolbarPreviewControls != null) toolbarPreviewControls.setVisibility(View.VISIBLE);
             if (btnExitFullscreen != null) btnExitFullscreen.setVisibility(View.GONE);
             if (containerPreviewCanvas != null) {
-                int p10 = (int) (10 * getResources().getDisplayMetrics().density);
                 int p12 = (int) (12 * getResources().getDisplayMetrics().density);
-                containerPreviewCanvas.setPadding(p10, p10, p10, p12);
+                int p14 = (int) (14 * getResources().getDisplayMetrics().density);
+                containerPreviewCanvas.setPadding(p12, p12, p12, p14);
             }
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         }
@@ -1462,6 +1789,10 @@ public class EditorActivity extends Activity {
     private void switchToTab(int tabIndex) {
         if (isFullscreen && tabIndex == 0) setFullscreen(false);
         if (!kind.hasSourceTab()) tabIndex = 1;
+        if (sourceTooLarge && tabIndex == 0) {
+            Toast.makeText(this, "这个文件太大，编辑器无法流畅处理；预览与导出正常", Toast.LENGTH_LONG).show();
+            tabIndex = 1;
+        }
         if (viewFlipper.getDisplayedChild() == tabIndex) {
             if (tabIndex == 1) renderPreview(false);
             return;
@@ -1532,6 +1863,9 @@ public class EditorActivity extends Activity {
      */
     private void saveCurrentDocument(boolean explicit) {
         if (documentLoadFailed || currentDocument == null || editCode == null) return;
+        // The source was never loaded into the editor, so there is nothing to write back and
+        // saving an empty buffer would destroy the file.
+        if (sourceTooLarge) return;
         final String content = editCode.getText().toString();
         final String title = currentDocument.getTitle();
         final long capturedEdit = editRevision;

@@ -33,40 +33,64 @@ public class SyntaxHighlighter {
 
     public static void highlight(Editable editable, boolean isDark) {
         if (editable == null || editable.length() == 0) return;
+        highlightRange(editable, isDark, 0, editable.length());
+    }
 
-        // Strip previous spans
-        ForegroundColorSpan[] spans = editable.getSpans(0, editable.length(), ForegroundColorSpan.class);
+    /**
+     * Colour only {@code [start, end)}.
+     *
+     * <p>Whole-document highlighting is what made typing in a large SVG lag: four regex passes over
+     * hundreds of kilobytes, producing tens of thousands of span objects, on the UI thread after
+     * every keystroke. The editor now passes the visible window instead.</p>
+     *
+     * <p>Spans are matched against a substring and then offset back, so a match that straddles the
+     * window edge is simply not painted — the next repaint picks it up once it scrolls in.</p>
+     */
+    public static void highlightRange(Editable editable, boolean isDark, int start, int end) {
+        if (editable == null || editable.length() == 0) return;
+        int from = Math.max(0, Math.min(start, editable.length()));
+        int to = Math.max(from, Math.min(end, editable.length()));
+
+        // Strip previous spans inside the window only: spans outside it stay valid, and removing
+        // them would force a repaint of the whole document.
+        ForegroundColorSpan[] spans = editable.getSpans(from, to, ForegroundColorSpan.class);
         for (ForegroundColorSpan span : spans) {
             editable.removeSpan(span);
         }
+        if (to <= from) return;
 
         int tagColor = isDark ? NIGHT_TAG : DAY_TAG;
         int attrColor = isDark ? NIGHT_ATTR : DAY_ATTR;
         int strColor = isDark ? NIGHT_STRING : DAY_STRING;
         int commentColor = isDark ? NIGHT_COMMENT : DAY_COMMENT;
 
-        // Apply Tag regex
-        Matcher tagMatcher = XML_TAG_PATTERN.matcher(editable);
+        String window = editable.subSequence(from, to).toString();
+
+        Matcher tagMatcher = XML_TAG_PATTERN.matcher(window);
         while (tagMatcher.find()) {
-            editable.setSpan(new ForegroundColorSpan(tagColor), tagMatcher.start(), tagMatcher.end(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            setSpan(editable, from, tagMatcher.start(), tagMatcher.end(), tagColor);
         }
 
-        // Apply Attr regex
-        Matcher attrMatcher = XML_ATTR_PATTERN.matcher(editable);
+        Matcher attrMatcher = XML_ATTR_PATTERN.matcher(window);
         while (attrMatcher.find()) {
-            editable.setSpan(new ForegroundColorSpan(attrColor), attrMatcher.start(), attrMatcher.end(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            setSpan(editable, from, attrMatcher.start(), attrMatcher.end(), attrColor);
         }
 
-        // Apply String regex
-        Matcher strMatcher = STRING_PATTERN.matcher(editable);
+        Matcher strMatcher = STRING_PATTERN.matcher(window);
         while (strMatcher.find()) {
-            editable.setSpan(new ForegroundColorSpan(strColor), strMatcher.start(), strMatcher.end(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            setSpan(editable, from, strMatcher.start(), strMatcher.end(), strColor);
         }
 
-        // Apply Comment regex
-        Matcher commentMatcher = COMMENT_PATTERN.matcher(editable);
+        Matcher commentMatcher = COMMENT_PATTERN.matcher(window);
         while (commentMatcher.find()) {
-            editable.setSpan(new ForegroundColorSpan(commentColor), commentMatcher.start(), commentMatcher.end(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            setSpan(editable, from, commentMatcher.start(), commentMatcher.end(), commentColor);
         }
+    }
+
+    private static void setSpan(Editable editable, int offset, int start, int end, int color) {
+        int s = offset + start;
+        int e = offset + end;
+        if (s < 0 || e > editable.length() || s >= e) return;
+        editable.setSpan(new ForegroundColorSpan(color), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
     }
 }

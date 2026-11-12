@@ -1,0 +1,12 @@
+{
+  "experiment": "异种不锈钢激光焊接",
+  "power_kw": 2.40,
+  "speed": 3.2,
+  "big_int": 12345678901234567890,
+  "ratio": 1.0,
+  "samples": [
+    {"id": "S-01", "delta": -0.10, "ok": true},
+    {"id": "S-02", "delta": 0.05, "ok": false}
+  ],
+  "note": "引号 \" 与反斜杠 \\ 必须原样保留"
+}

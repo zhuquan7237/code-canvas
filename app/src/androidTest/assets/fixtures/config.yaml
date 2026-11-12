@@ -1,0 +1,4 @@
+process:
+  name: laser-welding
+	power: 2.4
+  speed: 3.2

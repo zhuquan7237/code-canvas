@@ -113,6 +113,8 @@ public class PreviewTransitionAndToolbarTest extends InstrumentationTestCase {
   runTestOnUiThread(()->{EditText code=editor.findViewById(R.id.edit_code);code.setSelection(0);braces.performClick();});
   getInstrumentation().waitForIdleSync();
   runTestOnUiThread(()->{EditText code=editor.findViewById(R.id.edit_code);assertEquals("配对符号必须真实插入到代码中","{}alpha",code.getText().toString());assertEquals("配对符号必须把光标留在中间",1,code.getSelectionStart());});
+  // A symbol insert is one deliberate action, so a single undo must take it back. The editor
+  // commits discrete edits immediately instead of folding them into the typing window.
   runTestOnUiThread(()->editor.findViewById(R.id.btn_undo).performClick());
   getInstrumentation().waitForIdleSync();
   runTestOnUiThread(()->assertEquals("插入必须可撤销","alpha",((EditText)editor.findViewById(R.id.edit_code)).getText().toString()));

@@ -114,15 +114,14 @@ public class DocumentRepository {
                         }
                     }
 
-                    // Atomic replace via java.nio.file.Files.move ATOMIC_MOVE with fallback to REPLACE_EXISTING
-                    // Never delete before rename
-                    try {
-                        Files.move(tempFile.toPath(), storageFile.toPath(),
-                                StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-                    } catch (AtomicMoveNotSupportedException e) {
-                        Files.move(tempFile.toPath(), storageFile.toPath(),
-                                StandardCopyOption.REPLACE_EXISTING);
-                    }
+                    // Atomic replace, with a bounded retry.
+                    //
+                    // On Windows the rename can fail with AccessDeniedException when another handle
+                    // (an antivirus scan, or a reader that has just opened the file) still holds the
+                    // destination. That is transient, and the old code let it escape: the write was
+                    // dropped, the caller saw an IOException it could not act on, and a document
+                    // silently went missing. Retrying briefly turns a lost write into a slow one.
+                    replaceWithRetry(tempFile, storageFile);
                 } finally {
                     if (tempFile.exists()) {
                         tempFile.delete();
@@ -135,6 +134,41 @@ public class DocumentRepository {
                 throw new java.io.IOException("Failed to save documents to " + storageFile.getAbsolutePath(), e);
             }
         }
+    }
+
+    /**
+     * Move {@code temp} onto {@code target}, retrying while the destination is briefly locked.
+     *
+     * @throws java.io.IOException when every attempt failed; the caller must not treat the write
+     *                             as committed.
+     */
+    private static void replaceWithRetry(File temp, File target) throws java.io.IOException {
+        java.io.IOException last = null;
+        for (int attempt = 0; attempt < 12; attempt++) {
+            try {
+                try {
+                    Files.move(temp.toPath(), target.toPath(),
+                            StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                } catch (AtomicMoveNotSupportedException e) {
+                    Files.move(temp.toPath(), target.toPath(),
+                            StandardCopyOption.REPLACE_EXISTING);
+                }
+                return;
+            } catch (java.nio.file.FileSystemException e) {
+                // Locked by another handle: wait a little and try again. 12 attempts with a
+                // growing pause covers a virus scan without stalling the caller for long.
+                last = e;
+                try {
+                    Thread.sleep(10L + attempt * 15L);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            } catch (java.io.IOException e) {
+                throw e;
+            }
+        }
+        throw last != null ? last : new java.io.IOException("could not replace " + target);
     }
 
     public CanvasDocument findById(String id) throws java.io.IOException {

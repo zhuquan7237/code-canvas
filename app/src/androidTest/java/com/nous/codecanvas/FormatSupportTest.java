@@ -37,6 +37,20 @@ public class FormatSupportTest extends InstrumentationTestCase {
         context = getInstrumentation().getTargetContext();
         repository = new DocumentRepository(context);
         dir = new File(context.getFilesDir(), "fixtures");
+        // Seed from the APK's assets: a pushed fixture directory does not survive an emulator
+        // restart, and a suite that only passes on a hand-prepared device is not a suite.
+        if (!new File(dir, "photo.png").isFile()) {
+            for (String[] entry : FixtureSeederTest.FIXTURES) {
+                File target = new File(dir, entry[0]);
+                if (!target.getParentFile().exists()) target.getParentFile().mkdirs();
+                try (java.io.InputStream in = getInstrumentation().getContext().getAssets().open(entry[1]);
+                     java.io.OutputStream out = new java.io.FileOutputStream(target)) {
+                    byte[] buffer = new byte[8192];
+                    int n;
+                    while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n);
+                }
+            }
+        }
     }
 
     private File fixture(String name) {

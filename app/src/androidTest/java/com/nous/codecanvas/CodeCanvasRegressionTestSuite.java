@@ -51,7 +51,10 @@ public class CodeCanvasRegressionTestSuite extends InstrumentationTestCase {
    clip("NEW_CONTENT");code.setSelection(2);e.findViewById(R.id.btn_paste).performClick();android.app.Dialog overwriteSheet=e.getActiveSheetForTest();assertNotNull(overwriteSheet);assertTrue(overwriteSheet.isShowing());com.nous.codecanvas.ui.CanvasBottomSheet.actionRowAt(overwriteSheet,1).performClick();
   });
   ui(() -> {
-   assertEquals("NEW_CONTENT",code.getText().toString());assertTrue(e.findViewById(R.id.btn_undo).isEnabled());e.findViewById(R.id.btn_undo).performClick();assertEquals("AAAABBBB\n\nAPPENDED",code.getText().toString());
+   assertEquals("NEW_CONTENT",code.getText().toString());assertTrue(e.findViewById(R.id.btn_undo).isEnabled());e.findViewById(R.id.btn_undo).performClick();
+   // One undo takes back the overwrite paste and lands on the text as it was immediately before
+   // it — which is the setText that preceded the paste, not the state before that setText.
+   assertEquals("AAAABBBB\n\nAPPENDED",code.getText().toString());
    code.setText("<h1>selection</h1>");code.setSelection(4,9);
   });
   Thread.sleep(600);ui(() -> {assertEquals(4,code.getSelectionStart());assertEquals(9,code.getSelectionEnd());});

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200">
+  <defs>
+    <filter id="shadow" x="-30%" y="-30%" width="180%" height="180%">
+      <feDropShadow dx="6" dy="8" stdDeviation="6" flood-color="#0F172A" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <rect x="40" y="40" width="220" height="120" rx="14" fill="#EDE6FA" stroke="#6D3FC0" stroke-width="6" filter="url(#shadow)"/>
+  <text x="150" y="110" font-size="20" text-anchor="middle" fill="#6D3FC0" font-family="sans-serif">阴影 + 描边</text>
+</svg>
