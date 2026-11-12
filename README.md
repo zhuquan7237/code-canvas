@@ -6,7 +6,7 @@ AI 聊天窗口里的代码，复制出来往往是一坨没有后缀的文本�
 
 原生 Android（系统 WebView，不打包浏览器内核）+ Windows 电脑版（原生 C# + WebView2，安装包 793 KB）。
 
-目前可下载的签名包是 [Android APK v0.5.9](https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.9/code-canvas-0.5.9.apk)（[Release v0.5.9](https://github.com/zhuquan7237/code-canvas/releases/tag/v0.5.9)）。说明见 [v0.5.9 发版说明](docs/RELEASE-v0.5.9.md)。[Windows 版 v0.5.0](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [验收与边界](docs/VERIFICATION.md)
+目前可下载的签名包是 [Android APK v0.5.9](https://relay.zhuquan.xyz/dl/code-canvas-0.5.9.apk?v=54d7038c020d)（[Release v0.5.9](https://github.com/zhuquan7237/code-canvas/releases/tag/v0.5.9)）。说明见 [v0.5.9 发版说明](docs/RELEASE-v0.5.9.md)。[Windows 版 v0.5.0](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [验收与边界](docs/VERIFICATION.md)
 
 ## 它解决什么问题
 
