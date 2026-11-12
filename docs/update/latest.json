@@ -3,7 +3,7 @@
   "versionName": "0.5.9",
   "versionCode": 59,
   "channel": "stable",
-  "apkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.9/code-canvas-0.5.9.apk",
+  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.5.9.apk?v=54d7038c020d",
   "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.9/code-canvas-0.5.9.apk",
   "sha256": "54d7038c020d34325e2904cc2da4aeb0eed66835795e58ceb42571445818fa26",
   "size": 1389702,
