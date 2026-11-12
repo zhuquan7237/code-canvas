@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Icon button: tonal fill, no resting stroke. Press uses the selection tint. -->
+<!-- Ghost icon button. Resting state is only the glyph. Press and selected
+     pick up a tint, so a row of icons never reads as a stack of gray tiles. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape android:shape="rectangle">
@@ -7,9 +8,15 @@
             <corners android:radius="@dimen/radius_control" />
         </shape>
     </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/canvas_selection" />
+            <corners android:radius="@dimen/radius_control" />
+        </shape>
+    </item>
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="@color/canvas_surface_subtle" />
+            <solid android:color="@android:color/transparent" />
             <corners android:radius="@dimen/radius_control" />
         </shape>
     </item>

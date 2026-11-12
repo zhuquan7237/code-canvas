@@ -68,7 +68,7 @@ public class EditorLayoutSpacingTest extends InstrumentationTestCase {
 
     /** Every icon button in the header must be a legal touch target. */
     public void testHeaderButtonsAreLegalTouchTargets() throws Throwable {
-        int[] ids = {R.id.btn_back, R.id.btn_search, R.id.btn_save, R.id.btn_export_saf, R.id.btn_share};
+        int[] ids = {R.id.btn_back, R.id.btn_save, R.id.btn_editor_overflow};
         runTestOnUiThread(() -> {
             for (int id : ids) {
                 View v = editor.findViewById(id);

@@ -110,6 +110,10 @@ public class EditorActivity extends Activity {
     private boolean isFullscreen = false;
     private TextView txtRenderModeBadge;
     private Switch switchAllowJs;
+    private View headerModeSwitch;
+    private TextView tabCodeLand;
+    private TextView tabPreviewLand;
+    private boolean applyingScriptPref;
 
     // --- viewport -----------------------------------------------------------------------------
     private SvgViewport previewViewport;
@@ -297,7 +301,9 @@ public class EditorActivity extends Activity {
             isAllowNetwork = savedInstanceState.getBoolean("key_allow_network", isAllowNetwork);
             searchCaseSensitive = savedInstanceState.getBoolean("key_search_case", false);
         }
+        applyingScriptPref = true;
         switchAllowJs.setChecked(isAllowJs);
+        applyingScriptPref = false;
         applyKindToChrome();
         if (sourceTooLarge) showSourceTooLarge(currentDocument.getContent().length());
 
@@ -318,18 +324,50 @@ public class EditorActivity extends Activity {
     }
 
     /**
-     * A landscape phone is only about 360dp tall. The preview chrome (badge row, script switch)
-     * was leaving the artwork as a postage stamp. Those controls come back in portrait; zoom stays.
+     * Portrait keeps a code/preview switch under the title. Landscape is one row:
+     * back, name, the same switch, save, overflow. Undo, the symbol strip, the
+     * script switch and the zoom bar fold away so the page keeps most of the height.
      */
     private void applyEditorChrome() {
         boolean land = getResources().getConfiguration().orientation
                 == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
-        View actions = findViewById(R.id.preview_action_row);
-        if (actions != null) actions.setVisibility(land ? View.GONE : View.VISIBLE);
-        if (switchAllowJs != null && kind != null) {
-            boolean showScript = !land && kind.hasSourceTab() && !sourceTooLarge;
-            switchAllowJs.setVisibility(showScript ? View.VISIBLE : View.GONE);
+        boolean hasSource = kind != null && kind.hasSourceTab() && !sourceTooLarge;
+        boolean preview = viewFlipper != null && viewFlipper.getDisplayedChild() == 1;
+        boolean html = kind == DocumentKind.HTML;
+        if (layoutEditorTabs != null) {
+            layoutEditorTabs.setVisibility(!land && hasSource ? View.VISIBLE : View.GONE);
         }
+        if (headerModeSwitch != null) {
+            headerModeSwitch.setVisibility(land && hasSource ? View.VISIBLE : View.GONE);
+        }
+        if (toolbarEditorActions != null) {
+            toolbarEditorActions.setVisibility(!land && !preview && hasSource ? View.VISIBLE : View.GONE);
+        }
+        if (editorHelpersView != null) {
+            editorHelpersView.setVisibility(!land && !preview && hasSource ? View.VISIBLE : View.GONE);
+        }
+        View actions = findViewById(R.id.preview_action_row);
+        if (actions != null) actions.setVisibility(!land && preview ? View.VISIBLE : View.GONE);
+        boolean zoomable = kind == DocumentKind.SVG || kind == DocumentKind.MERMAID
+                || isImageKind() || kind == DocumentKind.PDF;
+        if (viewportToolbar != null) {
+            viewportToolbar.setVisibility(!land && preview && zoomable ? View.VISIBLE : View.GONE);
+        }
+        if (switchAllowJs != null) {
+            switchAllowJs.setVisibility(!land && preview && html ? View.VISIBLE : View.GONE);
+        }
+        View network = findViewById(R.id.btn_preview_network);
+        if (network != null) {
+            network.setVisibility(!land && preview && html ? View.VISIBLE : View.GONE);
+        }
+        if (containerPreviewCanvas != null) {
+            int pad = land ? dp(4) : dp(8);
+            containerPreviewCanvas.setPadding(pad, pad, pad, pad);
+        }
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     @Override
@@ -441,7 +479,7 @@ public class EditorActivity extends Activity {
         settings.setAllowFileAccessFromFileURLs(false);
         settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
-        settings.setJavaScriptEnabled(isAllowJs);
+        settings.setJavaScriptEnabled(previewJavaScriptEnabled());
         settings.setBlockNetworkLoads(!isAllowNetwork);
         settings.setDomStorageEnabled(false);
         settings.setDatabaseEnabled(false);
@@ -642,6 +680,13 @@ public class EditorActivity extends Activity {
 
         tabCode.setOnClickListener(v -> switchToTab(0));
         tabPreview.setOnClickListener(v -> switchToTab(1));
+        headerModeSwitch = findViewById(R.id.header_mode_switch);
+        tabCodeLand = findViewById(R.id.tab_code_land);
+        tabPreviewLand = findViewById(R.id.tab_preview_land);
+        if (tabCodeLand != null) tabCodeLand.setOnClickListener(v -> switchToTab(0));
+        if (tabPreviewLand != null) tabPreviewLand.setOnClickListener(v -> switchToTab(1));
+        View overflow = findViewById(R.id.btn_editor_overflow);
+        if (overflow != null) overflow.setOnClickListener(v -> showEditorOverflow(v));
         findViewById(R.id.btn_preview_refresh).setOnClickListener(v -> {
             if (previewRendererDead || webPreview == null) rebuildPreviewRenderer();
             previewState.invalidate();
@@ -672,13 +717,18 @@ public class EditorActivity extends Activity {
 
         switchAllowJs.setOnCheckedChangeListener((buttonView, isChecked) -> {
             isAllowJs = isChecked;
-            com.nous.codecanvas.util.CanvasPrefs.setScriptsAllowed(this, isChecked);
-            if (webPreview != null) webPreview.getSettings().setJavaScriptEnabled(isAllowJs);
-            if (isAllowJs && pageScriptsKind()) {
-                Toast.makeText(this, "已启用页面按钮与动态效果；仅运行你信任的代码", Toast.LENGTH_SHORT).show();
-            } else if (!isAllowJs && pageScriptsKind()) {
-                Toast.makeText(this, "已关闭脚本，页面仍可静态预览", Toast.LENGTH_SHORT).show();
+            if (!applyingScriptPref) {
+                com.nous.codecanvas.util.CanvasPrefs.setScriptsAllowed(this, isChecked);
             }
+            if (webPreview != null) {
+                webPreview.getSettings().setJavaScriptEnabled(previewJavaScriptEnabled());
+            }
+            if (applyingScriptPref || kind != DocumentKind.HTML) {
+                return;
+            }
+            Toast.makeText(this, isAllowJs
+                    ? "已启用页面按钮与动态效果；仅运行你信任的代码"
+                    : "已关闭脚本，页面仍可静态预览", Toast.LENGTH_SHORT).show();
             previewState.invalidate();
             renderPreview(true);
         });
@@ -1584,10 +1634,34 @@ public class EditorActivity extends Activity {
         }
     }
 
-    /** HTML, SVG, Markdown and Mermaid can run page scripts. A .py file cannot. */
-    private boolean pageScriptsKind() {
-        return kind == DocumentKind.HTML || kind == DocumentKind.SVG
-                || kind == DocumentKind.MARKDOWN || kind == DocumentKind.MERMAID;
+    /** The script switch is an HTML concern. Markdown and Mermaid run the bundled renderer. */
+    private boolean previewJavaScriptEnabled() {
+        return isAllowJs || kind == DocumentKind.MARKDOWN || kind == DocumentKind.MERMAID;
+    }
+
+    private void showEditorOverflow(View anchor) {
+        android.widget.PopupMenu menu = new android.widget.PopupMenu(this, anchor);
+        boolean preview = viewFlipper != null && viewFlipper.getDisplayedChild() == 1;
+        if (kind != null && kind.hasSourceTab()) {
+            menu.getMenu().add(0, 1, 0, "查找");
+        }
+        menu.getMenu().add(0, 2, 0, "另存为");
+        menu.getMenu().add(0, 3, 0, "分享");
+        if (preview) {
+            menu.getMenu().add(0, 4, 0, "刷新");
+            menu.getMenu().add(0, 6, 0, "全屏");
+            if (kind == DocumentKind.HTML) menu.getMenu().add(0, 5, 0, "联网加载");
+        }
+        menu.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == 1) toggleSearch();
+            else if (item.getItemId() == 2) startSafExport();
+            else if (item.getItemId() == 3) shareFile();
+            else if (item.getItemId() == 4) findViewById(R.id.btn_preview_refresh).performClick();
+            else if (item.getItemId() == 5) findViewById(R.id.btn_preview_network).performClick();
+            else if (item.getItemId() == 6) findViewById(R.id.btn_preview_fullscreen).performClick();
+            return true;
+        });
+        menu.show();
     }
 
     /** Code, data and config files get keyword colour. That is not an interpreter. */
@@ -1643,7 +1717,9 @@ public class EditorActivity extends Activity {
     private void applyKindToChrome() {
         boolean hasSource = kind.hasSourceTab() && !sourceTooLarge;
         layoutEditorTabs.setVisibility(hasSource ? View.VISIBLE : View.GONE);
-        btnSearch.setVisibility(hasSource ? View.VISIBLE : View.GONE);
+        btnSearch.setVisibility(View.GONE);
+        if (btnExportSaf != null) btnExportSaf.setVisibility(View.GONE);
+        if (btnShare != null) btnShare.setVisibility(View.GONE);
         btnSave.setVisibility(hasSource ? View.VISIBLE : View.GONE);
         editorHelpersView.setVisibility(hasSource ? View.VISIBLE : View.GONE);
         if (!hasSource) {
@@ -1668,7 +1744,7 @@ public class EditorActivity extends Activity {
         // a CSV table has to keep scrolling normally, so the viewport stays passive there.
         previewViewport.setInteractive(zoomable);
         // The script switch is meaningless for a raster image or a PDF.
-        switchAllowJs.setVisibility(hasSource && pageScriptsKind() ? View.VISIBLE : View.GONE);
+        switchAllowJs.setVisibility(kind == DocumentKind.HTML ? View.VISIBLE : View.GONE);
         if (pdfPager != null) pdfPager.setVisibility(kind == DocumentKind.PDF ? View.VISIBLE : View.GONE);
         applyEditorChrome();
     }
@@ -2021,17 +2097,20 @@ public class EditorActivity extends Activity {
             tabIndex = 1;
         }
         if (viewFlipper.getDisplayedChild() == tabIndex) {
+            paintModeTab(tabCode, tabIndex == 0);
+            paintModeTab(tabCodeLand, tabIndex == 0);
+            paintModeTab(tabPreview, tabIndex == 1);
+            paintModeTab(tabPreviewLand, tabIndex == 1);
+            applyEditorChrome();
             if (tabIndex == 1) renderPreview(false);
             return;
         }
 
         if (tabIndex == 0) {
-            tabCode.setTextColor(getResources().getColor(R.color.canvas_on_primary));
-            tabCode.setBackgroundResource(R.drawable.bg_segment_item);
-            tabCode.setSelected(true);
-            tabPreview.setTextColor(getResources().getColor(R.color.canvas_ink_secondary));
-            tabPreview.setBackgroundResource(R.drawable.bg_segment_item);
-            tabPreview.setSelected(false);
+            paintModeTab(tabCode, true);
+            paintModeTab(tabPreview, false);
+            paintModeTab(tabCodeLand, true);
+            paintModeTab(tabPreviewLand, false);
 
             findViewById(R.id.txt_preview_advice).setVisibility(View.GONE);
             toolbarEditorActions.setVisibility(View.VISIBLE);
@@ -2045,12 +2124,10 @@ public class EditorActivity extends Activity {
                 imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
             }
 
-            tabPreview.setTextColor(getResources().getColor(R.color.canvas_on_primary));
-            tabPreview.setBackgroundResource(R.drawable.bg_segment_item);
-            tabPreview.setSelected(true);
-            tabCode.setTextColor(getResources().getColor(R.color.canvas_ink_secondary));
-            tabCode.setBackgroundResource(R.drawable.bg_segment_item);
-            tabCode.setSelected(false);
+            paintModeTab(tabPreview, true);
+            paintModeTab(tabCode, false);
+            paintModeTab(tabPreviewLand, true);
+            paintModeTab(tabCodeLand, false);
 
             toolbarEditorActions.setVisibility(View.GONE);
             editorHelpersView.setVisibility(View.GONE);
@@ -2074,6 +2151,15 @@ public class EditorActivity extends Activity {
             page.setAlpha(1f);
             page.setTranslationX(0f);
         }
+        applyEditorChrome();
+    }
+
+    private void paintModeTab(TextView tab, boolean selected) {
+        if (tab == null) return;
+        tab.setSelected(selected);
+        tab.setTextColor(getResources().getColor(selected
+                ? R.color.canvas_on_primary : R.color.canvas_ink_secondary));
+        tab.setBackgroundResource(R.drawable.bg_segment_item);
     }
 
     // ------------------------------------------------------------------ saving

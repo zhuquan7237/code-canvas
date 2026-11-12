@@ -95,8 +95,9 @@ public final class PreviewPage {
                 + "font-family:ui-monospace,'Cascadia Mono',Menlo,Consolas,monospace;font-size:13px;line-height:1.5}"
                 + "pre code{background:none;padding:0}"
                 + "table{border-collapse:collapse;width:100%;margin:.8em 0;font-size:14px}"
-                + "th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}"
+                + "th,td{border-bottom:1px solid var(--line);padding:10px 14px;text-align:left;vertical-align:top}"
                 + "th{background:var(--code-bg);font-weight:700}"
+                + "tbody tr:nth-child(even) td{background:var(--surface)}"
                 + "blockquote{margin:.8em 0;padding:.2em 0 .2em 12px;border-left:3px solid var(--line);color:var(--ink-2)}"
                 + "hr{border:none;border-top:1px solid var(--line);margin:1.2em 0}"
                 + "img{max-width:100%;height:auto}"
@@ -304,16 +305,20 @@ public final class PreviewPage {
     private static String csv(Request request) {
         char separator = CsvTable.guessSeparator(request.content);
         CsvTable.Table table = CsvTable.parse(request.content, separator);
-        String extra = "body{padding:0}"
-                + ".cc-wrap{overflow:auto;-webkit-overflow-scrolling:touch}"
-                + "table{border-collapse:separate;border-spacing:0;font-size:13px;width:max-content;min-width:100%}"
-                + "th,td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);"
-                + "padding:7px 11px;white-space:pre;vertical-align:top;max-width:60vw;overflow:hidden;text-overflow:ellipsis}"
-                + "th{position:sticky;top:0;background:var(--surface);font-weight:700;z-index:1}"
-                + "td.cc-rowno,th.cc-rowno{position:sticky;left:0;background:var(--surface);"
-                + "color:var(--ink-2);text-align:right;font-variant-numeric:tabular-nums;z-index:2}"
-                + "tr:nth-child(even) td{background:var(--code-bg)}"
-                + ".cc-head{padding:10px 14px;font-size:12.5px;color:var(--ink-2);border-bottom:1px solid var(--line)}";
+        String extra = "body{padding:0;background:var(--bg)}"
+                + ".cc-head{padding:12px 16px 8px;font-size:12px;color:var(--ink-2)}"
+                + ".cc-wrap{overflow:auto;-webkit-overflow-scrolling:touch;"
+                + "box-shadow:inset -18px 0 14px -14px rgba(15,23,42,.22)}"
+                + "table{border-collapse:separate;border-spacing:0;font-size:14px;width:max-content;min-width:100%}"
+                + "th,td{border:none;border-bottom:1px solid var(--line);padding:12px 16px;"
+                + "white-space:nowrap;vertical-align:middle;min-width:7.5rem}"
+                + "th{position:sticky;top:0;background:var(--code-bg);font-weight:700;z-index:2;color:var(--ink)}"
+                + "td.cc-rowno,th.cc-rowno{position:sticky;left:0;min-width:2.6rem;width:2.6rem;"
+                + "padding-left:12px;padding-right:8px;text-align:right;color:var(--ink-2);"
+                + "font-variant-numeric:tabular-nums;background:var(--bg);z-index:3}"
+                + "th.cc-rowno{z-index:4;background:var(--code-bg)}"
+                + "tbody tr:nth-child(odd) td{background:var(--bg)}"
+                + "tbody tr:nth-child(even) td{background:var(--surface)}";
         StringBuilder body = new StringBuilder();
         body.append("<div class=\"cc-head\">").append(escape(CsvTable.describe(table, separator)));
         if (!table.errors.isEmpty()) {

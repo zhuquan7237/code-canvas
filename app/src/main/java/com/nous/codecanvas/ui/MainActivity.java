@@ -338,18 +338,10 @@ public class MainActivity extends Activity {
         buildFilterChips();
     }
 
-    /** Landscape phones are short. Drop the subtitle and tighten the hero so the list stays usable. */
+    /** The paste action floats. In a selection it would cover the last rows, so it steps aside. */
     private void applyHomeChrome() {
-        boolean land = getResources().getConfiguration().orientation
-                == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
-        TextView sub = findViewById(R.id.txt_brand_sub);
-        if (sub != null) sub.setVisibility(land ? View.GONE : View.VISIBLE);
-        if (btnQuickPaste != null && btnQuickPaste.getLayoutParams() instanceof android.widget.LinearLayout.LayoutParams) {
-            android.widget.LinearLayout.LayoutParams lp =
-                    (android.widget.LinearLayout.LayoutParams) btnQuickPaste.getLayoutParams();
-            lp.height = dp(land ? 44 : 50);
-            lp.topMargin = dp(land ? 4 : 10);
-            btnQuickPaste.setLayoutParams(lp);
+        if (btnQuickPaste != null) {
+            btnQuickPaste.setVisibility(selectionMode ? View.GONE : View.VISIBLE);
         }
     }
 
@@ -453,6 +445,20 @@ public class MainActivity extends Activity {
         btnQuickPaste.setOnClickListener(v -> performQuickPasteAndPreview());
         btnNew.setOnClickListener(v -> showNewDocumentDialog());
         btnImport.setOnClickListener(v -> startSafImport());
+        View addMenu = findViewById(R.id.btn_add_menu);
+        if (addMenu != null) {
+            addMenu.setOnClickListener(v -> {
+                android.widget.PopupMenu menu = new android.widget.PopupMenu(this, v);
+                menu.getMenu().add(0, 1, 0, "新建");
+                menu.getMenu().add(0, 2, 0, "导入文件");
+                menu.setOnMenuItemClickListener(item -> {
+                    if (item.getItemId() == 1) showNewDocumentDialog();
+                    else startSafImport();
+                    return true;
+                });
+                menu.show();
+            });
+        }
         View settings = findViewById(R.id.btn_settings);
         if (settings != null) {
             settings.setOnClickListener(v -> {
@@ -810,6 +816,7 @@ public class MainActivity extends Activity {
         selectedIds.clear();
         selectedIds.add(firstId);
         selectionBar.setVisibility(View.VISIBLE);
+        applyHomeChrome();
         refreshSelectionUi();
     }
 
@@ -817,6 +824,7 @@ public class MainActivity extends Activity {
         selectionMode = false;
         selectedIds.clear();
         selectionBar.setVisibility(View.GONE);
+        applyHomeChrome();
         adapter.notifyDataSetChanged();
         gridAdapter.notifyDataSetChanged();
     }
@@ -1377,9 +1385,13 @@ public class MainActivity extends Activity {
             bindThumbnail(cover, key, typeCover);
 
             if (txtTitle != null) txtTitle.setText(doc.getTitle());
-            if (txtTime != null) txtTime.setText(dateFormat.format(new Date(doc.getUpdatedAt())));
-            if (txtTag != null) txtTag.setText(coverKind.label());
-            if (txtSize != null) txtSize.setText(presentation.sizeText);
+            if (txtTag != null) {
+                txtTag.setText(coverKind.label());
+                KindStyle.applyChip(txtTag, coverKind);
+            }
+            String when = dateFormat.format(new Date(doc.getUpdatedAt()));
+            if (txtSize != null) txtSize.setText(presentation.sizeText + " · " + when);
+            if (txtTime != null) txtTime.setText(when);
 
             // Selection chrome: badge + row tint; type cover stays under the badge.
             boolean selected = selectionMode && selectedIds.contains(doc.getId());
@@ -1389,7 +1401,7 @@ public class MainActivity extends Activity {
             }
             convertView.setBackgroundResource(selected
                     ? R.drawable.bg_row_selected
-                    : R.drawable.bg_card);
+                    : (parent == gridDocuments ? R.drawable.bg_card : R.drawable.bg_list_row));
 
             if (contentContainer != null) {
                 contentContainer.setClickable(false);
@@ -1424,6 +1436,62 @@ public class MainActivity extends Activity {
      * miss (thumbnail still being rendered) shows the type cover, and the finished capture
      * crossfades in when the backfiller stores it.
      */
+    /**
+     * Zoom the thumbnail until it fills the tile, then slide to the band that actually
+     * has ink. A centred crop misses a heading that sits at the top; fitting the whole
+     * page shrinks that heading to a speck.
+     */
+    private void showThumbnailTop(android.widget.ImageView cover, android.graphics.Bitmap bitmap) {
+        cover.setScaleType(android.widget.ImageView.ScaleType.MATRIX);
+        cover.setImageBitmap(bitmap);
+        final Object token = cover.getTag();
+        Runnable apply = () -> {
+            if (bitmap.isRecycled() || (token != null && !token.equals(cover.getTag()))) return;
+            int vw = cover.getWidth();
+            int vh = cover.getHeight();
+            if (vw <= 1 || vh <= 1 || bitmap.getWidth() <= 1) return;
+            float scale = Math.max(vw / (float) bitmap.getWidth(), vh / (float) bitmap.getHeight());
+            int window = Math.max(1, Math.round(vh / scale));
+            int focus = bitmap.getHeight() <= window ? 0 : densestRow(bitmap, window);
+            float dx = (vw - bitmap.getWidth() * scale) / 2f;
+            float dy = bitmap.getHeight() * scale <= vh
+                    ? (vh - bitmap.getHeight() * scale) / 2f
+                    : -focus * scale;
+            android.graphics.Matrix matrix = new android.graphics.Matrix();
+            matrix.setScale(scale, scale);
+            matrix.postTranslate(dx, dy);
+            cover.setImageMatrix(matrix);
+        };
+        if (cover.getWidth() > 0) apply.run();
+        else cover.post(apply);
+    }
+
+    /** The source row where a window of {@code window} pixels contains the most non-paper ink. */
+    private static int densestRow(android.graphics.Bitmap bitmap, int window) {
+        int height = bitmap.getHeight();
+        int width = bitmap.getWidth();
+        int stepY = Math.max(1, height / 24);
+        int stepX = Math.max(1, width / 16);
+        int bestY = 0;
+        int best = -1;
+        for (int y = 0; y + window <= height; y += stepY) {
+            int score = 0;
+            int sampleY = Math.min(height - 1, y + window / 3);
+            for (int x = 0; x < width; x += stepX) {
+                int pixel = bitmap.getPixel(x, sampleY);
+                int lum = (android.graphics.Color.red(pixel) * 299
+                        + android.graphics.Color.green(pixel) * 587
+                        + android.graphics.Color.blue(pixel) * 114) / 1000;
+                if (lum < 236) score += 236 - lum;
+            }
+            if (score > best) {
+                best = score;
+                bestY = y;
+            }
+        }
+        return bestY;
+    }
+
     private void bindThumbnail(android.widget.ImageView cover, String key, Drawable typeCover) {
         if (!CanvasPrefs.thumbnailsEnabled(MainActivity.this)) {
             cover.setScaleType(android.widget.ImageView.ScaleType.CENTER);
@@ -1435,8 +1503,7 @@ public class MainActivity extends Activity {
             // A memory hit lands in the same frame, with no animation and no intermediate paint —
             // animating a cache hit is the other half of what makes a list flicker.
             cover.setAlpha(1f);
-            cover.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-            cover.setImageBitmap(cached);
+            showThumbnailTop(cover, cached);
             cover.setContentDescription("作品预览缩略图");
             cover.setTag(TAG_THUMB_BOUND, key);
             return;
@@ -1458,8 +1525,7 @@ public class MainActivity extends Activity {
             final boolean fadeIn = !alreadyShowingThis;
             runOnUiThread(() -> {
                 if (key.equals(cover.getTag()) && loaded != null && !loaded.isRecycled()) {
-                    cover.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-                    cover.setImageBitmap(loaded);
+                    showThumbnailTop(cover, loaded);
                     cover.setContentDescription("作品预览缩略图");
                     cover.setTag(TAG_THUMB_BOUND, key);
                     if (fadeIn) {

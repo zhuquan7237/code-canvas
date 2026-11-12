@@ -12,17 +12,16 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-    <!-- Top bar: brand lockup left, three quiet glyphs right. The bar is the
-         page, not a separate slab - no surface break, no divider. -->
+    <!-- Top bar: one title, ghost icons. Import and new stay in the tree so
+         existing listeners and tests can reach them; the visible entry is ＋. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="64dp"
+        android:minHeight="56dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingVertical="8dp"
-        android:paddingStart="@dimen/screen_inset"
-        android:paddingEnd="@dimen/screen_inset">
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp">
 
         <ImageButton
             android:id="@+id/btn_drawer"
@@ -34,81 +33,58 @@
             android:src="@drawable/ic_menu"
             android:contentDescription="打开目录" />
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/txt_brand"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="12dp"
-            android:orientation="vertical">
+            android:layout_marginStart="4dp"
+            android:text="代码画布"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="@color/canvas_ink_primary" />
 
-            <TextView
-                android:id="@+id/txt_brand"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="代码画布"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.01"
-                android:textColor="@color/canvas_ink_primary" />
-
-            <TextView
-                android:id="@+id/txt_brand_sub"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:text="粘贴即可预览"
-                android:textSize="12sp"
-                android:singleLine="true"
-                android:ellipsize="end"
-                android:textColor="@color/canvas_ink_tertiary" />
-        </LinearLayout>
+        <TextView
+            android:id="@+id/txt_brand_sub"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:text="粘贴即可预览" />
 
         <ImageButton
-            android:id="@+id/btn_import"
+            android:id="@+id/btn_add_menu"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:padding="12dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_icon_button"
-            android:src="@drawable/ic_import"
-            android:contentDescription="导入文件" />
-
-        <ImageButton
-            android:id="@+id/btn_new"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="2dp"
             android:padding="12dp"
             android:scaleType="fitCenter"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_add"
-            android:contentDescription="新建画布" />
+            android:contentDescription="新建或导入" />
 
         <ImageButton
             android:id="@+id/btn_settings"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:layout_marginStart="2dp"
             android:padding="12dp"
             android:scaleType="fitCenter"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_settings"
             android:contentDescription="设置" />
-    </LinearLayout>
 
-    <!-- Hero action: the one thing most visits are for. -->
-    <Button
-        android:id="@+id/btn_quick_paste_preview"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginHorizontal="@dimen/screen_inset"
-        android:layout_marginTop="@dimen/space_16"
-        android:background="@drawable/bg_button_primary"
-        android:text="粘贴并预览"
-        android:textSize="15sp"
-        android:textStyle="bold"
-        android:letterSpacing="0.01"
-        android:textColor="@color/text_on_primary_button" />
+        <ImageButton
+            android:id="@+id/btn_import"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:contentDescription="导入文件" />
+
+        <ImageButton
+            android:id="@+id/btn_new"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:contentDescription="新建画布" />
+    </LinearLayout>
 
     <!-- Clipboard auto-detect banner slot. GONE until a renderable clip is seen. -->
     <include
@@ -119,9 +95,9 @@
     <!-- Search: a pill at rest, an outline only while it has focus. -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="44dp"
+        android:layout_height="40dp"
         android:layout_marginHorizontal="@dimen/screen_inset"
-        android:layout_marginTop="@dimen/space_16"
+        android:layout_marginTop="@dimen/space_8"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingHorizontal="16dp"
@@ -164,8 +140,8 @@
     <!-- Section header: count on the left, update + view-mode on the right. -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="46dp"
-        android:layout_marginTop="12dp"
+        android:layout_height="36dp"
+        android:layout_marginTop="4dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="22dp"
@@ -191,8 +167,8 @@
             android:layout_height="40dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:padding="2dp"
-            android:background="@drawable/bg_segment_track">
+            android:padding="0dp"
+            android:background="@android:color/transparent">
 
             <ImageButton
                 android:id="@+id/btn_layout_list"
@@ -226,10 +202,11 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:divider="@null"
-            android:dividerHeight="@dimen/space_16"
-            android:paddingHorizontal="@dimen/screen_inset"
-            android:paddingTop="2dp"
-            android:paddingBottom="8dp"
+            android:dividerHeight="0dp"
+            android:listSelector="@android:color/transparent"
+            android:paddingHorizontal="8dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="88dp"
             android:clipToPadding="false" />
 
         <GridView
@@ -317,6 +294,24 @@
         </LinearLayout>
     </FrameLayout>
     </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_quick_paste_preview"
+        android:layout_width="wrap_content"
+        android:layout_height="56dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="20dp"
+        android:minWidth="0dp"
+        android:paddingHorizontal="22dp"
+        android:background="@drawable/bg_fab"
+        android:elevation="6dp"
+        android:stateListAnimator="@null"
+        android:text="粘贴"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_on_primary_button"
+        android:contentDescription="粘贴并预览" />
 
     <!-- Contextual action bar: overlays the top bar while selection is live, so the
          list never reflows and the mode never fights the browsing UI. -->
