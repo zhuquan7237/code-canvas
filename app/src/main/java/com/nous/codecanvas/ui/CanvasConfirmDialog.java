@@ -81,8 +81,9 @@ public final class CanvasConfirmDialog {
         FrameLayout slot = view.findViewById(R.id.dialog_content);
 
         txtTitle.setText(title);
+        View messageScroll = view.findViewById(R.id.dialog_message_scroll);
         if (message == null || message.isEmpty()) {
-            txtMessage.setVisibility(View.GONE);
+            if (messageScroll != null) messageScroll.setVisibility(View.GONE);
         } else {
             txtMessage.setText(message);
         }

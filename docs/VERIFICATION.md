@@ -1,11 +1,17 @@
-# v0.5.1 验收记录（第一阶段格式预览 · 代码搜索 · SVG 交互视口 · 更新加固）
+# v0.5.3 验收记录（第一阶段格式预览 · 代码搜索 · SVG 交互视口 · 更新加固）
 
-- 正式签名版 versionCode 51 / versionName 0.5.1；签名证书 `a6f25e1a…d19b6`，与 0.1.0–0.4.0 一致（支持原地升级）。体积 1,353,490 字节。
-- 单元测试 **232 项 0 失败**；模拟器仪器测试 **94 项 0 失败**（emulator-5554，Android 17 / API 37）。
-- 覆盖安装实测：模拟器上 versionCode 由 **40 变为 51**、versionName 变为 **0.5.1**，`install -r` 成功，文件与设置均保留。
+- 正式签名版 versionCode 53 / versionName 0.5.3；签名证书 `a6f25e1a…d19b6`，与 0.1.0–0.4.0 一致（支持原地升级）。体积 1,354,270 字节。
+- 单元测试 **232 项 0 失败**；模拟器仪器测试 **96 项 0 失败**（emulator-5554，Android 17 / API 37）。
+- 覆盖安装实测（端到端，非预览）：
+  1. 模拟器装 0.4.0（versionCode 40，同签名）→ 主页显示「新版本 0.5.3 · 更新」，数据来自自建源 `relay.zhuquan.xyz`。
+  2. 点更新 → 对话框显示真实更新说明（不是文件路径）→「下载并安装」→ 下载 → SHA-256 校验通过 → 权限引导「允许安装更新」→ 系统设置里开启「Allow from this source」→ 返回后自动继续 → 系统安装器「Update this app?」→ 点 Update → **versionCode 由 40 变为 53**、versionName 变为 **0.5.3**。
+  3. 升级后主页三个文件（welcome.html / vector-art.svg / config.xml）与设置全部保留；再点检查更新显示「已是最新 · 0.5.3」。
+  - 说明：模拟器的系统安装会话在「Updating…」进度条处会卡住（logcat 显示 `persistent_data_block` 服务缺失，属模拟器镜像问题）。同一 APK 用 `adb install -r` 覆盖安装成功并保留数据，因此升级路径本身已验证；「点 Update 后由系统完成」这一步在模拟器上未能走完，**真机未测**。
+  - Play Protect 对自签名包会拦截（系统级安全门）。验证时在**一次性测试模拟器**上临时 `package_verifier_enable=0` + 禁用 Play 商店，**验完已逐项还原**（`=1`、`pm enable`、appops 回 default），未改动任何真机安全设置。
 - 本轮新增的仪器测试跑的是**真实文件**，不是构造的字符串：
   - `FormatSupportTest` 15 项：Markdown 表格/代码块/公式/Mermaid 全部由包内资源渲染（网络被 `blockNetworkLoads` 封锁，证明离线可用）；JSON 的 `2.40`/`1.0`/`12345678901234567890` 原样保留；JSONL 第 3 行报错而其余 3 行正常；CSV 的 `"对接焊, 无间隙"` 是一个单元格、单元格内换行保留、`""` 还原成一个引号；YAML 指出制表符并声明未做完整校验；GB18030 文本重新编码后**逐字节一致**；CRLF 保留；PNG 与 PDF 未修改导出**逐字节一致**；二进制文件被拒绝并说明原因。
   - `SvgViewportTest` 12 项：宽幅 1280×800（带 `slice` + `100vw/100vh`）四角全部可见；超高 300×2400 完整；`viewBox="-200 -120 400 240"` 完整且水平/垂直居中（左右、上下留白差 < 6px）；百分比宽高不崩且不误报错误；带滤镜与描边的图不被裁边；**真实双指手势**（合成 MotionEvent 双指张开）缩放因子 > 1.2，单指拖动确实平移且图形不会完全离开视野；缩放上下限生效；全屏进入/退出/返回键；旋转后未手动缩放的重新适应；缩放平移全屏适应内容**都不改动源码、不标记未保存**；`clipPath`/`clip-path` 原样保留。
+  - `ConfirmDialogLayoutTest` 2 项：12 条长更新说明下「下载并安装」与「稍后」仍在窗口内（实测 y=1168 / 窗口高 1344），短消息同样正常。
   - `PreviewTransitionAndToolbarTest` 4 项：搜索计数 1/3→2/3→回绕到 3/3→再回绕到 1/3；大小写开关把 2 处变 1 处；无结果显示 0/0；关闭后不残留匹配；编辑后计数跟随更新；符号插入可撤销。
 - 视觉验收（截图由 `ScreenshotCaptureTest` 在真机渲染后抓取，逐屏目视核验）：
   - `01-svg-wide-fit.png`：宽幅 SVG 四角红/绿/蓝/黄标记全部可见，无裁切无拉伸，视口工具栏（适应窗口/适应内容/±/100%）完整。
@@ -18,13 +24,16 @@
   1. **双指手势完全不生效**：`onInterceptTouchEvent` 放过了 `ACTION_DOWN`，WebView 先吃掉它，`ScaleGestureDetector` 没有锚点，真实捏合不产生任何缩放。改为对可缩放内容接管全部事件流，并用合成双指事件验证到 `onScale` 逐帧被调用。
   2. **预览页脚本没执行**：`<script src>` 放在 `<head>` 且没有 `defer`，内联脚本在 `#cc-source` 还不存在时就跑了，Markdown 一片空白。改为 `defer`，并把文档源码放进 `text/plain` 容器，避免引号/反斜杠/`</script>` 破坏脚本。
   3. **公式不渲染**：只处理了 `<code>` 里的 `$...$`，漏了独立成段的 `$$...$$`（marked 会输出普通 `<p>`）和 ```` ```math ```` 围栏。补上两条路径。
-  4. **布局期间同步调用 evaluateJavascript 卡死主线程**：`SvgViewport.onSizeChanged` → 变换回调 → `evaluateJavascript` 在 layout 中阻塞，导致 `SvgPreviewFitsWholeArtworkTest` 挂住整个测试进程。改为 post + 合并，且适应状态（1,0,0）根本不发消息。
+  4. **长更新说明把对话框按钮挤出屏幕**：`dialog_confirm` 的正文是无界 `TextView`，
+     0.5.1 的更新说明有 7 条，按钮被推到屏幕外，只剩返回键能关掉。改为正文在 380dp 上限内
+     滚动，按钮固定可见。这是端到端更新实测才发现的，单元测试和仪器测试都没覆盖到。
+  5. **布局期间同步调用 evaluateJavascript 卡死主线程**：`SvgViewport.onSizeChanged` → 变换回调 → `evaluateJavascript` 在 layout 中阻塞，导致 `SvgPreviewFitsWholeArtworkTest` 挂住整个测试进程。改为 post + 合并，且适应状态（1,0,0）根本不发消息。
 - 未验证 / 已知限制（不掩饰）：
   - **PDF 不能在应用内翻页预览**。Android WebView 不渲染 PDF，本阶段未打包 PDF.js；界面明确说明并提供"用其他应用打开原文件"与分享（字节一致）。
   - **YAML 没有完整语义校验**。无 YAML 引擎，只查缩进（含制表符）与括号平衡，界面标注"未做完整 YAML 语义校验"。
   - 真机（小米 Turbo 3）未实测，只在模拟器上验证；双指手势用合成事件驱动，未在真实触摸屏上验证手感。
   - 未测试超大文件（>8MB 文本会被拒绝，>64MB 二进制会被拒绝）的实际性能表现。
-- 截图证据：`docs/evidence/v0.5.1/`。
+- 截图证据：`docs/evidence/v0.5.3/`。
 
 # v0.2.0 验收记录（设置中心 · 卡片长按操作 · 缩略图开关）
 

@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "versionName": "0.5.1",
-  "versionCode": 51,
+  "versionName": "0.5.3",
+  "versionCode": 53,
   "channel": "stable",
-  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.5.1.apk?v=b2e2d02c85aa",
-  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.1/code-canvas-0.5.1.apk",
-  "sha256": "b2e2d02c85aa444aff58bf9c4b7ca6b03fc2f76705f397f611fcb0a8ae61adbb",
-  "size": 1353490,
-  "notes": "v0.5.1 更新：\n\n1. 第一阶段格式预览：HTML、SVG、Markdown、Mermaid、JSON、JSONL、XML、YAML、CSV、TXT 与常见代码可预览可编辑；PNG/JPG/WebP/GIF、PDF 仅预览。\n2. 先保存原始字节再解码：类型按「文件特征 → 扩展名 → MIME」判断，编码按 BOM → UTF-8 → GB18030 识别，保存用同一编码与换行写回；图片与 PDF 未修改导出哈希不变。\n3. Markdown 表格、任务列表、代码块、公式、Mermaid 全部离线可用（依赖随包提供）。\n4. JSON 格式化只调缩进，1.0 仍是 1.0、20 位整数不变科学计数法；JSONL 逐行解析，一行出错不影响其他行；CSV 正确处理引号、单元格内逗号与换行。\n5. 代码搜索：搜索框、当前/总数、上一处/下一处、关闭、区分大小写；全部匹配高亮、当前匹配突出、循环切换、编辑后自动更新。\n6. SVG 交互视口：默认完整居中（含非零/负数 viewBox 原点）、双指缩放、单指拖动、双击放大/复位、适应窗口、适应内容、全屏；缩放保持矢量，查看不改动文件。\n7. 更新加固：清单新增 minSdk 与 channel，预发布版本拒绝安装，设备跑不动的版本直接说明。\n\n已知限制：PDF 本阶段不能在应用内翻页预览（Android WebView 不渲染 PDF），界面提供「用其他应用打开原文件」与字节一致的分享；YAML 只做缩进与括号检查，界面标注未做完整语义校验。",
+  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.5.3.apk?v=522a30462576",
+  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.3/code-canvas-0.5.3.apk",
+  "sha256": "522a304625765b2351cb66e367302c5b3bbd5c5dd61b108e7e7a9a9b09c129d5",
+  "size": 1354270,
+  "notes": "v0.5.3 更新\n\n· 第一阶段格式预览：HTML、SVG、Markdown、Mermaid、JSON、JSONL、XML、YAML、CSV、TXT 与常见代码可预览可编辑；图片、GIF、PDF 仅预览。\n· 先保存原始字节再解码：类型按文件特征→扩展名→MIME 判断，编码按 BOM→UTF-8→GB18030 识别，保存用同一编码与换行写回；图片与 PDF 未修改导出哈希不变。\n· Markdown 表格、任务列表、代码块、公式、Mermaid 全部离线可用。\n· JSON 格式化只调缩进（1.0 仍是 1.0）；JSONL 逐行解析；CSV 正确处理引号与单元格内换行。\n· 代码搜索：计数、上一处/下一处、循环、区分大小写、全部匹配高亮。\n· SVG 交互视口：完整居中、双指缩放、拖动、双击、适应窗口/内容、全屏；查看不改动文件。\n· 修复更新对话框：说明较长时按钮不再被挤出屏幕。\n\n完整说明见 GitHub Release 页面。",
   "minSdk": 26
 }
