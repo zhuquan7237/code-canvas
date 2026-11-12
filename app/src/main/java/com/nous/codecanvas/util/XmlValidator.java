@@ -56,7 +56,13 @@ public class XmlValidator {
                 factory.setExpandEntityReferences(false);
             } catch (Exception ignored) {}
             if (!doctypeBlocked) {
-                return new ValidationResult(false, "安全拦截：XML 解析器无法关闭 DOCTYPE，已拒绝解析");
+                // Some Android parsers cannot toggle that feature. A document that declares a
+                // DOCTYPE is refused; one that does not is still parsed with the other XXE
+                // switches off.
+                String head = xmlContent.length() > 8192 ? xmlContent.substring(0, 8192) : xmlContent;
+                if (head.toUpperCase(Locale.ROOT).contains("<!DOCTYPE")) {
+                    return new ValidationResult(false, "安全拦截：解析器无法关闭 DOCTYPE，已拒绝带文档类型声明的 XML");
+                }
             }
             factory.setNamespaceAware(true);
 

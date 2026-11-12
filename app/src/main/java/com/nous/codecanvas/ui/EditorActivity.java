@@ -148,9 +148,6 @@ public class EditorActivity extends Activity {
     private ScrollView scrollCode;
     private WebView webPreview;
     private View layoutXmlView;
-    private TextView txtXmlStatus;
-    private TextView txtXmlContent;
-
     // --- state --------------------------------------------------------------------------------
     private final UndoRedoManager undoRedoManager = new UndoRedoManager();
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -210,6 +207,7 @@ public class EditorActivity extends Activity {
         }
     };
 
+    private int highlightRetries;
     private final Runnable highlightRunnable = new Runnable() {
         @Override
         public void run() {
@@ -453,8 +451,6 @@ public class EditorActivity extends Activity {
         // feel like they took seconds to appear.
         webPreview = findViewById(R.id.web_preview);
         layoutXmlView = findViewById(R.id.layout_xml_view);
-        txtXmlStatus = findViewById(R.id.txt_xml_status);
-        txtXmlContent = findViewById(R.id.txt_xml_content);
     }
 
     /** True once {@link #setupWebView()} has run for the current WebView. */
@@ -1753,12 +1749,28 @@ public class EditorActivity extends Activity {
      * Python or YAML, which was both wrong and expensive.</p>
      */
     private void applySyntaxHighlight() {
+        int start;
+        int end;
         int[] window = visibleTextWindow();
-        if (window == null) return;
+        // A short file is coloured whole, even before the scroll view has a height. Waiting on
+        // that height used to skip the first paint, so keywords stayed the body colour.
+        if (editCode.length() > 0 && editCode.length() <= 8000) {
+            start = 0;
+            end = editCode.length();
+        } else if (window != null) {
+            start = window[0];
+            end = window[1];
+        } else {
+            if (highlightRetries++ < 4) editCode.post(highlightRunnable);
+            return;
+        }
+        highlightRetries = 0;
         if (isMarkupKind()) {
-            SyntaxHighlighter.highlightRange(editCode.getText(), isDark(), window[0], window[1]);
+            SyntaxHighlighter.highlightRange(editCode.getText(), isDark(), start, end);
         } else if (isCodeHighlightKind()) {
-            SyntaxHighlighter.highlightCode(editCode.getText(), isDark(), window[0], window[1]);
+            String title = currentDocument == null ? "" : currentDocument.getTitle();
+            SyntaxHighlighter.highlightCode(editCode.getText(), isDark(), start, end,
+                    SyntaxHighlighter.languageForTitle(title));
         } else {
             clearSyntaxSpans();
         }
@@ -1910,10 +1922,6 @@ public class EditorActivity extends Activity {
             ((TextView) findViewById(R.id.txt_preview_advice)).setVisibility(View.GONE);
         }
 
-        if (kind == DocumentKind.XML) {
-            renderXmlStructure(content);
-            return;
-        }
         if (isImageKind()) {
             renderImage();
             return;
@@ -1963,26 +1971,6 @@ public class EditorActivity extends Activity {
 
         // A fresh render starts fitted: a new drawing must not land outside an old viewport.
         if (isVectorKind()) previewViewport.fitToWindow();
-    }
-
-    private void renderXmlStructure(String content) {
-        if (webPreview != null) webPreview.setVisibility(View.GONE);
-        previewImage.setVisibility(View.GONE);
-        findViewById(R.id.preview_loading).setVisibility(View.GONE);
-        previewState.invalidate();
-        layoutXmlView.setVisibility(View.VISIBLE);
-        txtRenderModeBadge.setText("XML 结构视图");
-
-        com.nous.codecanvas.util.XmlValidator.ValidationResult result =
-                com.nous.codecanvas.util.XmlValidator.validateSecurely(content);
-        if (result.isValid()) {
-            txtXmlStatus.setText("✓ XML 结构完整有效（已启用防 XXE 安全沙箱）");
-            txtXmlStatus.setTextColor(getResources().getColor(R.color.canvas_success));
-        } else {
-            txtXmlStatus.setText("⚠ XML 解析异常: " + result.getErrorMessage());
-            txtXmlStatus.setTextColor(getResources().getColor(R.color.canvas_danger));
-        }
-        txtXmlContent.setText(com.nous.codecanvas.util.XmlFormatter.formatForDisplay(content));
     }
 
     /** Images are decoded from the original bytes, so nothing is re-encoded on the way in. */
@@ -2114,7 +2102,8 @@ public class EditorActivity extends Activity {
             case JSON: return "JSON 结构";
             case JSONL: return "JSONL 逐行";
             case CSV: return "CSV 表格";
-            case YAML: return "YAML 高亮";
+            case YAML: return "YAML 结构";
+            case XML: return "XML 结构";
             case CODE: return "代码预览";
             default: return "纯文本视图";
         }
@@ -2366,6 +2355,10 @@ public class EditorActivity extends Activity {
                                 if (sourceProblem[0] != null && explicit) {
                                     Toast.makeText(EditorActivity.this, sourceProblem[0], Toast.LENGTH_LONG).show();
                                 } else if (explicit) {
+                                    if (btnSave != null) {
+                                        btnSave.performHapticFeedback(
+                                                android.view.HapticFeedbackConstants.CONTEXT_CLICK);
+                                    }
                                     Toast.makeText(EditorActivity.this,
                                             sourceWritten[0] ? "已保存到原文件" : "已保存",
                                             Toast.LENGTH_SHORT).show();
