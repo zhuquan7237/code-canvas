@@ -68,12 +68,38 @@ public class SvgViewport extends FrameLayout {
     /** When true, scale {@link #viewTarget} itself (raster images). SVG uses {@link #sink} instead. */
     private boolean useViewTransform;
     private View viewTarget;
-    /** Uniform scale applied to the content; 1 means "at the fitted size". */
+    /** Uniform scale applied to the content; 1 means "at the fitted size". These are the values on screen. */
     private float scale = 1f;
     private float minScale = MIN_ZOOM_FACTOR;
     private float maxScale = MAX_ZOOM_FACTOR;
     private float translateX = 0f;
     private float translateY = 0f;
+    /** The committed transform. Button presses land here immediately; the fields above ease toward it. */
+    private final ViewportTransform xform = new ViewportTransform();
+    private android.animation.ValueAnimator motion;
+    private android.view.VelocityTracker velocity;
+    private final Runnable flingTick = new Runnable() {
+        private long last;
+
+        @Override
+        public void run() {
+            long now = android.os.SystemClock.uptimeMillis();
+            float dt = last == 0L ? 0.016f : (now - last) / 1000f;
+            last = now;
+            readViewSize();
+            if (!xform.step(dt)) {
+                last = 0L;
+                showModel();
+                return;
+            }
+            scale = xform.scale;
+            translateX = xform.tx;
+            translateY = xform.ty;
+            applyTransform();
+            notifyZoom();
+            postOnAnimation(this);
+        }
+    };
     /** True while the user has zoomed or panned away from the fitted state. */
     private boolean userAdjusted = false;
 
@@ -135,10 +161,15 @@ public class SvgViewport extends FrameLayout {
             @Override
             public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
                 if (scaleDetector.isInProgress()) return false;
-                // One finger pans the artwork instead of scrolling the page behind it.
-                translateX -= distanceX;
-                translateY -= distanceY;
-                clampTranslation();
+                // One finger pans. Past the edge the motion is resisted, not stopped dead.
+                stopMotion();
+                readViewSize();
+                xform.scale = scale;
+                xform.pan(-distanceX, -distanceY);
+                xform.dampEdges();
+                translateX = xform.tx;
+                translateY = xform.ty;
+                userAdjusted = !xform.isFitted();
                 applyTransform();
                 return true;
             }
@@ -213,11 +244,9 @@ public class SvgViewport extends FrameLayout {
     public void setInteractive(boolean interactive) {
         this.interactive = interactive;
         if (!interactive) {
-            scale = 1f;
-            translateX = 0f;
-            translateY = 0f;
-            userAdjusted = false;
-            applyTransform();
+            stopMotion();
+            xform.fit();
+            showModel();
         }
     }
 
@@ -244,12 +273,9 @@ public class SvgViewport extends FrameLayout {
 
     /** Return to the fitted, centred state. */
     public void reset() {
-        scale = 1f;
-        translateX = 0f;
-        translateY = 0f;
-        userAdjusted = false;
-        applyTransform();
-        notifyZoom();
+        stopMotion();
+        xform.fit();
+        showModel();
     }
 
     /** Fit the whole artwork and centre it — the one action that always recovers the drawing. */
@@ -257,45 +283,66 @@ public class SvgViewport extends FrameLayout {
         reset();
     }
 
+    /** Same recovery, drawn as a short move instead of a jump. */
+    public void animateFit() {
+        stopMotion();
+        readViewSize();
+        xform.fit();
+        userAdjusted = false;
+        animateToModel();
+    }
+
     public boolean isFitted() {
         return !userAdjusted;
     }
 
-    /** Current zoom as a multiple of the fitted size. */
+    /** Current zoom as a multiple of the fitted size. This is the committed value, not the in-between frame. */
     public float getZoomFactor() {
-        return scale;
+        return xform.scale;
     }
 
     public void zoomIn() {
-        zoomTo(scale * STEP, getWidth() / 2f, getHeight() / 2f);
+        zoomBy(STEP, false);
     }
 
     public void zoomOut() {
-        zoomTo(scale / STEP, getWidth() / 2f, getHeight() / 2f);
+        zoomBy(1f / STEP, false);
+    }
+
+    /** The + button. The factor updates at once; the picture eases there. */
+    public void animateZoomIn() {
+        zoomBy(STEP, true);
+    }
+
+    public void animateZoomOut() {
+        zoomBy(1f / STEP, true);
+    }
+
+    private void zoomBy(float factor, boolean animate) {
+        stopMotion();
+        readViewSize();
+        xform.zoomAbout(xform.viewW / 2f, xform.viewH / 2f, factor);
+        xform.settleEdges();
+        if (animate) animateToModel();
+        else showModel();
     }
 
     /** Zoom to an absolute factor about a point in viewport coordinates. */
     public void zoomTo(float target, float pivotX, float pivotY) {
-        if (scale <= 0) return;
+        if (xform.scale <= 0) return;
         float clamped = Math.max(minScale, Math.min(maxScale, target));
-        zoomAbout(pivotX, pivotY, clamped / scale);
+        zoomAbout(pivotX, pivotY, clamped / xform.scale);
     }
 
     /** Multiply the zoom about a point, keeping that point fixed on screen. */
     private void zoomAbout(float pivotX, float pivotY, float factor) {
-        if (factor <= 0) return;
-        float target = Math.max(minScale, Math.min(maxScale, scale * factor));
-        float applied = target / scale;
-        if (Math.abs(applied - 1f) < 0.0001f) return;
-
-        // Keep the pivot stationary: the offset from the pivot scales with the zoom.
-        translateX = pivotX - (pivotX - translateX) * applied;
-        translateY = pivotY - (pivotY - translateY) * applied;
-        scale = target;
-        userAdjusted = Math.abs(scale - 1f) > 0.001f || translateX != 0f || translateY != 0f;
-        clampTranslation();
-        applyTransform();
-        notifyZoom();
+        stopMotion();
+        readViewSize();
+        xform.zoomAbout(pivotX, pivotY, factor);
+        if (xform.scale < minScale) xform.zoomTo(minScale, pivotX, pivotY);
+        if (xform.scale > maxScale) xform.zoomTo(maxScale, pivotX, pivotY);
+        xform.settleEdges();
+        showModel();
     }
 
     /**
@@ -303,22 +350,63 @@ public class SvgViewport extends FrameLayout {
      * Without this, a few fast drags leave the user staring at empty space with no way back except
      * the fit button.
      */
+    private void readViewSize() {
+        xform.viewW = Math.max(1f, getWidth());
+        xform.viewH = Math.max(1f, getHeight());
+    }
+
+    private void showModel() {
+        scale = xform.scale;
+        translateX = xform.tx;
+        translateY = xform.ty;
+        userAdjusted = !xform.isFitted();
+        applyTransform();
+        notifyZoom();
+    }
+
+    private void animateToModel() {
+        final float fromS = scale;
+        final float fromX = translateX;
+        final float fromY = translateY;
+        final float toS = xform.scale;
+        final float toX = xform.tx;
+        final float toY = xform.ty;
+        userAdjusted = !xform.isFitted();
+        notifyZoom();
+        if (motion != null) motion.cancel();
+        motion = android.animation.ValueAnimator.ofFloat(0f, 1f);
+        motion.setDuration(180);
+        motion.setInterpolator(new android.view.animation.DecelerateInterpolator());
+        motion.addUpdateListener(a -> {
+            float t = (float) a.getAnimatedValue();
+            scale = fromS + (toS - fromS) * t;
+            translateX = fromX + (toX - fromX) * t;
+            translateY = fromY + (toY - fromY) * t;
+            applyTransform();
+            if (listener != null) listener.onZoomChanged(scale);
+        });
+        motion.start();
+    }
+
+    private void stopMotion() {
+        if (motion != null) {
+            motion.cancel();
+            motion = null;
+        }
+        removeCallbacks(flingTick);
+        xform.vx = 0f;
+        xform.vy = 0f;
+    }
+
     private void clampTranslation() {
-        float w = getWidth();
-        float h = getHeight();
-        if (w <= 0 || h <= 0) return;
-        float contentW = w * scale;
-        float contentH = h * scale;
-        float minVisibleX = Math.min(w, contentW) * MIN_VISIBLE_FRACTION;
-        float minVisibleY = Math.min(h, contentH) * MIN_VISIBLE_FRACTION;
-
-        float maxTx = w - minVisibleX;
-        float minTx = minVisibleX - contentW;
-        translateX = Math.max(minTx, Math.min(maxTx, translateX));
-
-        float maxTy = h - minVisibleY;
-        float minTy = minVisibleY - contentH;
-        translateY = Math.max(minTy, Math.min(maxTy, translateY));
+        readViewSize();
+        xform.scale = scale;
+        xform.tx = translateX;
+        xform.ty = translateY;
+        xform.settleEdges();
+        scale = xform.scale;
+        translateX = xform.tx;
+        translateY = xform.ty;
     }
 
     private void applyTransform() {
@@ -393,6 +481,8 @@ public class SvgViewport extends FrameLayout {
         if (!interactive) return super.onTouchEvent(event);
         // ACTION_DOWN must reach both detectors before any second pointer: that event is what gives
         // ScaleGestureDetector its anchor. Without it a pinch silently produces no scale at all.
+        if (velocity == null) velocity = android.view.VelocityTracker.obtain();
+        velocity.addMovement(event);
         boolean handled = scaleDetector.onTouchEvent(event);
         handled |= gestureDetector.onTouchEvent(event);
 
@@ -407,6 +497,7 @@ public class SvgViewport extends FrameLayout {
                 if (dx * dx + dy * dy > TAP_SLOP_PX * TAP_SLOP_PX) gestureMoved = true;
             }
         } else if (action == MotionEvent.ACTION_UP) {
+            boolean moved = gestureMoved;
             if (!gestureMoved && event.getPointerCount() == 1) {
                 long now = event.getEventTime();
                 if (now - lastTapTime <= DOUBLE_TAP_TIMEOUT_MS
@@ -424,26 +515,56 @@ public class SvgViewport extends FrameLayout {
                     lastTapY = event.getY();
                 }
             }
+            float speed = 0f;
+            float vx = 0f;
+            float vy = 0f;
+            if (velocity != null) {
+                velocity.computeCurrentVelocity(1000);
+                vx = velocity.getXVelocity();
+                vy = velocity.getYVelocity();
+                speed = (float) Math.hypot(vx, vy);
+                velocity.recycle();
+                velocity = null;
+            }
             gestureMoved = false;
-            clampTranslation();
-            applyTransform();
-            notifyZoom();
+            if (moved) {
+                readViewSize();
+                xform.scale = scale;
+                xform.tx = translateX;
+                xform.ty = translateY;
+                if (speed > 700f) {
+                    xform.fling(vx, vy);
+                    postOnAnimation(flingTick);
+                } else {
+                    xform.settleEdges();
+                    animateToModel();
+                }
+            }
         } else if (action == MotionEvent.ACTION_CANCEL) {
             gestureMoved = false;
-            clampTranslation();
-            applyTransform();
-            notifyZoom();
+            if (velocity != null) {
+                velocity.recycle();
+                velocity = null;
+            }
+            readViewSize();
+            xform.scale = scale;
+            xform.tx = translateX;
+            xform.ty = translateY;
+            xform.settleEdges();
+            showModel();
         }
         return handled || super.onTouchEvent(event);
     }
 
-    /** Zoom in about the tapped point, or return to the fitted view when already zoomed. */
+    /** Zoom in about the tapped point, or back out about that same point. */
     private void onDoubleTap(float x, float y) {
-        if (isFitted()) {
-            zoomTo(DOUBLE_TAP_FACTOR, x, y);
-        } else {
-            fitToWindow();
-        }
+        stopMotion();
+        readViewSize();
+        xform.doubleTap(x, y);
+        if (xform.scale < minScale) xform.zoomTo(minScale, x, y);
+        if (xform.scale > maxScale) xform.zoomTo(maxScale, x, y);
+        xform.settleEdges();
+        animateToModel();
     }
 
     // --- test hooks ----------------------------------------------------------------------------

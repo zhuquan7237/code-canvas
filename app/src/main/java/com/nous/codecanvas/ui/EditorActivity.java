@@ -847,19 +847,10 @@ public class EditorActivity extends Activity {
             }
         });
 
-        btnViewportFit.setOnClickListener(v -> {
-            previewViewport.fitToWindow();
-            applyViewportToWeb();
-        });
+        btnViewportFit.setOnClickListener(v -> previewViewport.animateFit());
         btnViewportFitContent.setOnClickListener(v -> fitToContent());
-        btnViewportZoomIn.setOnClickListener(v -> {
-            previewViewport.zoomIn();
-            applyViewportToWeb();
-        });
-        btnViewportZoomOut.setOnClickListener(v -> {
-            previewViewport.zoomOut();
-            applyViewportToWeb();
-        });
+        btnViewportZoomIn.setOnClickListener(v -> previewViewport.animateZoomIn());
+        btnViewportZoomOut.setOnClickListener(v -> previewViewport.animateZoomOut());
         // Gestures change the transform without going through a button, so the page has to be told
         // about it as well; otherwise a pinch would scale the view and leave the SVG at 1x.
         previewViewport.setTransformSink((scale, dx, dy) -> {
@@ -1778,7 +1769,11 @@ public class EditorActivity extends Activity {
 
     /** The script switch is an HTML concern. Markdown and Mermaid run the bundled renderer. */
     private boolean previewJavaScriptEnabled() {
-        return isAllowJs || kind == DocumentKind.MARKDOWN || kind == DocumentKind.MERMAID
+        // SVG scripts and SMIL timers have to run or the drawing is a still. HTML follows the
+        // user's script switch, which defaults to on.
+        return kind == DocumentKind.SVG
+                || isAllowJs
+                || kind == DocumentKind.MARKDOWN || kind == DocumentKind.MERMAID
                 || kind == DocumentKind.JSON || kind == DocumentKind.JSONL
                 || kind == DocumentKind.CSV;
     }
@@ -1908,16 +1903,6 @@ public class EditorActivity extends Activity {
         String content = editorTextOrStored();
         String title = currentDocument.getTitle();
 
-        // A .html file whose body is a single inline <svg> is artwork, not a web page. DocumentKind
-        // can only see the extension, so the content decides here. Without this the drawing went
-        // through HTML preview, which has no vector viewport: it was cropped by its own
-        // preserveAspectRatio="slice" and could not be zoomed ("放进代码画布里就是无法缩放，显示不全").
-        if (kind == DocumentKind.HTML
-                && com.nous.codecanvas.util.RenderKindDetector.detect(title, content)
-                        == com.nous.codecanvas.util.RenderKind.SVG) {
-            kind = DocumentKind.SVG;
-            applyKindToChrome();
-        }
         if (!sourceTooLarge) {
             ((TextView) findViewById(R.id.txt_preview_advice)).setVisibility(View.GONE);
         }
@@ -1934,6 +1919,16 @@ public class EditorActivity extends Activity {
         layoutXmlView.setVisibility(View.GONE);
         previewImage.setVisibility(View.GONE);
         if (webPreview != null) webPreview.setVisibility(View.VISIBLE);
+        ensureWebViewReady();
+        if (webPreview != null) {
+            // HTML uses the WebView's own pinch zoom. Scaling the view on top of that is what
+            // made a page drift away from the fingers.
+            boolean nativeZoom = kind == DocumentKind.HTML;
+            webPreview.getSettings().setSupportZoom(nativeZoom);
+            webPreview.getSettings().setBuiltInZoomControls(nativeZoom);
+            webPreview.getSettings().setDisplayZoomControls(false);
+            webPreview.getSettings().setJavaScriptEnabled(previewJavaScriptEnabled());
+        }
 
         String fingerprint = PreviewKey.forDocument(currentDocument.getId(), content, isDark())
                 + kind.name() + isAllowJs + isAllowNetwork + svgViewBoxOverride;

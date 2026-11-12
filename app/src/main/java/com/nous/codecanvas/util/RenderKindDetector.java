@@ -44,34 +44,38 @@ public final class RenderKindDetector {
         String head = content.length() > HEAD_LIMIT ? content.substring(0, HEAD_LIMIT) : content;
         String lower = head.toLowerCase(Locale.ROOT);
 
-        // A real HTML document announces itself, and that beats any extension — with one
-        // exception that matters in practice: AI tools hand over artwork as a full HTML page whose
-        // body is a single inline <svg>. Treating that as a web page meant it lost the vector
-        // viewport entirely, so a wide drawing was cropped by its own preserveAspectRatio="slice"
-        // and could not be zoomed at all ("放进代码画布里就是无法缩放，显示不全"). When the page is
-        // just a frame around one drawing, the drawing is what the user came to see.
-        if (lower.contains("<!doctype html")) {
-            return isSingleInlineSvgDocument(head) ? RenderKind.SVG : RenderKind.HTML;
+        // A file the author named as a web page, or a document that contains a real <html> or
+        // <body>, is a page. It keeps its scripts, its buttons and its animations. Pulling a
+        // single inline <svg> out and drawing it as a still image is what made an interactive
+        // HTML file show the label "SVG 矢量图" and ignore every tap.
+        if (isHtmlExt(ext) || hasElement(lower, "html") || hasElement(lower, "body")) {
+            return RenderKind.HTML;
         }
 
         String root = rootElementName(head);
-        // An <html> root is a page — unless the page is only a frame around one drawing. Checked
-        // here as well as in the doctype branch above, because plenty of AI-generated files omit
-        // the doctype while still being a single inline <svg>.
-        if ("html".equals(root)) {
-            return isSingleInlineSvgDocument(head) ? RenderKind.SVG : RenderKind.HTML;
-        }
-        if ("svg".equals(root)) return RenderKind.SVG;
-
-        // Otherwise the author's extension is the strongest signal.
-        if (isHtmlExt(ext)) return RenderKind.HTML;
-        if ("svg".equals(ext)) return RenderKind.SVG;
+        if ("svg".equals(root) || "svg".equals(ext)) return RenderKind.SVG;
         if ("xml".equals(ext)) return RenderKind.XML;
 
         if (root == null) {
             return RenderKind.RAW;
         }
         return HTML_ROOTS.contains(root) ? RenderKind.HTML : RenderKind.XML;
+    }
+
+    /** True when {@code lower} contains a real {@code <name>} tag, not a longer name that shares the prefix. */
+    private static boolean hasElement(String lower, String name) {
+        String needle = "<" + name;
+        int from = 0;
+        while (from < lower.length()) {
+            int at = lower.indexOf(needle, from);
+            if (at < 0) return false;
+            int after = at + needle.length();
+            if (after >= lower.length()) return true;
+            char c = lower.charAt(after);
+            if (c == '>' || c == '/' || Character.isWhitespace(c)) return true;
+            from = after;
+        }
+        return false;
     }
 
     /**

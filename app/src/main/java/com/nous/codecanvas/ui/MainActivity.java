@@ -408,6 +408,20 @@ public class MainActivity extends Activity {
         listDocuments.setAdapter(adapter);
         gridAdapter = new DocumentAdapter();
         gridDocuments.setAdapter(gridAdapter);
+        android.widget.AbsListView.OnScrollListener scrollPause = new android.widget.AbsListView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(android.widget.AbsListView view, int scrollState) {
+                if (backfiller != null) {
+                    backfiller.setPaused(scrollState != SCROLL_STATE_IDLE);
+                }
+            }
+
+            @Override
+            public void onScroll(android.widget.AbsListView view, int first, int visible, int total) {
+            }
+        };
+        listDocuments.setOnScrollListener(scrollPause);
+        gridDocuments.setOnScrollListener(scrollPause);
         setGrid(getPreferences(0).getBoolean("grid", false));
         applyHomeChrome();
         if (Build.VERSION.SDK_INT >= 33) {
@@ -623,6 +637,18 @@ public class MainActivity extends Activity {
 
         drawerAdapter = new DrawerAdapter();
         drawerList.setAdapter(drawerAdapter);
+        drawerList.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(android.widget.AbsListView view, int scrollState) {
+                if (backfiller != null) {
+                    backfiller.setPaused(scrollState != SCROLL_STATE_IDLE);
+                }
+            }
+
+            @Override
+            public void onScroll(android.widget.AbsListView view, int first, int visible, int total) {
+            }
+        });
         drawerList.setOnItemClickListener((p, v, pos, id) -> {
             CanvasDocument doc = drawerAdapter.getItem(pos);
             closeDrawer();
@@ -741,7 +767,11 @@ public class MainActivity extends Activity {
     private class DrawerAdapter extends BaseAdapter {
         @Override public int getCount() { return filteredDocuments.size(); }
         @Override public CanvasDocument getItem(int position) { return filteredDocuments.get(position); }
-        @Override public long getItemId(int position) { return position; }
+        @Override public boolean hasStableIds() { return true; }
+        @Override public long getItemId(int position) {
+            String id = getItem(position).getId();
+            return id == null ? position : (id.hashCode() & 0xffffffffL);
+        }
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
@@ -1334,7 +1364,11 @@ public class MainActivity extends Activity {
     private class DocumentAdapter extends BaseAdapter {
         @Override public int getCount() { return filteredDocuments.size(); }
         @Override public CanvasDocument getItem(int position) { return filteredDocuments.get(position); }
-        @Override public long getItemId(int position) { return position; }
+        @Override public boolean hasStableIds() { return true; }
+        @Override public long getItemId(int position) {
+            String id = getItem(position).getId();
+            return id == null ? position : (id.hashCode() & 0xffffffffL);
+        }
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
@@ -1423,11 +1457,13 @@ public class MainActivity extends Activity {
     /** Ink is already cropped. Fill the square so a heading or a chart stays readable. */
     private void showThumbnailTop(android.widget.ImageView cover, android.graphics.Bitmap bitmap) {
         cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        cover.setBackground(null);
         cover.setImageBitmap(bitmap);
     }
 
     private void showPlaceholder(android.widget.ImageView cover, com.nous.codecanvas.data.DocumentKind kind) {
-        cover.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        cover.setBackgroundResource(R.drawable.bg_thumbnail);
         cover.setImageBitmap(KindPlaceholder.bitmap(this, kind));
     }
 
