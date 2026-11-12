@@ -194,6 +194,9 @@ public class DesignSystemRegressionTest extends InstrumentationTestCase {
             main.loadDocumentsForTest();
             ((EditText) main.findViewById(R.id.edit_search)).setText("batch_");
         });
+        // The list refilter is debounced so typing stays cheap; wait for it before counting rows.
+        Thread.sleep(400);
+        getInstrumentation().waitForIdleSync();
 
         View[] row = new View[1];
         ui(() -> {

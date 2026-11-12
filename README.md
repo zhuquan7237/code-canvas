@@ -6,7 +6,7 @@ AI 聊天窗口里的代码，复制出来往往是一坨没有后缀的文本�
 
 原生 Android（系统 WebView，不打包浏览器内核，安装包 1.3 MB）+ Windows 电脑版（原生 C# + WebView2，安装包 793 KB）。
 
-[下载 Android APK (v0.5.5)](https://relay.zhuquan.xyz/dl/code-canvas-0.5.5.apk)（自建源，国内可直连）· [下载 Windows 版 (v0.5.0 · 793KB)](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [验收与边界](docs/VERIFICATION.md)
+[下载 Android APK (v0.5.6)](https://relay.zhuquan.xyz/dl/code-canvas-0.5.6.apk)（自建源，国内可直连）· [下载 Windows 版 (v0.5.0 · 793KB)](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [验收与边界](docs/VERIFICATION.md)
 
 ## 它解决什么问题
 
@@ -45,7 +45,7 @@ Office 文档、压缩包、音视频不在本阶段范围。
 - **离线优先。** Markdown、公式、Mermaid 的依赖都在安装包里；HTML 的远程字体和脚本加载不到时会明确说明，而不是假装渲染成功。
 - **渲染与应用隔离。** 预览 WebView 关闭文件访问、关闭网络（除非用户显式允许）、没有 JS 桥接，导入的 HTML/SVG 不能调用 Android 接口。
 
-## v0.5.5 本次更新（内嵌 SVG 缩放 · 缩略图比例 · 分享崩溃 · 打开方式 · 启动性能 · 新图标）
+## v0.5.6 本次更新（修复发布版所有格式打不开：枚举名被混淆 · 首页标签错误）
 
 七项反馈，逐项定位到根因：
 

@@ -278,14 +278,16 @@ public class DocumentRepository {
 
     public void seedDefaultTemplatesIfEmpty() throws java.io.IOException {
         synchronized (GLOBAL_FILE_LOCK) {
-            // Check persistent seed marker: seed once ever
+            // The marker means "the samples have been offered once". It must survive the user
+            // deleting them — re-seeding what someone deliberately removed is worse than an empty
+            // list. Only a genuinely fresh install (no marker) gets the samples.
             if (seedMarkerFile.exists()) {
                 return;
             }
 
             List<CanvasDocument> current = getAllDocuments();
             if (!current.isEmpty()) {
-                // If existing documents already present, mark as seeded and do not overwrite
+                // Documents exist but were not seeded by us: record that and leave them alone.
                 createSeedMarkerSafely();
                 return;
             }

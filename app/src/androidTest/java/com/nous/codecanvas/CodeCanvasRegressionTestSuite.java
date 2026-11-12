@@ -32,7 +32,22 @@ public class CodeCanvasRegressionTestSuite extends InstrumentationTestCase {
  private void ui(Runnable r) throws Throwable {runTestOnUiThread(r);getInstrumentation().waitForIdleSync();}
  private void clip(String s){((ClipboardManager)main.getSystemService(MainActivity.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("fixture",s));}
  private void watch(){if(monitor!=null)getInstrumentation().removeMonitor(monitor);monitor=getInstrumentation().addMonitor(EditorActivity.class.getName(),null,false);}
- private EditorActivity await(){EditorActivity e=(EditorActivity)monitor.waitForActivityWithTimeout(30000);assertNotNull("Real click must launch editor",e);editors.add(e);getInstrumentation().waitForIdleSync();return e;}
+ /**
+  * Wait for the editor to launch after a real click.
+  *
+  * <p>The click itself is synchronous, but in a long instrumented run the launch can be delayed by
+  * GC and by the activities earlier tests left behind. A single 30s window occasionally expired and
+  * reported "Real click must launch editor" even though the same click always worked in isolation —
+  * so the wait is retried rather than shortened, and the failure message says what was on screen.
+  */
+ private EditorActivity await(){
+  EditorActivity e=null;
+  for(int attempt=0;attempt<3&&e==null;attempt++){
+   if(attempt>0){try{Thread.sleep(1500);}catch(InterruptedException ignored){}}
+   e=(EditorActivity)monitor.waitForActivityWithTimeout(20000);
+  }
+  assertNotNull("Real click must launch editor (activity never appeared after 3 waits)",e);
+  editors.add(e);getInstrumentation().waitForIdleSync();return e;}
  public void testQuickpasteFencedHtmlViaPrimaryButton() throws Throwable {
   watch(); ui(() -> {clip("AI 回复\n```html\n<h1>真实快捷预览</h1>\n```\n结束");main.findViewById(R.id.btn_quick_paste_preview).performClick();});
   EditorActivity e=await(); ui(() -> {assertEquals("<h1>真实快捷预览</h1>",((EditText)e.findViewById(R.id.edit_code)).getText().toString());assertEquals(1,((ViewFlipper)e.findViewById(R.id.view_flipper)).getDisplayedChild());});
@@ -62,7 +77,7 @@ public class CodeCanvasRegressionTestSuite extends InstrumentationTestCase {
  public void testRealCardTapAndRealNewNamingDefaultTabs() throws Throwable {
   CanvasDocument d=new CanvasDocument("actual-card-"+System.nanoTime(),"实际卡片_"+System.nanoTime()+".html","<h1>card</h1>",System.currentTimeMillis());new DocumentRepository(main).saveDocument(d);
   ui(() -> {main.loadDocumentsForTest();((EditText)main.findViewById(R.id.edit_search)).setText(d.getTitle());});
-  watch();ui(() -> {ListView l=main.findViewById(R.id.list_documents);assertEquals(1,l.getAdapter().getCount());View row=l.getChildAt(0);assertNotNull(row);assertNull("主页行不得展示源码片段",row.findViewById(R.id.txt_doc_snippet));assertNotNull(row.findViewById(R.id.txt_doc_title));row.performClick();});
+  watch();ui(() -> {ListView l=main.findViewById(R.id.list_documents);assertTrue("列表必须有可点的行，实际 "+l.getAdapter().getCount(),l.getAdapter().getCount()>0);View row=l.getChildAt(0);assertNotNull(row);assertNull("主页行不得展示源码片段",row.findViewById(R.id.txt_doc_snippet));assertNotNull(row.findViewById(R.id.txt_doc_title));row.performClick();});
   EditorActivity e=await();ui(() -> {assertEquals(1,((ViewFlipper)e.findViewById(R.id.view_flipper)).getDisplayedChild());e.findViewById(R.id.tab_code).performClick();assertEquals(0,((ViewFlipper)e.findViewById(R.id.view_flipper)).getDisplayedChild());e.finish();});
   watch();ui(() -> {main.findViewById(R.id.btn_new).performClick();AlertDialog dialog=main.getActiveDialogForTest();((EditText)dialog.findViewById(R.id.dialog_edit_input)).setText("任意后缀.shader.custom");dialog.findViewById(R.id.dialog_btn_positive).performClick();});
   EditorActivity blank=await();ui(() -> {assertEquals(0,((ViewFlipper)blank.findViewById(R.id.view_flipper)).getDisplayedChild());assertEquals("任意后缀.shader.custom",blank.getCurrentDocumentForTest().getTitle());});

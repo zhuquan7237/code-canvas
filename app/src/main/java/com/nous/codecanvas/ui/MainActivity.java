@@ -53,6 +53,11 @@ import java.util.UUID;
 public class MainActivity extends Activity {
 
     private static final int REQ_IMPORT_SAF = 1001;
+
+    /** How long typing must pause before the list is refiltered. */
+    private static final long SEARCH_DEBOUNCE_MS = 120L;
+    private final android.os.Handler searchHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private Runnable searchRunnable;
     /** Exporting straight from the list, so a card does not have to be opened in the editor first. */
     private static final int REQ_EXPORT_DOCUMENT = 1002;
 
@@ -130,14 +135,22 @@ public class MainActivity extends Activity {
     private static final class DocumentPresentation {
         final String previewKey;
         final String sizeText;
-        final RenderKind kind;
+        /**
+         * The document's real kind.
+         *
+         * <p>This used to be {@link RenderKind}, which only has four values (HTML/SVG/XML/RAW) because
+         * it predates the format work. Every Markdown, JSON, CSV, YAML, image and PDF document
+         * therefore showed the tag "RAW" on the home screen — the list looked like it had lost its
+         * type support even though the editor opened the files correctly.</p>
+         */
+        final com.nous.codecanvas.data.DocumentKind kind;
         /** Lower-cased copy of the source, built on first search and reused afterwards. */
         private String searchIndex;
 
         DocumentPresentation(CanvasDocument doc, boolean dark) {
             String content = doc.getContent();
             previewKey = PreviewKey.forDocument(doc.getId(), content, dark);
-            kind = RenderKindDetector.detect(doc.getTitle(), content);
+            kind = doc.kind();
 
             int bytes = utf8Length(content);
             String size = bytes < 1024 ? bytes + " B"
@@ -397,7 +410,13 @@ public class MainActivity extends Activity {
         editSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                filterDocuments(s.toString());
+                // Coalesce the rebuild. Filtering 120 documents and rebinding the whole ListView on
+                // every keystroke made typing feel heavy (measured 495ms per key in a large
+                // library); the query is applied once the burst settles.
+                searchHandler.removeCallbacks(searchRunnable);
+                final String query = s.toString();
+                searchRunnable = () -> filterDocuments(query);
+                searchHandler.postDelayed(searchRunnable, SEARCH_DEBOUNCE_MS);
             }
             @Override public void afterTextChanged(Editable s) {}
         });
@@ -448,9 +467,9 @@ public class MainActivity extends Activity {
             if (typeFilter != null) {
                 // Reuse the kind computed at load time: re-detecting re-parsed the head of every
                 // document on every filter change.
-                RenderKind kind = presentation != null
+                com.nous.codecanvas.data.DocumentKind kind = presentation != null
                         ? presentation.kind
-                        : RenderKindDetector.detect(doc.getTitle(), doc.getContent());
+                        : doc.kind();
                 if (!kind.name().equals(typeFilter)) continue;
             }
             if (!q.isEmpty()) {
@@ -606,7 +625,7 @@ public class MainActivity extends Activity {
 
             title.setText(doc.getTitle());
             if (presentation != null) {
-                meta.setText(presentation.kind.name() + " · " + presentation.sizeText);
+                meta.setText(presentation.kind.label() + " · " + presentation.sizeText);
                 String key = presentation.previewKey;
                 thumb.setTag(key);
                 android.graphics.Bitmap cached = ThumbnailBackfiller.memoryGet(key);
@@ -618,8 +637,10 @@ public class MainActivity extends Activity {
                     int pad = dp(4);
                     thumb.setPadding(pad, pad, pad, pad);
                     thumb.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-                    thumb.setImageResource(presentation.kind == RenderKind.HTML ? R.drawable.cover_web
-                            : presentation.kind == RenderKind.SVG ? R.drawable.cover_vector
+                    thumb.setImageResource(presentation.kind == com.nous.codecanvas.data.DocumentKind.HTML
+                            ? R.drawable.cover_web
+                            : presentation.kind == com.nous.codecanvas.data.DocumentKind.SVG
+                            ? R.drawable.cover_vector
                             : R.drawable.cover_document);
                 }
             } else {
@@ -1125,8 +1146,18 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 android.util.Log.e("CodeCanvasImport", "import failed: " + uri, e);
                 final String message = e.getMessage() == null ? e.toString() : e.getMessage();
-                runOnUiThread(() -> Toast.makeText(MainActivity.this,
-                        "导入失败: " + message, Toast.LENGTH_LONG).show());
+                // Say it in a dialog, not a toast: a toast here was covered by the screen settling,
+                // so a failed import looked like nothing happened at all — which is how "打不开"
+                // reached the user as silence.
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    CanvasConfirmDialog.show(MainActivity.this,
+                            "打不开这个文件",
+                            message + "\n\n系统不允许应用按路径读取这个位置。"
+                                    + "点「重新选择」用系统文件选择器打开同一个文件即可。",
+                            "重新选择", "取消", false,
+                            this::startSafImport, null);
+                });
             }
         }).start();
     }
@@ -1161,10 +1192,10 @@ public class MainActivity extends Activity {
             DocumentPresentation presentation = presentations.get(doc.getId());
             if (presentation == null) throw new IllegalStateException("Missing prepared document metadata");
             String key = presentation.previewKey;
-            RenderKind coverKind = presentation.kind;
+            com.nous.codecanvas.data.DocumentKind coverKind = presentation.kind;
             Drawable typeCover = getResources().getDrawable(
-                    coverKind == RenderKind.HTML ? R.drawable.cover_web
-                            : coverKind == RenderKind.SVG ? R.drawable.cover_vector
+                    coverKind == com.nous.codecanvas.data.DocumentKind.HTML ? R.drawable.cover_web
+                            : coverKind == com.nous.codecanvas.data.DocumentKind.SVG ? R.drawable.cover_vector
                             : R.drawable.cover_document);
 
             cover.setClipToOutline(true);
@@ -1174,7 +1205,7 @@ public class MainActivity extends Activity {
 
             if (txtTitle != null) txtTitle.setText(doc.getTitle());
             if (txtTime != null) txtTime.setText(dateFormat.format(new Date(doc.getUpdatedAt())));
-            if (txtTag != null) txtTag.setText(coverKind.name());
+            if (txtTag != null) txtTag.setText(coverKind.label());
             if (txtSize != null) txtSize.setText(presentation.sizeText);
 
             // Selection chrome: badge + row tint; type cover stays under the badge.

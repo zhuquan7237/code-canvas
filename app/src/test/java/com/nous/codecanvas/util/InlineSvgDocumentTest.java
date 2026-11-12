@@ -137,6 +137,52 @@ public class InlineSvgDocumentTest {
         assertTrue("必须保留 viewBox", svg.contains("viewBox=\"0 0 1200 675\""));
     }
 
+    /**
+     * An animated artwork must keep the script that animates it.
+     *
+     * <p>Reported as "只能加载出静态的…全部被搞成了像图片那样的静态的". The first version of the extractor
+     * took only the {@code <svg>} element and dropped the page's {@code <script>} — which is what
+     * moves the parallax layers and turns the wheels. The drawing rendered, but frozen.</p>
+     */
+    @Test
+    public void extractionKeepsTheScriptThatAnimatesTheDrawing() {
+        String animated = "<!DOCTYPE html><html><head><title>t</title>\n"
+                + "<style>#wheel{transform-origin:center}</style>\n"
+                + "<script>window.__early=1;</script>\n"
+                + "</head><body>\n"
+                + "<svg viewBox=\"0 0 100 100\"><g id=\"wheel\"><circle cx=\"50\" cy=\"50\" r=\"20\"/></g></svg>\n"
+                + "<script>requestAnimationFrame(function f(){document.getElementById('wheel');"
+                + "requestAnimationFrame(f);});</script>\n"
+                + "</body></html>";
+
+        String art = RenderKindDetector.extractInlineSvgArtwork(animated);
+        assertTrue("必须保留驱动动画的脚本", art.contains("requestAnimationFrame"));
+        assertTrue("必须保留样式表", art.contains("transform-origin"));
+        assertTrue("必须保留图形", art.contains("id=\"wheel\""));
+        assertFalse("不能带上页面外壳", art.contains("<html") || art.contains("<body"));
+        assertFalse("不能带上 title", art.contains("<title>"));
+
+        // Styles must come before the drawing and scripts after it: that is the order the browser
+        // would have applied them in, and a script that queries the drawing needs it to exist.
+        int styleAt = art.indexOf("<style");
+        int svgAt = art.indexOf("<svg");
+        int scriptAt = art.indexOf("<script");
+        assertTrue("样式要在图形之前", styleAt >= 0 && styleAt < svgAt);
+        assertTrue("脚本要在图形之后", scriptAt > svgAt);
+    }
+
+    @Test
+    public void extractionKeepsEveryScriptBlockInOrder() {
+        String two = "<!DOCTYPE html><html><body>"
+                + "<svg viewBox=\"0 0 10 10\"><rect width=\"10\" height=\"10\"/></svg>"
+                + "<script>var first=1;</script>"
+                + "<script>var second=2;</script>"
+                + "</body></html>";
+        String art = RenderKindDetector.extractInlineSvgArtwork(two);
+        assertTrue("两个脚本块都要保留", art.contains("first") && art.contains("second"));
+        assertTrue("顺序不能颠倒", art.indexOf("first") < art.indexOf("second"));
+    }
+
     @Test
     public void extractionRefusesAPageWithTwoDrawings() {
         String page = "<!DOCTYPE html><html><body>"

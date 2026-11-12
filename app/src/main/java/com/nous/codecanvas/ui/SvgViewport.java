@@ -328,6 +328,26 @@ public class SvgViewport extends FrameLayout {
         return true;
     }
 
+    /**
+     * Whether the last gesture was a tap that should be forwarded to the content.
+     *
+     * <p>Intercepting every event is what makes pinch and pan work, but it also meant a drawing's
+     * own controls — a play/pause button, a speed toggle — could never be pressed: the viewport
+     * swallowed the tap. A tap that never moved is now replayed into the WebView as a synthetic
+     * click, so interactive artwork stays interactive while pan and pinch still belong to the
+     * viewport.</p>
+     */
+    public interface OnTapListener {
+        /** A tap at (x, y) in viewport coordinates, with no movement in between. */
+        void onTap(float x, float y);
+    }
+
+    private OnTapListener tapListener;
+
+    public void setOnTapListener(OnTapListener listener) {
+        this.tapListener = listener;
+    }
+
     /** Double-tap bookkeeping, tracked here so the gesture does not depend on platform timing. */
     private long lastTapTime = 0L;
     private float lastTapX = 0f;
@@ -362,6 +382,10 @@ public class SvgViewport extends FrameLayout {
                     onDoubleTap(event.getX(), event.getY());
                     lastTapTime = 0L;
                 } else {
+                    // A single tap belongs to the content: artwork with its own buttons (play,
+                    // pause, a speed toggle) must stay usable. The viewport only owns pan and
+                    // pinch, so it forwards the tap instead of swallowing it.
+                    if (tapListener != null) tapListener.onTap(event.getX(), event.getY());
                     lastTapTime = now;
                     lastTapX = event.getX();
                     lastTapY = event.getY();

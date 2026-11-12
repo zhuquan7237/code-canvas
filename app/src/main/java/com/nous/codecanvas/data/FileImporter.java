@@ -207,12 +207,70 @@ public final class FileImporter {
         return guessed != null ? guessed : "application/octet-stream";
     }
 
+    /**
+     * Open the document's bytes.
+     *
+     * <p>A {@code file://} URI is not readable directly on Android 10+: scoped storage forbids an
+     * app from opening {@code /sdcard/...} by path, and the attempt fails with
+     * {@code EACCES (Permission denied)}. That is exactly what happened when another app handed a
+     * file over as {@code file:///sdcard/Download/x.md} — the import failed, the toast was covered
+     * by the screen returning to the list, and the file simply "would not open".</p>
+     *
+     * <p>So a {@code file} URI is resolved through the media/document providers first, which is the
+     * supported route, and only falls back to a direct read when the path really is readable (an
+     * app-private file, or a device with legacy storage).</p>
+     */
     private static InputStream open(Context context, Uri uri) throws IOException {
         ContentResolver resolver = context.getContentResolver();
         if ("file".equalsIgnoreCase(uri.getScheme()) && uri.getPath() != null) {
-            return new FileInputStream(uri.getPath());
+            InputStream viaProvider = openFileUriThroughProvider(context, uri);
+            if (viaProvider != null) return viaProvider;
+            try {
+                return new FileInputStream(uri.getPath());
+            } catch (IOException e) {
+                throw new IOException("无法读取这个文件（系统不允许按路径访问）。"
+                        + "请在应用里用「导入」重新选择它。", e);
+            }
         }
-        return resolver.openInputStream(uri);
+        InputStream in = resolver.openInputStream(uri);
+        if (in == null) throw new IOException("无法读取这个文件");
+        return in;
+    }
+
+    /** Resolve a {@code file://} path through the document providers, or null when none match. */
+    private static InputStream openFileUriThroughProvider(Context context, Uri uri) {
+        String path = uri.getPath();
+        if (path == null) return null;
+        // DocumentsContract can only open ids the provider issued, so search the providers for a
+        // document whose display name matches this path's file name.
+        String fileName = path.substring(path.lastIndexOf('/') + 1);
+        if (fileName.isEmpty()) return null;
+        Uri collections = android.provider.MediaStore.Files.getContentUri("external");
+        // _data is deprecated and returns null on Android 10+, so the path cannot be compared
+        // through it. The display name is what identifies the file here; the media provider only
+        // indexes files the app is allowed to read, so a name match is a safe candidate.
+        String[] projection = {
+                android.provider.MediaStore.Files.FileColumns._ID,
+                android.provider.MediaStore.Files.FileColumns.DISPLAY_NAME };
+        try (android.database.Cursor cursor = context.getContentResolver().query(
+                collections, projection,
+                android.provider.MediaStore.Files.FileColumns.DISPLAY_NAME + "=?",
+                new String[]{fileName}, null)) {
+            if (cursor == null) return null;
+            while (cursor.moveToNext()) {
+                long id = cursor.getLong(0);
+                Uri contentUri = android.content.ContentUris.withAppendedId(collections, id);
+                try {
+                    InputStream in = context.getContentResolver().openInputStream(contentUri);
+                    if (in != null) return in;
+                } catch (Exception ignored) {
+                    // Try the next candidate with the same name.
+                }
+            }
+        } catch (Exception ignored) {
+            // Provider unavailable or the query is not permitted: fall through to the direct read.
+        }
+        return null;
     }
 
     private static byte[] readAtMost(InputStream in, int limit) throws IOException {

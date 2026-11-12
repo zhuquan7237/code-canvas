@@ -762,6 +762,10 @@ public class EditorActivity extends Activity {
         previewViewport.setTransformSink((scale, dx, dy) -> {
             if (isVectorKind()) pushTransformToWeb(scale, dx, dy);
         });
+        // Artwork can carry its own controls (play/pause, a speed toggle). The viewport owns pan
+        // and pinch, so a tap that never moved is forwarded to the page as a synthetic click —
+        // otherwise those buttons could never be pressed.
+        previewViewport.setOnTapListener(this::forwardTapToPreview);
     }
 
     /**
@@ -798,6 +802,34 @@ public class EditorActivity extends Activity {
     }
 
     private Runnable transformPushRunnable;
+
+    /**
+     * Replay a tap into the preview page at the point the user actually touched.
+     *
+     * <p>The viewport's transform is applied to the page's stage, so the page coordinates of a
+     * touch are the viewport coordinates run backwards through scale and translation. Dispatching a
+     * synthetic {@code click} on the element under that point is what lets a drawing's own buttons
+     * work while pan and pinch stay with the viewport.</p>
+     */
+    private void forwardTapToPreview(float x, float y) {
+        if (webPreview == null || previewRendererDead) return;
+        if (!isVectorKind() && !isImageKind()) return;
+        float scale = previewViewport.getZoomFactor();
+        if (scale <= 0f) scale = 1f;
+        android.graphics.RectF bounds = previewViewport.contentBoundsForTest();
+        final float pageX = (x - bounds.left) / scale;
+        final float pageY = (y - bounds.top) / scale;
+        final String js = "if(window.CCTap){window.CCTap(" + pageX + "," + pageY + ");}";
+        handler.removeCallbacks(tapPushRunnable);
+        tapPushRunnable = () -> {
+            if (webPreview != null && !previewRendererDead) {
+                webPreview.evaluateJavascript(js, null);
+            }
+        };
+        handler.post(tapPushRunnable);
+    }
+
+    private Runnable tapPushRunnable;
 
     /** Re-apply the fitted transform after the canvas changed size. */
     private final Runnable refitRunnable = new Runnable() {

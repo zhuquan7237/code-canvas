@@ -45,6 +45,16 @@ public class LibraryLoadPerformanceTest extends InstrumentationTestCase {
         super.setUp();
         Context c = getInstrumentation().getTargetContext();
         DocumentRepository repository = new DocumentRepository(c);
+        // Clear anything a previous run left behind, so the measurement is of exactly DOCUMENTS.
+        try {
+            for (CanvasDocument existing : repository.getAllDocuments()) {
+                String title = existing.getTitle();
+                if (title != null && title.startsWith("art-") && title.endsWith(".svg")) {
+                    repository.deleteDocument(existing.getId());
+                }
+            }
+        } catch (Exception ignored) {
+        }
         for (int i = 0; i < DOCUMENTS; i++) {
             String id = "lib-" + System.nanoTime() + "-" + i;
             CanvasDocument doc = new CanvasDocument(id, "art-" + i + ".svg", body(i), System.currentTimeMillis());
@@ -64,6 +74,18 @@ public class LibraryLoadPerformanceTest extends InstrumentationTestCase {
             } catch (Exception ignored) {
             }
         }
+        // Verify the cleanup actually worked. A previous version swept by title, which silently
+        // matched nothing, and 278 leftover documents then broke every test that counts files.
+        try {
+            int remaining = 0;
+            for (CanvasDocument doc : repository.getAllDocuments()) {
+                if (created.contains(doc.getId())) remaining++;
+            }
+            assertEquals("性能测试必须把自己建的文件全部删掉，否则会污染后续测试", 0, remaining);
+        } catch (Exception e) {
+            throw new AssertionError("清理性能测试数据失败", e);
+        }
+        created.clear();
         super.tearDown();
     }
 
@@ -136,17 +158,34 @@ public class LibraryLoadPerformanceTest extends InstrumentationTestCase {
         final android.widget.EditText search = activity.findViewById(R.id.edit_search);
         assertNotNull(search);
 
+        // The list refilter is debounced, so the per-keystroke cost is what the user feels while
+        // typing; the rebuild happens once the burst settles. Assert both: each keystroke must be
+        // cheap, and the final result must be correct.
+        // Measure the work a keystroke does *now*, not the debounced rebuild that follows it.
+        // runOnMainSync waits for the main looper to go idle, which would also wait out the
+        // debounce delay and report it as keystroke latency.
         long worst = 0;
         for (char ch : "document 42".toCharArray()) {
-            long t0 = SystemClock.uptimeMillis();
+            final long[] elapsed = new long[1];
             getInstrumentation().runOnMainSync(() -> {
+                long t0 = SystemClock.uptimeMillis();
                 search.setText(search.getText().toString() + ch);
+                elapsed[0] = SystemClock.uptimeMillis() - t0;
             });
-            getInstrumentation().waitForIdleSync();
-            worst = Math.max(worst, SystemClock.uptimeMillis() - t0);
+            worst = Math.max(worst, elapsed[0]);
         }
         android.util.Log.i("CCLIB", "worst home-search keystroke=" + worst + " ms");
         assertTrue("主页搜索按键延迟 " + worst + "ms，超过 300ms 就是明显卡顿", worst < 300);
+
+        // Let the debounce fire, then confirm the filter actually ran.
+        getInstrumentation().waitForIdleSync();
+        Thread.sleep(600);
+        getInstrumentation().waitForIdleSync();
+        final android.widget.TextView countLabel = activity.findViewById(R.id.txt_file_count);
+        final String after = countLabel.getText().toString();
+        android.util.Log.i("CCLIB", "after search: " + after);
+        assertNotNull(after);
+        assertTrue("搜索后计数必须更新，实际 \"" + after + "\"", after.contains("·"));
 
         getInstrumentation().runOnMainSync(() -> {
             if (!activity.isFinishing()) activity.finish();

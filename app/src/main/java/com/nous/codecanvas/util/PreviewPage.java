@@ -46,7 +46,7 @@ public final class PreviewPage {
                 // A .html file whose body is one inline <svg> is previewed as a drawing, so the
                 // wrapper must receive the drawing element only. Wrapping the whole document would
                 // nest a page — title, stylesheet and all — inside the SVG stage.
-                String svg = RenderKindDetector.extractInlineSvg(request.content);
+                String svg = RenderKindDetector.extractInlineSvgArtwork(request.content);
                 return SvgWrapper.wrapSvgInResponsiveHtml(
                         svg != null ? svg : request.content,
                         request.dark, request.svgViewBoxOverride);

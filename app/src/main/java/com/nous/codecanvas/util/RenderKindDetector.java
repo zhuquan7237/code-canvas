@@ -105,8 +105,12 @@ public final class RenderKindDetector {
      * one.
      *
      * <p>The SVG preview path wraps its input in a page of its own, so handing it a whole HTML
-     * document would nest a page inside the drawing stage. Only the drawing element is extracted;
-     * everything else in the wrapper page is scaffolding by definition.</p>
+     * document would nest a page inside the drawing stage.</p>
+     *
+     * <p><b>Only the drawing element is extracted — its scripts and styles are not.</b> That was a
+     * defect: an animated artwork (parallax layers moved by {@code requestAnimationFrame}, wheels
+     * turned by a {@code setInterval}) lost the script that drove it and rendered as a still image.
+     * Use {@link #extractInlineSvgArtwork} when the page is going to be previewed.</p>
      */
     public static String extractInlineSvg(String content) {
         if (content == null) return null;
@@ -117,6 +121,70 @@ public final class RenderKindDetector {
         if (end < 0) return null;
         if (lower.indexOf("<svg", end) >= 0) return null;
         return content.substring(open, end);
+    }
+
+    /**
+     * The drawing <b>plus everything that makes it work</b>: the page's {@code <style>} blocks and
+     * its {@code <script>} blocks, in document order.
+     *
+     * <p>AI-generated artwork is usually one inline {@code <svg>} driven by a script — parallax
+     * layers, a spinning wheel, a pedalling crank. Extracting only the element turned all of that
+     * into a still image ("只能加载出静态的"). The scripts and stylesheets are part of the artwork, so
+     * they travel with it; only the page shell ({@code <html>}, {@code <head>}, {@code <body>},
+     * {@code <title>}, {@code <meta>}) is dropped.</p>
+     *
+     * <p>The result is a fragment the SVG wrapper can place inside its stage: styles first, then
+     * the drawing, then the scripts — the order the browser would have applied them in.</p>
+     */
+    public static String extractInlineSvgArtwork(String content) {
+        if (content == null) return null;
+        String svg = extractInlineSvg(content);
+        if (svg == null) return null;
+
+        StringBuilder styles = new StringBuilder();
+        StringBuilder scripts = new StringBuilder();
+        collectBlocks(content, "style", styles);
+        collectBlocks(content, "script", scripts);
+
+        StringBuilder out = new StringBuilder(svg.length() + styles.length() + scripts.length() + 64);
+        out.append(styles);
+        out.append(svg);
+        out.append(scripts);
+        return out.toString();
+    }
+
+    /** Append every {@code <tag ...>…</tag>} block of the document, in order. */
+    private static void collectBlocks(String content, String tag, StringBuilder out) {
+        String lower = content.toLowerCase(Locale.ROOT);
+        String openTag = "<" + tag;
+        String closeTag = "</" + tag;
+        int i = 0;
+        while (true) {
+            int open = lower.indexOf(openTag, i);
+            if (open < 0) return;
+            // "<script" must not match "<scriptfoo"; the next char has to end the tag name.
+            int after = open + openTag.length();
+            if (after < lower.length()) {
+                char c = lower.charAt(after);
+                if (c != '>' && c != ' ' && c != '\t' && c != '\n' && c != '\r' && c != '/') {
+                    i = after;
+                    continue;
+                }
+            }
+            int openGt = lower.indexOf('>', open);
+            if (openGt < 0) return;
+            // A self-closing or empty element has nothing to carry over.
+            if (openGt > 0 && lower.charAt(openGt - 1) == '/') {
+                i = openGt + 1;
+                continue;
+            }
+            int close = lower.indexOf(closeTag, openGt);
+            if (close < 0) return;
+            int closeGt = lower.indexOf('>', close);
+            if (closeGt < 0) return;
+            out.append(content, open, closeGt + 1).append('\n');
+            i = closeGt + 1;
+        }
     }
 
     /**
