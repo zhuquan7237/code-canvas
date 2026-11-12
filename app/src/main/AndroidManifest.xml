@@ -27,27 +27,56 @@
                  The intent is consumed now, and the file cases matter in practice: chat and file
                  apps hand code over as */* or octet-stream as often as they name the type, so the
                  extension patterns below are what make the app show up for a real .html/.svg. -->
+            <!--
+              Opening files from other apps.
+
+              Two things used to keep 代码画布 out of the system "open with" list:
+
+              1. A single <intent-filter> mixes mimeType and pathPattern entries, and Android only
+                 matches an intent when EVERY <data> in the filter can apply. Combining schemes,
+                 MIME types and path patterns in one filter means the filter matches almost
+                 nothing. Each case needs its own filter.
+              2. pathPattern only sees the URI path. Files handed over by chat and file apps arrive
+                 as content:// URIs whose path is an opaque id with no extension, so an
+                 extension-only filter never matches. The MIME-type filters below are what make the
+                 app appear for those, and */* plus a pathPattern covers the file:// case.
+
+              The activity consumes these intents (see MainActivity.handleIncomingIntent).
+            -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="content" />
                 <data android:scheme="file" />
+                <data android:mimeType="text/plain" />
                 <data android:mimeType="text/html" />
                 <data android:mimeType="application/xhtml+xml" />
                 <data android:mimeType="image/svg+xml" />
                 <data android:mimeType="text/xml" />
                 <data android:mimeType="application/xml" />
-                <data android:mimeType="text/plain" />
                 <data android:mimeType="application/json" />
+                <data android:mimeType="application/x-json" />
                 <data android:mimeType="text/css" />
                 <data android:mimeType="text/javascript" />
                 <data android:mimeType="application/javascript" />
-                <data android:mimeType="*/*" android:host="*" android:pathPattern=".*\\.html" />
-                <data android:mimeType="*/*" android:host="*" android:pathPattern=".*\\.htm" />
-                <data android:mimeType="*/*" android:host="*" android:pathPattern=".*\\.svg" />
-                <data android:mimeType="*/*" android:host="*" android:pathPattern=".*\\.xml" />
-                <data android:mimeType="*/*" android:host="*" android:pathPattern=".*\\.txt" />
+                <data android:mimeType="text/x-markdown" />
+                <data android:mimeType="text/markdown" />
+                <data android:mimeType="text/csv" />
+                <data android:mimeType="application/x-yaml" />
+                <data android:mimeType="text/yaml" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+
+            <!-- Extension-based matching for file:// URIs (file managers, Downloads). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\..*" />
             </intent-filter>
             <!-- Sharing a generated file straight from a chat app ("分享" -> 代码画布). -->
             <intent-filter>
@@ -59,7 +88,21 @@
                 <data android:mimeType="image/svg+xml" />
                 <data android:mimeType="text/xml" />
                 <data android:mimeType="application/xml" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="text/css" />
+                <data android:mimeType="text/javascript" />
+                <data android:mimeType="application/javascript" />
+                <data android:mimeType="text/markdown" />
+                <data android:mimeType="text/csv" />
                 <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+
+            <!-- Chat apps frequently share an unnamed blob. Accepting */* here is what makes the
+                 app appear in their share sheet at all; the importer sniffs the real type. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
 

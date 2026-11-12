@@ -24,6 +24,10 @@ public final class PreviewThumbnailCache {
   if(w<=0||h<=0) return null;
   int outW=480;
   int outH=Math.max(1,Math.round(outW*(float)h/w));
+  // A very tall page would otherwise produce an enormous bitmap for a 44dp tile. Clamping the
+  // height keeps the memory cost bounded; the aspect ratio is still whatever the page had, so the
+  // tile shows the whole page rather than a crop of it.
+  if(outH>outW*3){ outH=outW*3; }
   Bitmap b=Bitmap.createBitmap(outW,outH,Bitmap.Config.ARGB_8888);
   Canvas canvas=new Canvas(b); canvas.drawColor(Color.WHITE);
   float scale=(float)outW/w; canvas.scale(scale,scale); view.draw(canvas);

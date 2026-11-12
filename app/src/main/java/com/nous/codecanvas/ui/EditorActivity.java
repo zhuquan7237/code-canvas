@@ -1560,6 +1560,17 @@ public class EditorActivity extends Activity {
         }
         String content = editCode.getText().toString();
         String title = currentDocument.getTitle();
+
+        // A .html file whose body is a single inline <svg> is artwork, not a web page. DocumentKind
+        // can only see the extension, so the content decides here. Without this the drawing went
+        // through HTML preview, which has no vector viewport: it was cropped by its own
+        // preserveAspectRatio="slice" and could not be zoomed ("放进代码画布里就是无法缩放，显示不全").
+        if (kind == DocumentKind.HTML
+                && com.nous.codecanvas.util.RenderKindDetector.detect(title, content)
+                        == com.nous.codecanvas.util.RenderKind.SVG) {
+            kind = DocumentKind.SVG;
+            applyKindToChrome();
+        }
         ((TextView) findViewById(R.id.txt_preview_advice)).setVisibility(View.GONE);
 
         if (kind == DocumentKind.XML) {
@@ -2064,7 +2075,7 @@ public class EditorActivity extends Activity {
                 com.nous.codecanvas.util.ShareExporter.Staged staged =
                         SourceWriter.stageForShare(this, authority, docTitle, payload);
                 runOnUiThread(() -> startActivity(
-                        com.nous.codecanvas.util.ShareExporter.chooserIntent(staged, "分享")));
+                        com.nous.codecanvas.util.ShareExporter.chooserIntent(this, staged, "分享")));
             } catch (Exception e) {
                 runOnUiThread(() -> Toast.makeText(EditorActivity.this,
                         "分享失败: " + describe(e), Toast.LENGTH_SHORT).show());

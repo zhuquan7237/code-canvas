@@ -69,7 +69,6 @@ public class MainActivity extends Activity {
     private Dialog activeSheet;
     private ListView listDocuments;
     private android.widget.GridView gridDocuments;
-    private com.nous.codecanvas.update.AppUpdater updater;
     /** URI of an external open already handled, so a recreation does not import twice. */
     private String handledIncomingUri;
     /** Text shared into the app, consumed the next time the user asks to paste. */
@@ -118,18 +117,80 @@ public class MainActivity extends Activity {
     private CanvasDocument pendingExportDocument;
 
     /** Derived metadata is prepared off-main once per reload, not on every scroll bind. */
+    /**
+     * Everything the list needs about a document, computed once per load.
+     *
+     * <p>Two costs used to be paid here for every document on every load, and both grew with the
+     * library: {@code getBytes(UTF_8)} allocated a full second copy of the text just to measure it,
+     * and {@code split("\r\n|\r|\n")} ran a regex over the whole document just to count lines.
+     * A library of a few hundred files therefore spent real time allocating garbage before the
+     * first row could be drawn. Measuring UTF-8 length and counting newlines are both O(n) with no
+     * allocation, and the classification is cached so the filter pass does not re-parse either.</p>
+     */
     private static final class DocumentPresentation {
         final String previewKey;
         final String sizeText;
         final RenderKind kind;
+        /** Lower-cased copy of the source, built on first search and reused afterwards. */
+        private String searchIndex;
+
         DocumentPresentation(CanvasDocument doc, boolean dark) {
             String content = doc.getContent();
             previewKey = PreviewKey.forDocument(doc.getId(), content, dark);
             kind = RenderKindDetector.detect(doc.getTitle(), content);
-            int bytes = content.getBytes(StandardCharsets.UTF_8).length;
-            String size = bytes < 1024 ? bytes + " B" : String.format(Locale.getDefault(), "%.1f KB", bytes / 1024.0f);
-            int lines = content.isEmpty() ? 0 : content.split("\r\n|\r|\n", -1).length;
-            sizeText = size + " · " + lines + " 行";
+
+            int bytes = utf8Length(content);
+            String size = bytes < 1024 ? bytes + " B"
+                    : String.format(Locale.getDefault(), "%.1f KB", bytes / 1024.0f);
+            sizeText = size + " · " + lineCount(content) + " 行";
+        }
+
+        /** Length of the UTF-8 encoding without materialising it. */
+        private static int utf8Length(String text) {
+            int bytes = 0;
+            for (int i = 0, n = text.length(); i < n; i++) {
+                char c = text.charAt(i);
+                if (c < 0x80) {
+                    bytes += 1;
+                } else if (c < 0x800) {
+                    bytes += 2;
+                } else if (Character.isHighSurrogate(c) && i + 1 < n
+                        && Character.isLowSurrogate(text.charAt(i + 1))) {
+                    bytes += 4;
+                    i++;
+                } else {
+                    bytes += 3;
+                }
+            }
+            return bytes;
+        }
+
+        /** Line count without a regex or a split array. */
+        private static int lineCount(String text) {
+            if (text.isEmpty()) return 0;
+            int lines = 1;
+            for (int i = 0, n = text.length(); i < n; i++) {
+                char c = text.charAt(i);
+                if (c == '\n') {
+                    lines++;
+                } else if (c == '\r') {
+                    lines++;
+                    if (i + 1 < n && text.charAt(i + 1) == '\n') i++;
+                }
+            }
+            return lines;
+        }
+
+        /**
+         * Lower-cased haystack for the search box, built once per document.
+         *
+         * <p>The old filter lower-cased every document's full source on every keystroke — an
+         * allocation proportional to the whole library per character typed, which is why search
+         * felt heavy with a lot of files.</p>
+         */
+        String searchIndex(String content) {
+            if (searchIndex == null) searchIndex = content.toLowerCase(Locale.ROOT);
+            return searchIndex;
         }
     }
 
@@ -244,7 +305,6 @@ public class MainActivity extends Activity {
             return;
         }
         loadDocuments();
-        if (updater != null) updater.onResume();
         // The visit almost always starts with code already on the clipboard; ask once, politely.
         maybeOfferClipboardBanner();
     }
@@ -296,7 +356,6 @@ public class MainActivity extends Activity {
         setGrid(getPreferences(0).getBoolean("grid", false));
         findViewById(R.id.btn_layout_list).setOnClickListener(v -> setGrid(false));
         findViewById(R.id.btn_layout_grid).setOnClickListener(v -> setGrid(true));
-        updater = new com.nous.codecanvas.update.AppUpdater(this, (Button) findViewById(R.id.btn_check_update));
 
         backfiller = new ThumbnailBackfiller(this, () -> {
             if (adapter != null) adapter.notifyDataSetChanged();
@@ -385,14 +444,22 @@ public class MainActivity extends Activity {
         String q = query != null ? query.trim().toLowerCase(Locale.ROOT) : "";
         filteredDocuments.clear();
         for (CanvasDocument doc : allDocuments) {
+            DocumentPresentation presentation = presentations.get(doc.getId());
             if (typeFilter != null) {
-                RenderKind kind = RenderKindDetector.detect(doc.getTitle(), doc.getContent());
+                // Reuse the kind computed at load time: re-detecting re-parsed the head of every
+                // document on every filter change.
+                RenderKind kind = presentation != null
+                        ? presentation.kind
+                        : RenderKindDetector.detect(doc.getTitle(), doc.getContent());
                 if (!kind.name().equals(typeFilter)) continue;
             }
-            if (!q.isEmpty()
-                    && !doc.getTitle().toLowerCase(Locale.ROOT).contains(q)
-                    && !doc.getContent().toLowerCase(Locale.ROOT).contains(q)) {
-                continue;
+            if (!q.isEmpty()) {
+                if (!doc.getTitle().toLowerCase(Locale.ROOT).contains(q)) {
+                    String haystack = presentation != null
+                            ? presentation.searchIndex(doc.getContent())
+                            : doc.getContent().toLowerCase(Locale.ROOT);
+                    if (!haystack.contains(q)) continue;
+                }
             }
             filteredDocuments.add(doc);
         }
@@ -545,7 +612,7 @@ public class MainActivity extends Activity {
                 android.graphics.Bitmap cached = ThumbnailBackfiller.memoryGet(key);
                 if (cached != null && !cached.isRecycled()) {
                     thumb.setPadding(0, 0, 0, 0);
-                    thumb.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                    thumb.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
                     thumb.setImageBitmap(cached);
                 } else {
                     int pad = dp(4);
@@ -684,7 +751,7 @@ public class MainActivity extends Activity {
                 com.nous.codecanvas.util.ShareExporter.Staged staged =
                         com.nous.codecanvas.util.ShareExporter.stage(this, authority, name, sb.toString());
                 runOnUiThread(() -> startActivity(
-                        com.nous.codecanvas.util.ShareExporter.chooserIntent(staged, "分享源码")));
+                        com.nous.codecanvas.util.ShareExporter.chooserIntent(this, staged, "分享源码")));
             } catch (Exception e) {
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "分享失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
@@ -1164,7 +1231,7 @@ public class MainActivity extends Activity {
             // A memory hit lands in the same frame, with no animation and no intermediate paint —
             // animating a cache hit is the other half of what makes a list flicker.
             cover.setAlpha(1f);
-            cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+            cover.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
             cover.setImageBitmap(cached);
             cover.setContentDescription("作品预览缩略图");
             cover.setTag(TAG_THUMB_BOUND, key);
@@ -1187,7 +1254,7 @@ public class MainActivity extends Activity {
             final boolean fadeIn = !alreadyShowingThis;
             runOnUiThread(() -> {
                 if (key.equals(cover.getTag()) && loaded != null && !loaded.isRecycled()) {
-                    cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                    cover.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
                     cover.setImageBitmap(loaded);
                     cover.setContentDescription("作品预览缩略图");
                     cover.setTag(TAG_THUMB_BOUND, key);
@@ -1218,7 +1285,7 @@ public class MainActivity extends Activity {
                 com.nous.codecanvas.util.ShareExporter.Staged staged =
                         com.nous.codecanvas.util.ShareExporter.stageBytes(this, authority, docTitle, payload);
                 runOnUiThread(() -> startActivity(
-                        com.nous.codecanvas.util.ShareExporter.chooserIntent(staged, "分享")));
+                        com.nous.codecanvas.util.ShareExporter.chooserIntent(this, staged, "分享")));
             } catch (Exception e) {
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "分享失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
@@ -1273,7 +1340,6 @@ public class MainActivity extends Activity {
         super.onDestroy();
         thumbnailExecutor.shutdown();
         clipboardReadExecutor.shutdown();
-        if (updater != null) updater.close();
     }
 
     public void loadDocumentsForTest() {

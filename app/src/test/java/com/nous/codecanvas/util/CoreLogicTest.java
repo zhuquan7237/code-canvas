@@ -34,9 +34,14 @@ public class CoreLogicTest {
         // 1. Filename .html but content is purely SVG -> content takes precedence (strong content preferred over mislabeled extension)
         assertEquals(RenderKind.SVG, RenderKindDetector.detect("misleading.html", "<svg viewBox=\"0 0 10 10\"><circle cx=\"5\" cy=\"5\" r=\"5\"/></svg>"));
 
-        // 2. Full HTML containing embedded <svg> -> HTML takes precedence
-        assertEquals(RenderKind.HTML, RenderKindDetector.detect("page.svg", "<!DOCTYPE html><html><body><svg><rect/></svg></body></html>"));
-        assertEquals(RenderKind.HTML, RenderKindDetector.detect("inline_svg.unknown", "<html><body><svg viewBox=\"0 0 10 10\"><circle/></svg></body></html>"));
+        // 2. An HTML page whose body is nothing but one inline <svg> is a drawing, not a page.
+        //
+        // This used to assert HTML. That was wrong in practice: such a file is how AI tools hand
+        // over artwork, and HTML preview has no vector viewport, so the drawing was cropped by its
+        // own preserveAspectRatio="slice" and could not be zoomed at all. A page with any real
+        // content around the drawing still classifies as HTML (see InlineSvgDocumentTest).
+        assertEquals(RenderKind.SVG, RenderKindDetector.detect("page.svg", "<!DOCTYPE html><html><body><svg><rect/></svg></body></html>"));
+        assertEquals(RenderKind.SVG, RenderKindDetector.detect("inline_svg.unknown", "<html><body><svg viewBox=\"0 0 10 10\"><circle/></svg></body></html>"));
 
         // 3. XML header with SVG inside -> detected as SVG even if named .xml
         assertEquals(RenderKind.SVG, RenderKindDetector.detect("graphic.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M0 0\"/></svg>"));

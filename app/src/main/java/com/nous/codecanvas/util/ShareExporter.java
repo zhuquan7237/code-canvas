@@ -145,13 +145,19 @@ public final class ShareExporter {
     }
 
     /** Build the send intent, with the read grant attached to the URI itself. */
-    public static Intent chooserIntent(Staged staged, String chooserTitle) {
+    public static Intent chooserIntent(Context context, Staged staged, String chooserTitle) {
         Intent send = new Intent(Intent.ACTION_SEND);
         send.setType(staged.mimeType);
         send.putExtra(Intent.EXTRA_STREAM, staged.uri);
         send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        // Some receivers rely on the clip data for the grant to travel with the intent.
-        send.setClipData(ClipData.newUri(null, null, staged.uri));
+        // Some receivers only honour the URI grant when it also travels in the clip data.
+        //
+        // The resolver argument is NOT optional: ClipData.newUri calls
+        // resolver.getType(uri) to fill in the clip description, so passing null threw a
+        // NullPointerException on the UI thread and the app died the instant you tapped 分享.
+        // That was the reported "一点分享就卡退".
+        ClipData clip = ClipData.newUri(context.getContentResolver(), staged.file.getName(), staged.uri);
+        send.setClipData(clip);
         return Intent.createChooser(send, chooserTitle);
     }
 }

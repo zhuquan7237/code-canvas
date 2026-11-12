@@ -42,8 +42,15 @@ public final class PreviewPage {
         String kind = request.kind == null ? "TEXT" : request.kind.toUpperCase(Locale.ROOT);
         switch (kind) {
             case "HTML": return html(request);
-            case "SVG": return SvgWrapper.wrapSvgInResponsiveHtml(
-                    request.content, request.dark, request.svgViewBoxOverride);
+            case "SVG": {
+                // A .html file whose body is one inline <svg> is previewed as a drawing, so the
+                // wrapper must receive the drawing element only. Wrapping the whole document would
+                // nest a page — title, stylesheet and all — inside the SVG stage.
+                String svg = RenderKindDetector.extractInlineSvg(request.content);
+                return SvgWrapper.wrapSvgInResponsiveHtml(
+                        svg != null ? svg : request.content,
+                        request.dark, request.svgViewBoxOverride);
+            }
             case "MARKDOWN": return markdown(request);
             case "MERMAID": return mermaid(request);
             case "JSON": return json(request);

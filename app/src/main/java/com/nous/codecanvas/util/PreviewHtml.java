@@ -56,7 +56,11 @@ public final class PreviewHtml {
             content = "";
         }
         if (kind == RenderKind.SVG) {
-            return SvgWrapper.wrapSvgInResponsiveHtml(content, dark);
+            // A .html file whose body is one inline <svg> is previewed as a drawing, so the wrapper
+            // must receive the drawing element only. Wrapping the whole document would nest a page
+            // inside the SVG stage.
+            String svg = RenderKindDetector.extractInlineSvg(content);
+            return SvgWrapper.wrapSvgInResponsiveHtml(svg != null ? svg : content, dark);
         }
         if (kind == RenderKind.HTML) {
             return ensureViewport(content);

@@ -27,6 +27,9 @@ import java.util.Locale;
  */
 public class SettingsActivity extends Activity {
 
+    /** Owns the 检查更新 button on this screen; null until onCreate has wired it. */
+    private com.nous.codecanvas.update.AppUpdater updater;
+
     private int appearanceShown;
 
     @Override
@@ -59,6 +62,35 @@ public class SettingsActivity extends Activity {
         setupSwitches();
         setupCache();
         setupAbout();
+        setupUpdater();
+    }
+
+    /**
+     * Version checking lives here, next to the version number it reports.
+     *
+     * <p>It used to sit in the home header, where it competed with the file list for attention and
+     * was easy to hit while reaching for a document. The updater is created and destroyed with this
+     * screen, so the home screen no longer builds a network client it never uses.</p>
+     */
+    private void setupUpdater() {
+        Button check = findViewById(R.id.btn_check_update);
+        if (check == null) return;
+        updater = new com.nous.codecanvas.update.AppUpdater(this, check);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (updater != null) updater.onResume();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (updater != null) {
+            updater.close();
+            updater = null;
+        }
+        super.onDestroy();
     }
 
     // --- appearance ----------------------------------------------------------------------------
