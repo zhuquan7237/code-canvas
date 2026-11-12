@@ -30,18 +30,13 @@ public class CoreLogicTest {
         assertEquals(RenderKind.XML, RenderKindDetector.detect("manifest.bin", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><app><version>1.0</version></app>"));
         assertEquals(RenderKind.RAW, RenderKindDetector.detect("notes.md", "# Title\nSome markdown text"));
 
-        // New requirements:
-        // 1. Filename .html but content is purely SVG -> content takes precedence (strong content preferred over mislabeled extension)
-        assertEquals(RenderKind.SVG, RenderKindDetector.detect("misleading.html", "<svg viewBox=\"0 0 10 10\"><circle cx=\"5\" cy=\"5\" r=\"5\"/></svg>"));
+        // A .html file is a page even when the only element is an <svg>. Opening it as a still
+        // drawing dropped the page's buttons and timers.
+        assertEquals(RenderKind.HTML, RenderKindDetector.detect("misleading.html", "<svg viewBox=\"0 0 10 10\"><circle cx=\"5\" cy=\"5\" r=\"5\"/></svg>"));
 
-        // 2. An HTML page whose body is nothing but one inline <svg> is a drawing, not a page.
-        //
-        // This used to assert HTML. That was wrong in practice: such a file is how AI tools hand
-        // over artwork, and HTML preview has no vector viewport, so the drawing was cropped by its
-        // own preserveAspectRatio="slice" and could not be zoomed at all. A page with any real
-        // content around the drawing still classifies as HTML (see InlineSvgDocumentTest).
-        assertEquals(RenderKind.SVG, RenderKindDetector.detect("page.svg", "<!DOCTYPE html><html><body><svg><rect/></svg></body></html>"));
-        assertEquals(RenderKind.SVG, RenderKindDetector.detect("inline_svg.unknown", "<html><body><svg viewBox=\"0 0 10 10\"><circle/></svg></body></html>"));
+        // <html> or <body> wins over a .svg name and over an unknown extension.
+        assertEquals(RenderKind.HTML, RenderKindDetector.detect("page.svg", "<!DOCTYPE html><html><body><svg><rect/></svg></body></html>"));
+        assertEquals(RenderKind.HTML, RenderKindDetector.detect("inline_svg.unknown", "<html><body><svg viewBox=\"0 0 10 10\"><circle/></svg></body></html>"));
 
         // 3. XML header with SVG inside -> detected as SVG even if named .xml
         assertEquals(RenderKind.SVG, RenderKindDetector.detect("graphic.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M0 0\"/></svg>"));

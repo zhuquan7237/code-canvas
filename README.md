@@ -6,7 +6,7 @@ AI 聊天窗口里的代码，复制出来往往是一坨没有后缀的文本�
 
 原生 Android（系统 WebView，不打包浏览器内核）+ Windows 电脑版（原生 C# + WebView2，安装包 793 KB）。
 
-目前可下载的签名包是 [Android APK v0.5.9](https://relay.zhuquan.xyz/dl/code-canvas-0.5.9.apk?v=54d7038c020d)（[Release v0.5.9](https://github.com/zhuquan7237/code-canvas/releases/tag/v0.5.9)）。说明见 [v0.5.9 发版说明](docs/RELEASE-v0.5.9.md)。[Windows 版 v0.5.0](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [验收与边界](docs/VERIFICATION.md)
+当前 Android 版本 **0.6.0**。说明见 [v0.6.0 发版说明](docs/RELEASE-v0.6.0.md)。[Windows 版 v0.5.0](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [验收与边界](docs/VERIFICATION.md)
 
 ## 它解决什么问题
 
@@ -44,6 +44,15 @@ Office 文档、压缩包、音视频不在本阶段范围。
 - **不替用户改数据。** JSON 格式化只动缩进；XML 只在结构安全时格式化，否则原样展示；CSV 不做类型推断。
 - **离线优先。** Markdown、公式、Mermaid 的依赖都在安装包里；HTML 的远程字体和脚本加载不到时会明确说明，而不是假装渲染成功。
 - **渲染与应用隔离。** 预览 WebView 关闭文件访问、关闭网络（除非用户显式允许）、没有 JS 桥接，导入的 HTML/SVG 不能调用 Android 接口。
+
+## v0.6.0 本次更新（语法颜色、交互预览、缩略图）
+
+- 带 `<html>` 或 `<body>` 的文件，以及 `.html` 文件，按网页打开。按钮、计时器和 CSS 动画留在 WebView 里，用网页自己的缩放，不再被标成「SVG 矢量图」。
+- `.svg` 里的 SMIL、CSS 动画和脚本会动。双指缩放钉在两指中点，松手有惯性，双击绕点击处放大或缩回，拖出边缘会回弹。加号、减号和「适应窗口」有一段过渡。
+- 首页缩略图保持原比例，用居中裁切。宽 SVG 不再被压成一条。文本文件显示开头几行，不再是黑块。
+- 列表用稳定 id。缩略图在后台生成并缓存，滑动时暂停生成。
+- 编辑器按文件类型上色：Python、JavaScript / TypeScript、Kotlin / Java、CSS、SQL、Shell、YAML。浅色和深色各有一套颜色。
+- XML、YAML 预览可以折叠。出错的那一行会标出，并能跳回代码。
 
 ## v0.5.9 本次更新（预览和编辑器）
 
@@ -336,6 +345,14 @@ keyPassword=your_password
    脚本从文件本身算 SHA-256 与字节数，不接受手填；`latest.json` 只有正向递增的 `versionCode` 才会被应用接受。
 
 ## 截图
+
+v0.6.0（模拟器 API 34、360dp）：
+
+![Python 浅色](docs/screenshots/android/v5-python.png)
+![Python 深色](docs/screenshots/android/v5-python-dark.png)
+![XML 结构](docs/screenshots/android/v5-xml.png)
+![YAML 结构](docs/screenshots/android/v5-yaml.png)
+![YAML 深色](docs/screenshots/android/v5-yaml-dark.png)
 
 v0.5.9 预览（模拟器 360dp、字号 1.3）：
 

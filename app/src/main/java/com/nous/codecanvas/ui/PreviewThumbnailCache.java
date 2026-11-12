@@ -122,4 +122,31 @@ public final class PreviewThumbnailCache {
   if (cw < 16 || ch < 16) return null;
   return Bitmap.createBitmap(source, minX, minY, cw, ch);
  }
+
+ /**
+  * Crops away a flat letterbox whose colour matches the corners. A wide SVG rendered in a tall
+  * page becomes the drawing itself, at its own aspect ratio, instead of a thin strip on black.
+  */
+ public static Bitmap cropToContent(Bitmap source) {
+  if (source == null) return null;
+  int w = source.getWidth();
+  int h = source.getHeight();
+  int[] pixels = new int[w * h];
+  source.getPixels(pixels, 0, w, 0, 0, w, h);
+  int[] box = com.nous.codecanvas.util.InkBounds.box(pixels, w, h);
+  if (box == null) return source;
+  return Bitmap.createBitmap(source, box[0], box[1], box[2], box[3]);
+ }
+
+ /** The home slot is about 480px wide. Larger captures only cost memory. */
+ public static Bitmap fitSlot(Bitmap source, int maxEdge) {
+  if (source == null) return null;
+  int w = source.getWidth();
+  int h = source.getHeight();
+  int edge = Math.max(w, h);
+  if (edge <= maxEdge || maxEdge < 8) return source;
+  float scale = maxEdge / (float) edge;
+  return Bitmap.createScaledBitmap(source, Math.max(1, Math.round(w * scale)),
+          Math.max(1, Math.round(h * scale)), true);
+ }
 }

@@ -63,8 +63,12 @@ final class ThumbnailBackfiller {
     private final Activity activity;
     private final Deque<CanvasDocument> queue = new ArrayDeque<>();
     private final Runnable onThumbnailStored;
+    private final java.util.concurrent.ExecutorService tiles =
+            java.util.concurrent.Executors.newSingleThreadExecutor();
     private WebView web;
     private boolean running;
+    /** While the list is flinging, don't start another WebView capture. */
+    private boolean paused;
 
     ThumbnailBackfiller(Activity activity, Runnable onThumbnailStored) {
         this.activity = activity;
@@ -88,6 +92,11 @@ final class ThumbnailBackfiller {
         if (addAnything && !running) startNext();
     }
 
+    void setPaused(boolean value) {
+        paused = value;
+        if (!value && !running && !queue.isEmpty()) startNext();
+    }
+
     void stop() {
         running = false;
         queue.clear();
@@ -104,16 +113,8 @@ final class ThumbnailBackfiller {
     private boolean hasThumbnail(CanvasDocument doc) {
         java.io.File f = PreviewThumbnailCache.file(
                 activity.getApplicationContext(), darkKeyFor(doc));
-        if (!f.isFile()) return false;
-        Bitmap existing = android.graphics.BitmapFactory.decodeFile(f.getAbsolutePath());
-        if (existing == null) return false;
-        boolean blank = PreviewThumbnailCache.lacksContent(existing);
-        existing.recycle();
-        if (blank) {
-            f.delete();
-            return false;
-        }
-        return true;
+        // Decoding the PNG here used to happen on the UI thread for every row.
+        return f.isFile() && f.length() > 32;
     }
 
     /**
@@ -138,22 +139,42 @@ final class ThumbnailBackfiller {
     }
 
     private void startNext() {
+        if (paused) {
+            running = false;
+            return;
+        }
         CanvasDocument doc = queue.pollFirst();
         if (doc == null) {
             running = false;
             return;
         }
         running = true;
-        if (web == null && !createWebView()) {
-            running = false;
-            return;
-        }
         final String key = darkKeyFor(doc);
         final boolean dark = isDark();
         if (!canThumbnail(doc)) {
             startNext();
             return;
         }
+        if (doc.kind() == com.nous.codecanvas.data.DocumentKind.TEXT
+                || doc.kind() == com.nous.codecanvas.data.DocumentKind.CODE) {
+            final String text = doc.getContent();
+            tiles.execute(() -> {
+                Bitmap tile = TextTile.draw(text, dark, 480, 270);
+                Bitmap shown = tile.copy(Bitmap.Config.ARGB_8888, false);
+                memoryPut(key, shown);
+                PreviewThumbnailCache.store(activity.getApplicationContext(), key, tile);
+                activity.runOnUiThread(() -> {
+                    if (onThumbnailStored != null) onThumbnailStored.run();
+                    startNext();
+                });
+            });
+            return;
+        }
+        if (web == null && !createWebView()) {
+            running = false;
+            return;
+        }
+        sizeWebView(doc);
         PreviewPage.Request request = new PreviewPage.Request();
         request.kind = doc.kind().name();
         request.content = doc.getContent();
@@ -189,9 +210,10 @@ final class ThumbnailBackfiller {
         view.postDelayed(() -> {
             if (view != web) return;
             Bitmap shot = PreviewThumbnailCache.capture(view);
-            Bitmap cropped = PreviewThumbnailCache.cropToInk(shot);
-            if (cropped != null && cropped != shot && shot != null) shot.recycle();
-            shot = cropped;
+            Bitmap framed = PreviewThumbnailCache.cropToContent(shot);
+            if (framed != null && framed != shot && shot != null) shot.recycle();
+            shot = PreviewThumbnailCache.fitSlot(framed, 480);
+            if (shot != null && shot != framed && framed != null) framed.recycle();
             boolean ready = shot != null;
             boolean last = attempt >= 14;
             if (ready) {
@@ -210,6 +232,34 @@ final class ThumbnailBackfiller {
                 captureWhenReady(view, key, attempt + 1);
             }
         }, attempt == 0 ? 400 : 700);
+    }
+
+    /**
+     * SVG is captured at its own viewBox aspect, so a wide drawing fills the bitmap.
+     * HTML is captured as the first phone screen, then cropped.
+     */
+    private void sizeWebView(CanvasDocument doc) {
+        if (web == null) return;
+        float density = activity.getResources().getDisplayMetrics().density;
+        int w = Math.round(360 * density);
+        int h = Math.round(640 * density);
+        if (doc.kind() == com.nous.codecanvas.data.DocumentKind.SVG) {
+            com.nous.codecanvas.util.SvgGeometry.Box box =
+                    com.nous.codecanvas.util.SvgGeometry.measure(doc.getContent());
+            if (box != null && box.isValid() && box.aspect() > 0) {
+                h = Math.max(Math.round(72 * density), Math.round(w / (float) box.aspect()));
+                int cap = Math.round(720 * density);
+                if (h > cap) {
+                    h = cap;
+                    w = Math.max(1, Math.round(h * (float) box.aspect()));
+                }
+            }
+        }
+        web.setLayoutParams(new FrameLayout.LayoutParams(Math.max(1, w), Math.max(1, h)));
+        int ws = View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY);
+        int hs = View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY);
+        web.measure(ws, hs);
+        web.layout(0, 0, w, h);
     }
 
     /** Off-screen but attached and laid out: a WebView that is not in the hierarchy will not paint. */
@@ -283,17 +333,7 @@ final class ThumbnailBackfiller {
                     == android.content.res.Configuration.UI_MODE_NIGHT_YES;
             String key = PreviewKey.forDocument(doc.getId(), doc.getContent(), dark);
             java.io.File file = PreviewThumbnailCache.file(activity.getApplicationContext(), key);
-            if (!file.isFile()) {
-                missing.add(doc);
-                continue;
-            }
-            Bitmap existing = android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath());
-            boolean empty = existing == null || PreviewThumbnailCache.lacksContent(existing);
-            if (existing != null) existing.recycle();
-            if (empty) {
-                file.delete();
-                missing.add(doc);
-            }
+            if (!file.isFile() || file.length() <= 32) missing.add(doc);
         }
         return missing;
     }

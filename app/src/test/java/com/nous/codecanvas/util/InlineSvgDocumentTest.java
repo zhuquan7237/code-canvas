@@ -41,9 +41,9 @@ public class InlineSvgDocumentTest {
             + "</html>\n";
 
     @Test
-    public void anHtmlPageWrappingOneDrawingIsADrawing() {
-        assertEquals("单个内嵌 SVG 的 HTML 必须按矢量图预览，否则无法缩放",
-                RenderKind.SVG, RenderKindDetector.detect("gemini carbon.html", AI_ARTWORK));
+    public void anHtmlPageWrappingOneDrawingStaysAPage() {
+        assertEquals("带 html/body 的文件是网页，按钮和动画必须留在 WebView 里",
+                RenderKind.HTML, RenderKindDetector.detect("gemini carbon.html", AI_ARTWORK));
     }
 
     @Test
@@ -95,8 +95,8 @@ public class InlineSvgDocumentTest {
                 + "<svg viewBox=\"0 0 800 600\"><rect width=\"800\" height=\"600\" fill=\"#fff\"/></svg>\n"
                 + "<script>document.title='x';</script>\n"
                 + "</body>\n</html>\n";
-        assertEquals("注释和脚本不构成可见内容",
-                RenderKind.SVG, RenderKindDetector.detect("art.html", page));
+        assertEquals("带 html 外壳的文件按网页打开，脚本才能接到真实触摸",
+                RenderKind.HTML, RenderKindDetector.detect("art.html", page));
     }
 
     @Test
@@ -124,8 +124,8 @@ public class InlineSvgDocumentTest {
                 + "<svg viewBox=\"0 0 100 100\">"
                 + "<svg x=\"10\" y=\"10\" width=\"20\" height=\"20\"><rect width=\"20\" height=\"20\"/></svg>"
                 + "</svg></body></html>";
-        assertEquals("嵌套的 svg 是一张图，不是两张",
-                RenderKind.SVG, RenderKindDetector.detect("nested.html", page));
+        assertEquals("带 body 的文件是网页",
+                RenderKind.HTML, RenderKindDetector.detect("nested.html", page));
     }
 
     @Test
@@ -206,7 +206,7 @@ public class InlineSvgDocumentTest {
                 + "<SVG VIEWBOX=\"0 0 10 10\"><RECT WIDTH=\"10\" HEIGHT=\"10\"/></SVG>"
                 + "</BODY></HTML>";
         assertEquals("大小写不该影响判断",
-                RenderKind.SVG, RenderKindDetector.detect("art.html", page));
+                RenderKind.HTML, RenderKindDetector.detect("art.html", page));
     }
 
 

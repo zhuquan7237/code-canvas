@@ -422,19 +422,43 @@ public final class PreviewPage {
 
     // ------------------------------------------------------------------ XML
 
+    /** Display-only. A line that holds several tags is split so the structure can fold. */
+    private static String outlineXml(String raw) {
+        String formatted = XmlFormatter.formatForDisplay(raw);
+        if (formatted == null) return "";
+        boolean crowded = false;
+        for (String line : formatted.split("\n", -1)) {
+            int tags = 0;
+            for (int i = 0; i < line.length(); i++) if (line.charAt(i) == '<') tags++;
+            if (tags > 1) { crowded = true; break; }
+        }
+        if (!crowded) return formatted;
+        return formatted.replace(">", ">\n").replace("<", "\n<").replaceAll("\n{2,}", "\n").trim();
+    }
+
     private static String xml(Request request) {
         XmlValidator.ValidationResult validation = XmlValidator.validateSecurely(request.content);
+        int errorLine = validation.isValid() ? 0 : StructureView.xmlErrorLine(validation.getErrorMessage());
         String extra = "body{padding:12px 14px 32px}"
-                + "pre{white-space:pre;overflow-x:auto}";
+                + ".cc-xml{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;"
+                + "white-space:pre-wrap;word-break:break-word;padding:3px 0}"
+                + ".cc-xml.bad{background:#FBE4E1;border-radius:6px}"
+                + ".cc-kids{margin-left:14px}"
+                + "summary{cursor:pointer}"
+                + ".cc-ln{display:inline-block;min-width:2em;opacity:.55}";
         StringBuilder body = new StringBuilder();
         if (validation.isValid()) {
-            body.append("<div class=\"cc-note cc-ok\">XML 结构完整有效（已启用防 XXE 安全沙箱）</div>");
+            body.append("<div class=\"cc-note cc-ok\">XML 结构完整。点箭头可折叠。</div>");
         } else {
             body.append("<div class=\"cc-err\">XML 解析异常：")
-                    .append(escape(validation.getErrorMessage()))
-                    .append("\n源码已保留，可切到代码继续修改。</div>");
+                    .append(escape(validation.getErrorMessage()));
+            if (errorLine > 0) {
+                body.append(" <a href=\"https://codecanvas.invalid/jump?line=")
+                        .append(errorLine).append("\">定位</a>");
+            }
+            body.append("</div>");
         }
-        body.append("<pre>").append(escape(XmlFormatter.formatForDisplay(request.content))).append("</pre>");
+        body.append(StructureView.xmlHtml(outlineXml(request.content), errorLine));
         return shell(request.dark, extra, body.toString(), null);
     }
 
@@ -443,13 +467,15 @@ public final class PreviewPage {
     private static String yaml(Request request) {
         List<String> problems = StructuredText.checkYaml(request.content);
         String extra = "body{padding:16px 16px 32px}"
-                + ".cc-yaml{margin:0 0 8px;padding:10px 12px;border-radius:12px;background:var(--surface)}"
-                + ".cc-yaml.bad{background:var(--bad-bg, #FBE4E1)}"
+                + ".cc-yaml{margin:0 0 6px;padding:8px 12px;border-radius:12px;background:var(--surface)}"
+                + ".cc-yaml.bad{background:#FBE4E1}"
+                + ".cc-kids{margin-left:8px}"
+                + "summary{cursor:pointer;list-style:none}"
                 + ".cc-ln{display:inline-block;min-width:2.2em;opacity:.6;font-variant-numeric:tabular-nums}";
         StringBuilder body = new StringBuilder();
         String verdict = StructuredText.yamlVerdict(problems);
         body.append("<div class=\"cc-note ").append(problems.isEmpty() ? "cc-ok" : "cc-warn").append("\">")
-                .append(escape(verdict)).append("</div>");
+                .append(escape(verdict)).append(" 有下级的行可以折叠。</div>");
         if (!problems.isEmpty()) {
             body.append("<div class=\"cc-err\">");
             for (String problem : problems) {
@@ -457,12 +483,7 @@ public final class PreviewPage {
             }
             body.append("</div>");
         }
-        for (StructuredText.YamlRow row : StructuredText.yamlOutline(request.content)) {
-            body.append("<div class=\"cc-yaml").append(row.problem ? " bad" : "").append("\" style=\"margin-left:")
-                    .append(row.depth * 16).append("px\"><span class=\"cc-ln\">")
-                    .append(row.line).append("</span> ")
-                    .append(escape(row.label)).append("</div>");
-        }
+        body.append(StructureView.yamlHtml(StructuredText.yamlOutline(request.content)));
         return shell(request.dark, extra, body.toString(), null);
     }
 
