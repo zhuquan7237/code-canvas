@@ -18,7 +18,7 @@ final class TextTile {
         canvas.drawColor(paper);
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(ink);
-        paint.setTextSize(Math.max(18f, height / 11f));
+        paint.setTextSize(Math.max(16f, height / 9f));
         String[] raw = content == null ? new String[0] : content.split("\\r\\n|\\n|\\r", 12);
         float y = paint.getTextSize() + 16f;
         int drawn = 0;

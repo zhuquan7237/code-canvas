@@ -64,6 +64,9 @@ public class MainActivity extends Activity {
     /** Exporting straight from the list, so a card does not have to be opened in the editor first. */
     private static final int REQ_EXPORT_DOCUMENT = 1002;
 
+    /** Non-zero while a list is flinging. Disk decodes wait until it stops. */
+    private int listScrollState = android.widget.AbsListView.OnScrollListener.SCROLL_STATE_IDLE;
+
     /** Crossfade for a thumbnail that had to be generated during this visit. */
     private static final int THUMB_FADE_MS = 180;
     /** Key under which a row records the thumbnail it is currently showing. */
@@ -411,9 +414,11 @@ public class MainActivity extends Activity {
         android.widget.AbsListView.OnScrollListener scrollPause = new android.widget.AbsListView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(android.widget.AbsListView view, int scrollState) {
+                listScrollState = scrollState;
                 if (backfiller != null) {
                     backfiller.setPaused(scrollState != SCROLL_STATE_IDLE);
                 }
+                if (scrollState == SCROLL_STATE_IDLE) loadVisibleThumbs();
             }
 
             @Override
@@ -431,10 +436,9 @@ public class MainActivity extends Activity {
         findViewById(R.id.btn_layout_list).setOnClickListener(v -> setGrid(false));
         findViewById(R.id.btn_layout_grid).setOnClickListener(v -> setGrid(true));
 
-        backfiller = new ThumbnailBackfiller(this, () -> {
-            if (adapter != null) adapter.notifyDataSetChanged();
-            if (gridAdapter != null) gridAdapter.notifyDataSetChanged();
-        });
+        backfiller = new ThumbnailBackfiller(this, this::refreshVisibleThumbnails);
+        tuneList(listDocuments);
+        tuneList(gridDocuments);
 
         listDocuments.setOnItemClickListener((parent, view, position, id) -> onRowTapped(position));
         gridDocuments.setOnItemClickListener((parent, view, position, id) -> onRowTapped(position));
@@ -637,12 +641,15 @@ public class MainActivity extends Activity {
 
         drawerAdapter = new DrawerAdapter();
         drawerList.setAdapter(drawerAdapter);
+        tuneList(drawerList);
         drawerList.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(android.widget.AbsListView view, int scrollState) {
+                listScrollState = scrollState;
                 if (backfiller != null) {
                     backfiller.setPaused(scrollState != SCROLL_STATE_IDLE);
                 }
+                if (scrollState == SCROLL_STATE_IDLE) loadVisibleThumbs();
             }
 
             @Override
@@ -784,7 +791,6 @@ public class MainActivity extends Activity {
             TextView title = convertView.findViewById(R.id.drawer_item_title);
             TextView meta = convertView.findViewById(R.id.drawer_item_meta);
             android.widget.ImageView thumb = convertView.findViewById(R.id.drawer_item_thumb);
-            thumb.setClipToOutline(true);
 
             title.setText(doc.getTitle());
             if (presentation != null) {
@@ -1361,6 +1367,17 @@ public class MainActivity extends Activity {
 
     // --- list adapter --------------------------------------------------------------------------------
 
+    private static final class Row {
+        String boundId;
+        TextView title;
+        TextView tag;
+        TextView time;
+        TextView size;
+        ImageButton more;
+        android.widget.ImageView cover;
+        android.widget.ImageView check;
+    }
+
     private class DocumentAdapter extends BaseAdapter {
         @Override public int getCount() { return filteredDocuments.size(); }
         @Override public CanvasDocument getItem(int position) { return filteredDocuments.get(position); }
@@ -1372,22 +1389,45 @@ public class MainActivity extends Activity {
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
+            Row row;
             if (convertView == null) {
                 convertView = LayoutInflater.from(MainActivity.this).inflate(
                         parent == gridDocuments ? R.layout.item_document_card : R.layout.item_document_list,
                         parent, false);
+                row = new Row();
+                row.title = convertView.findViewById(R.id.txt_doc_title);
+                row.tag = convertView.findViewById(R.id.txt_doc_tag);
+                row.time = convertView.findViewById(R.id.txt_doc_time);
+                row.size = convertView.findViewById(R.id.txt_doc_size);
+                row.more = convertView.findViewById(R.id.btn_card_more);
+                row.check = convertView.findViewById(R.id.img_check_badge);
+                row.cover = convertView.findViewById(R.id.img_doc_preview);
+                convertView.setTag(row);
+                convertView.setOnClickListener(v -> {
+                    Row held = (Row) v.getTag();
+                    int pos = positionOf(held.boundId);
+                    if (pos >= 0) onRowTapped(pos);
+                });
+                if (row.more != null) {
+                    final View rowView = convertView;
+                    row.more.setOnClickListener(v -> {
+                        Row held = (Row) rowView.getTag();
+                        CanvasDocument current = documentById(held.boundId);
+                        if (current != null) showDocumentActions(current);
+                    });
+                }
+            } else {
+                row = (Row) convertView.getTag();
             }
 
             CanvasDocument doc = getItem(position);
-            TextView txtTag = convertView.findViewById(R.id.txt_doc_tag);
-            TextView txtTitle = convertView.findViewById(R.id.txt_doc_title);
-            TextView txtTime = convertView.findViewById(R.id.txt_doc_time);
-            TextView txtSize = convertView.findViewById(R.id.txt_doc_size);
-            View contentContainer = convertView.findViewById(R.id.card_content_container);
-            ImageButton btnMore = convertView.findViewById(R.id.btn_card_more);
-            android.widget.ImageView checkBadge = convertView.findViewById(R.id.img_check_badge);
-
-            android.widget.ImageView cover = convertView.findViewById(R.id.img_doc_preview);
+            android.widget.ImageView cover = row.cover;
+            TextView txtTag = row.tag;
+            TextView txtTitle = row.title;
+            TextView txtTime = row.time;
+            TextView txtSize = row.size;
+            ImageButton btnMore = row.more;
+            android.widget.ImageView checkBadge = row.check;
             DocumentPresentation presentation = presentations.get(doc.getId());
             if (presentation == null) {
                 presentation = new DocumentPresentation(doc, isDarkTheme());
@@ -1395,10 +1435,11 @@ public class MainActivity extends Activity {
             }
             String key = presentation.previewKey;
             com.nous.codecanvas.data.DocumentKind coverKind = presentation.kind;
-            cover.setClipToOutline(true);
-            cover.setTag(key);
-            cover.setContentDescription("作品缩略图；还没生成好时显示文件类型封面");
-            bindThumbnail(cover, key, coverKind, doc);
+            row.boundId = doc.getId();
+            if (cover != null) {
+                cover.setTag(key);
+                bindThumbnail(cover, key, coverKind, doc);
+            }
 
             if (txtTitle != null) txtTitle.setText(doc.getTitle());
             if (txtTag != null) {
@@ -1420,23 +1461,17 @@ public class MainActivity extends Activity {
             convertView.setBackgroundResource(selected
                     ? R.drawable.bg_row_selected
                     : (parent == gridDocuments ? R.drawable.bg_card : R.drawable.bg_list_row));
-
-            if (contentContainer != null) {
-                contentContainer.setClickable(false);
-                contentContainer.setFocusable(false);
-            }
             convertView.setLongClickable(true);
-            convertView.setOnClickListener(v -> {
-                int pos = positionOf(doc.getId());
-                if (pos >= 0) onRowTapped(pos);
-            });
-
             if (btnMore != null) {
                 btnMore.setVisibility(selectionMode ? View.GONE : View.VISIBLE);
-                btnMore.setOnClickListener(v -> showDocumentActions(doc));
             }
 
             return convertView;
+        }
+
+        private CanvasDocument documentById(String id) {
+            int pos = positionOf(id);
+            return pos >= 0 ? filteredDocuments.get(pos) : null;
         }
 
         private int positionOf(String id) {
@@ -1454,23 +1489,89 @@ public class MainActivity extends Activity {
      * miss (thumbnail still being rendered) shows the type cover, and the finished capture
      * crossfades in when the backfiller stores it.
      */
-    /** Ink is already cropped. Fill the square so a heading or a chart stays readable. */
+    /** The bitmap is already the whole picture, letterboxed. Fit it; do not crop again. */
     private void showThumbnailTop(android.widget.ImageView cover, android.graphics.Bitmap bitmap) {
-        cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-        cover.setBackground(null);
+        cover.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
         cover.setImageBitmap(bitmap);
     }
 
     private void showPlaceholder(android.widget.ImageView cover, com.nous.codecanvas.data.DocumentKind kind) {
-        cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        cover.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
         cover.setBackgroundResource(R.drawable.bg_thumbnail);
         cover.setImageBitmap(KindPlaceholder.bitmap(this, kind));
+    }
+
+    /** After a fling, fill the tiles that were left as placeholders. */
+    private void loadVisibleThumbs() {
+        bindVisible(listDocuments, R.id.img_doc_preview);
+        bindVisible(gridDocuments, R.id.img_doc_preview);
+        bindVisible(drawerList, R.id.drawer_item_thumb);
+    }
+
+    private void bindVisible(android.widget.AbsListView list, int imageId) {
+        if (list == null || list.getVisibility() != View.VISIBLE) return;
+        int first = list.getFirstVisiblePosition();
+        for (int i = 0; i < list.getChildCount(); i++) {
+            int position = first + i;
+            if (position < 0 || position >= filteredDocuments.size()) continue;
+            android.widget.ImageView cover = list.getChildAt(i).findViewById(imageId);
+            if (cover == null) continue;
+            CanvasDocument doc = filteredDocuments.get(position);
+            DocumentPresentation presentation = presentations.get(doc.getId());
+            if (presentation == null) continue;
+            bindThumbnail(cover, presentation.previewKey, presentation.kind, doc);
+        }
+    }
+
+    /** Paint only the tiles that are on screen. Rebinding the whole list was a scroll hitch. */
+    private void refreshVisibleThumbnails() {
+        paintVisible(listDocuments, R.id.img_doc_preview);
+        paintVisible(gridDocuments, R.id.img_doc_preview);
+        paintVisible(drawerList, R.id.drawer_item_thumb);
+    }
+
+    private void paintVisible(android.widget.AbsListView list, int imageId) {
+        if (list == null) return;
+        for (int i = 0; i < list.getChildCount(); i++) {
+            android.view.View row = list.getChildAt(i);
+            android.widget.ImageView cover = row.findViewById(imageId);
+            if (cover == null) continue;
+            Object key = cover.getTag();
+            if (!(key instanceof String)) continue;
+            android.graphics.Bitmap bitmap = ThumbnailBackfiller.memoryGet((String) key);
+            if (bitmap != null && !bitmap.isRecycled()) showThumbnailTop(cover, bitmap);
+        }
+    }
+
+    private static void tuneList(android.widget.AbsListView list) {
+        if (list == null) return;
+        list.setScrollingCacheEnabled(false);
+        list.setAnimationCacheEnabled(false);
+        list.setPersistentDrawingCache(0);
     }
 
     private static boolean isPixelKind(com.nous.codecanvas.data.DocumentKind kind) {
         return kind == com.nous.codecanvas.data.DocumentKind.IMAGE
                 || kind == com.nous.codecanvas.data.DocumentKind.GIF
                 || kind == com.nous.codecanvas.data.DocumentKind.PDF;
+    }
+
+    /** Decode no larger than the card. A full-screen bitmap in the list is what made flings hitch. */
+    private android.graphics.Bitmap decodeThumbFile(java.io.File file) {
+        if (file == null || !file.isFile()) return null;
+        android.graphics.BitmapFactory.Options bounds = new android.graphics.BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
+        android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+        opts.inSampleSize = 1;
+        int maxW = PreviewThumbnailCache.CARD_W;
+        int maxH = PreviewThumbnailCache.CARD_H;
+        while (opts.inSampleSize < 16
+                && (bounds.outWidth / opts.inSampleSize > maxW
+                || bounds.outHeight / opts.inSampleSize > maxH)) {
+            opts.inSampleSize *= 2;
+        }
+        return android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
     }
 
     /** First page of a picture or PDF, straight from the stored bytes. */
@@ -1507,13 +1608,13 @@ public class MainActivity extends Activity {
             return;
         }
         boolean alreadyShowingThis = key.equals(cover.getTag(TAG_THUMB_BOUND));
-        showPlaceholder(cover, kind);
-        if (!alreadyShowingThis) cover.setAlpha(1f);
+        if (!alreadyShowingThis) showPlaceholder(cover, kind);
+        // A fling must not decode bitmaps or post results back onto the scrolling frame.
+        if (listScrollState != android.widget.AbsListView.OnScrollListener.SCROLL_STATE_IDLE) return;
         thumbnailExecutor.execute(() -> {
             android.graphics.Bitmap bitmap = isPixelKind(kind)
                     ? decodeStoredBlob(doc)
-                    : android.graphics.BitmapFactory.decodeFile(
-                    PreviewThumbnailCache.file(getApplicationContext(), key).getAbsolutePath());
+                    : decodeThumbFile(PreviewThumbnailCache.file(getApplicationContext(), key));
             // A photo or PDF page can be mostly paper and still be the real file.
             // Web captures that never painted are discarded so the coloured tile stays.
             if (bitmap != null && !isPixelKind(kind) && PreviewThumbnailCache.lacksContent(bitmap)) {

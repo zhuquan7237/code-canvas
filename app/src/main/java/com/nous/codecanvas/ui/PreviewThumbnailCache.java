@@ -138,6 +138,53 @@ public final class PreviewThumbnailCache {
   return Bitmap.createBitmap(source, box[0], box[1], box[2], box[3]);
  }
 
+ /** Stored tile size. 16:10, and no larger than the card on a phone screen. */
+ public static final int CARD_W = 320;
+ public static final int CARD_H = 200;
+
+ /**
+  * The whole picture, scaled uniformly into the card. Bars use the picture's own corner colour.
+  */
+ public static Bitmap letterbox(Bitmap source) {
+  if (source == null) return null;
+  Bitmap out = Bitmap.createBitmap(CARD_W, CARD_H, Bitmap.Config.ARGB_8888);
+  Canvas canvas = new Canvas(out);
+  canvas.drawColor(cornerColor(source));
+  float scale = com.nous.codecanvas.util.ThumbnailFrame.fitScale(
+          source.getWidth(), source.getHeight(), CARD_W, CARD_H);
+  float dw = source.getWidth() * scale;
+  float dh = source.getHeight() * scale;
+  float left = (CARD_W - dw) / 2f;
+  float top = (CARD_H - dh) / 2f;
+  canvas.drawBitmap(source, null, new android.graphics.RectF(left, top, left + dw, top + dh), null);
+  return out;
+ }
+
+ /** The top of an HTML capture, cut to the card ratio and scaled down to the card. */
+ public static Bitmap topSlice(Bitmap source) {
+  if (source == null) return null;
+  int[] box = com.nous.codecanvas.util.ThumbnailFrame.topCrop(
+          source.getWidth(), source.getHeight(), CARD_W / (float) CARD_H);
+  Bitmap cut = Bitmap.createBitmap(source, box[0], box[1], box[2], box[3]);
+  if (cut.getWidth() == CARD_W && cut.getHeight() == CARD_H) return cut;
+  Bitmap scaled = Bitmap.createScaledBitmap(cut, CARD_W, CARD_H, true);
+  if (scaled != cut) cut.recycle();
+  return scaled;
+ }
+
+ private static int cornerColor(Bitmap source) {
+  int w = source.getWidth();
+  int h = source.getHeight();
+  int c1 = source.getPixel(0, 0);
+  int c2 = source.getPixel(w - 1, 0);
+  int c3 = source.getPixel(0, h - 1);
+  int c4 = source.getPixel(w - 1, h - 1);
+  int r = ((c1 >> 16) & 255) + ((c2 >> 16) & 255) + ((c3 >> 16) & 255) + ((c4 >> 16) & 255);
+  int g = ((c1 >> 8) & 255) + ((c2 >> 8) & 255) + ((c3 >> 8) & 255) + ((c4 >> 8) & 255);
+  int b = (c1 & 255) + (c2 & 255) + (c3 & 255) + (c4 & 255);
+  return 0xFF000000 | ((r / 4) << 16) | ((g / 4) << 8) | (b / 4);
+ }
+
  /** The home slot is about 480px wide. Larger captures only cost memory. */
  public static Bitmap fitSlot(Bitmap source, int maxEdge) {
   if (source == null) return null;

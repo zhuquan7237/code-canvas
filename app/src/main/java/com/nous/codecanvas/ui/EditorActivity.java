@@ -489,6 +489,14 @@ public class EditorActivity extends Activity {
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(false);
         webPreview.setBackgroundColor(getResources().getColor(R.color.canvas_surface));
+        // Pinch-zoom on an HTML page belongs to the WebView. Tell the parent not to take the
+        // second finger, or the page and the viewport fight and the zoom drifts.
+        webPreview.setOnTouchListener((v, event) -> {
+            if (kind == DocumentKind.HTML && event.getPointerCount() > 1 && v.getParent() != null) {
+                v.getParent().requestDisallowInterceptTouchEvent(true);
+            }
+            return false;
+        });
 
         webPreview.setWebChromeClient(new android.webkit.WebChromeClient() {
             @Override
@@ -558,8 +566,17 @@ public class EditorActivity extends Activity {
                             editorTextOrStored(), dark);
                     if (viewFlipper.getDisplayedChild() == 1 && supportsThumbnail()) {
                         Bitmap image = PreviewThumbnailCache.capture(view);
+                        if (image != null) {
+                            Bitmap framed = kind == DocumentKind.SVG
+                                    ? PreviewThumbnailCache.letterbox(image)
+                                    : PreviewThumbnailCache.topSlice(image);
+                            if (framed != null && framed != image) image.recycle();
+                            image = framed;
+                        }
                         if (image != null && !saveExecutor.isShutdown()) {
-                            saveExecutor.execute(() -> PreviewThumbnailCache.store(getApplicationContext(), key, image));
+                            Bitmap toStore = image;
+                            saveExecutor.execute(() -> PreviewThumbnailCache.store(
+                                    getApplicationContext(), key, toStore));
                         }
                     }
                 }
