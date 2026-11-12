@@ -2,7 +2,7 @@
 
 把 AI 给出的代码，变成看得见的作品。提供轻量原生 Android 应用（使用系统 WebView，不打包浏览器内核）与 Windows 电脑版（`desktop/`）。
 
-[下载最新 Android APK (v0.5.3)](https://relay.zhuquan.xyz/dl/code-canvas-0.5.3.apk)（自建源，国内可直连）· [下载 Windows 电脑版安装包 (v0.5.0 · 793KB)](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
+[下载最新 Android APK (v0.5.4)](https://relay.zhuquan.xyz/dl/code-canvas-0.5.4.apk)（自建源，国内可直连）· [下载 Windows 电脑版安装包 (v0.5.0 · 793KB)](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe) · [GitHub Release](https://github.com/zhuquan7237/code-canvas/releases/latest) · [构建状态](https://github.com/zhuquan7237/code-canvas/actions) · [验收与边界](docs/VERIFICATION.md)
 
 ## 怎么用
 
@@ -13,7 +13,7 @@
 
 已有作品默认打开预览，需要修改时再切「代码」。空白新建仍直接编辑。主页不显示代码片段；缩略图由应用在后台为每个作品渲染（没打开过也会生成），宽 480，随主题变化，临时缓存最多 40 张，系统可清理。在其他应用里打开或分享 `.html/.htm/.svg/.xml/.txt` 文件会直接进预览。
 
-## v0.5.3 本次更新（Android：第一阶段格式预览 · 代码搜索 · SVG 交互视口）
+## v0.5.4 本次更新（修六项缺陷：SVG 缩放 · 搜索焦点 · 撤销历史 · 打开卡顿 · 布局间距 · 写盘丢失）
 
 面向 AI 使用者的轻量文件预览、代码查看与编辑助手。这一版把「只能看 HTML/SVG」扩到第一阶段全部常用格式，并把 SVG 从"只能完整显示"做成真正能放大查看的交互视口。
 
@@ -24,7 +24,7 @@
 - **SVG 交互视口**：默认完整居中显示（含非零/负数 viewBox 原点），双指缩放围绕双指中心、单指拖动、双击放大/复位、按钮缩放、适应窗口、适应内容、全屏；缩放保持矢量，0.1～20 倍；**查看不会把文件变成未保存修改**。
 - **更新加固**：清单新增 `minSdk` 与 `channel`，预发布版本拒绝安装，设备跑不动的版本直接说明而不是先下载再失败；安装前校验包名、版本、签名与安装包自身 minSdk。
 
-详细验收与已知限制见 [docs/VERIFICATION.md](docs/VERIFICATION.md) 与 [docs/RELEASE-v0.5.3.md](docs/RELEASE-v0.5.3.md)。**PDF 本阶段不能在应用内翻页预览**（Android WebView 不渲染 PDF，未打包 PDF.js），界面明确说明并提供「用其他应用打开原文件」与字节一致的分享。
+详细验收与已知限制见 [docs/VERIFICATION.md](docs/VERIFICATION.md) 与 [docs/RELEASE-v0.5.4.md](docs/RELEASE-v0.5.4.md)。**PDF 本阶段不能在应用内翻页预览**（Android WebView 不渲染 PDF，未打包 PDF.js），界面明确说明并提供「用其他应用打开原文件」与字节一致的分享。
 
 ## Windows 电脑版 (`desktop/` · v0.5.0 极速原生版)
 
