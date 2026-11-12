@@ -1,10 +1,12 @@
 {
   "schemaVersion": 1,
-  "versionName": "0.4.0",
-  "versionCode": 40,
-  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.4.0.apk?v=809d43b72f33",
-  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.4.0/code-canvas-0.4.0.apk",
-  "sha256": "809d43b72f3324d05793fead478752fb55ee4beb88bf06f27d11b096996ec786",
-  "size": 226974,
-  "notes": "v0.4.0 更新：1. 修复主页与抽屉缩略图圆角裁切（画面不再溢出 12dp 圆边框）；2. 优化目录抽屉布局与左对齐，新增平滑抽屉滑入与遮罩渐变动画；3. 补齐打开作品、进入设置及代码/预览切换的过渡动画；4. 重绘右上角设置齿轮图标与胶囊/圆角图标按钮，修复更多选项底部面板点击空白处无法收起的问题；5. 修复检查更新多源竞速与国内自建源同步；6. 新增 Windows 电脑版（desktop/）。"
+  "versionName": "0.5.1",
+  "versionCode": 51,
+  "channel": "stable",
+  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.5.1.apk?v=b2e2d02c85aa",
+  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.5.1/code-canvas-0.5.1.apk",
+  "sha256": "b2e2d02c85aa444aff58bf9c4b7ca6b03fc2f76705f397f611fcb0a8ae61adbb",
+  "size": 1353490,
+  "notes": "v0.5.1 更新：\n\n1. 第一阶段格式预览：HTML、SVG、Markdown、Mermaid、JSON、JSONL、XML、YAML、CSV、TXT 与常见代码可预览可编辑；PNG/JPG/WebP/GIF、PDF 仅预览。\n2. 先保存原始字节再解码：类型按「文件特征 → 扩展名 → MIME」判断，编码按 BOM → UTF-8 → GB18030 识别，保存用同一编码与换行写回；图片与 PDF 未修改导出哈希不变。\n3. Markdown 表格、任务列表、代码块、公式、Mermaid 全部离线可用（依赖随包提供）。\n4. JSON 格式化只调缩进，1.0 仍是 1.0、20 位整数不变科学计数法；JSONL 逐行解析，一行出错不影响其他行；CSV 正确处理引号、单元格内逗号与换行。\n5. 代码搜索：搜索框、当前/总数、上一处/下一处、关闭、区分大小写；全部匹配高亮、当前匹配突出、循环切换、编辑后自动更新。\n6. SVG 交互视口：默认完整居中（含非零/负数 viewBox 原点）、双指缩放、单指拖动、双击放大/复位、适应窗口、适应内容、全屏；缩放保持矢量，查看不改动文件。\n7. 更新加固：清单新增 minSdk 与 channel，预发布版本拒绝安装，设备跑不动的版本直接说明。\n\n已知限制：PDF 本阶段不能在应用内翻页预览（Android WebView 不渲染 PDF），界面提供「用其他应用打开原文件」与字节一致的分享；YAML 只做缩进与括号检查，界面标注未做完整语义校验。",
+  "minSdk": 26
 }
