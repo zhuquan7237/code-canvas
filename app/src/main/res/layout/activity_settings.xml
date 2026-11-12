@@ -99,7 +99,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginHorizontal="16dp"
                     android:layout_marginTop="4dp"
-                    android:text="浅色、深色，或随手机的深色模式自动切换"
+                    android:text="浅色、深色，或跟随系统切换"
                     android:textSize="12sp"
                     android:lineSpacingMultiplier="1.25"
                     android:textColor="@color/canvas_ink_secondary" />

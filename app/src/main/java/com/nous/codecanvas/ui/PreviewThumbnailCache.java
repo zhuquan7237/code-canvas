@@ -34,7 +34,7 @@ public final class PreviewThumbnailCache {
   return b;
  }
  public static void store(Context c,String key,Bitmap bitmap){
-  if(looksBlank(bitmap)) return;   // nothing was painted; the type cover is the truthful fallback
+  if(lacksContent(bitmap)) return;   // nothing readable was painted; keep the type tile
   File f=file(c,key); File dir=f.getParentFile();
   try {
    if(!dir.exists()&&!dir.mkdirs()) return;
@@ -68,5 +68,58 @@ public final class PreviewThumbnailCache {
   // so an ordinary light HTML page was judged "nothing painted" and the home list fell back to
   // type covers. Only near-pure white now counts as the untouched base coat.
   return min>=252&&(max-min)<=4;
+ }
+
+ /**
+  * True when the capture has no readable mark: a blank page, or a page that is only the
+  * paper colour. Markdown captured before its bundled script runs looks like this.
+  */
+ public static boolean lacksContent(Bitmap b) {
+  if (b == null || looksBlank(b)) return true;
+  Bitmap small = Bitmap.createScaledBitmap(b, 48, 48, true);
+  int dark = 0;
+  for (int y = 0; y < 48; y++) {
+   for (int x = 0; x < 48; x++) {
+    int p = small.getPixel(x, y);
+    int lum = (Color.red(p) * 299 + Color.green(p) * 587 + Color.blue(p) * 114) / 1000;
+    if (lum < 210) dark++;
+   }
+  }
+  if (small != b) small.recycle();
+  return dark < 10;
+ }
+
+ /**
+  * Cuts away the empty paper around a drawing. A Mermaid chart sits in the middle of a
+  * tall page; without this the tile is almost entirely background.
+  */
+ public static Bitmap cropToInk(Bitmap source) {
+  if (source == null) return null;
+  int w = source.getWidth();
+  int h = source.getHeight();
+  int step = 3;
+  int minX = w, minY = h, maxX = -1, maxY = -1;
+  for (int y = 0; y < h; y += step) {
+   for (int x = 0; x < w; x += step) {
+    int p = source.getPixel(x, y);
+    int lum = (Color.red(p) * 299 + Color.green(p) * 587 + Color.blue(p) * 114) / 1000;
+    if (lum < 215) {
+     if (x < minX) minX = x;
+     if (y < minY) minY = y;
+     if (x > maxX) maxX = x;
+     if (y > maxY) maxY = y;
+    }
+   }
+  }
+  if (maxX < 0) return null;
+  int pad = 12;
+  minX = Math.max(0, minX - pad);
+  minY = Math.max(0, minY - pad);
+  maxX = Math.min(w - 1, maxX + pad);
+  maxY = Math.min(h - 1, maxY + pad);
+  int cw = maxX - minX + 1;
+  int ch = maxY - minY + 1;
+  if (cw < 16 || ch < 16) return null;
+  return Bitmap.createBitmap(source, minX, minY, cw, ch);
  }
 }

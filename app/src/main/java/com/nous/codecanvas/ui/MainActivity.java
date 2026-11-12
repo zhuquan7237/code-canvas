@@ -155,10 +155,11 @@ public class MainActivity extends Activity {
             previewKey = PreviewKey.forDocument(doc.getId(), content, dark);
             kind = doc.kind();
 
-            int bytes = utf8Length(content);
+            int bytes = doc.isBlob() ? (int) Math.min(Integer.MAX_VALUE, doc.getByteSize())
+                    : utf8Length(content);
             String size = bytes < 1024 ? bytes + " B"
                     : String.format(Locale.getDefault(), "%.1f KB", bytes / 1024.0f);
-            sizeText = size + " · " + lineCount(content) + " 行";
+            sizeText = doc.isBlob() ? size : size + " · " + lineCount(content) + " 行";
         }
 
         /** Length of the UTF-8 encoding without materialising it. */
@@ -761,20 +762,8 @@ public class MainActivity extends Activity {
                 String key = presentation.previewKey;
                 thumb.setTag(key);
                 android.graphics.Bitmap cached = ThumbnailBackfiller.memoryGet(key);
-                if (cached != null && !cached.isRecycled()) {
-                    thumb.setPadding(0, 0, 0, 0);
-                    thumb.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-                    thumb.setImageBitmap(cached);
-                } else {
-                    int pad = dp(4);
-                    thumb.setPadding(pad, pad, pad, pad);
-                    thumb.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-                    thumb.setImageResource(presentation.kind == com.nous.codecanvas.data.DocumentKind.HTML
-                            ? R.drawable.cover_web
-                            : presentation.kind == com.nous.codecanvas.data.DocumentKind.SVG
-                            ? R.drawable.cover_vector
-                            : R.drawable.cover_document);
-                }
+                thumb.setPadding(0, 0, 0, 0);
+                bindThumbnail(thumb, key, presentation.kind, doc);
             } else {
                 meta.setText("");
             }
@@ -1343,8 +1332,6 @@ public class MainActivity extends Activity {
     // --- list adapter --------------------------------------------------------------------------------
 
     private class DocumentAdapter extends BaseAdapter {
-        private final SimpleDateFormat dateFormat = new SimpleDateFormat("MM-dd HH:mm", Locale.getDefault());
-
         @Override public int getCount() { return filteredDocuments.size(); }
         @Override public CanvasDocument getItem(int position) { return filteredDocuments.get(position); }
         @Override public long getItemId(int position) { return position; }
@@ -1374,24 +1361,21 @@ public class MainActivity extends Activity {
             }
             String key = presentation.previewKey;
             com.nous.codecanvas.data.DocumentKind coverKind = presentation.kind;
-            Drawable typeCover = getResources().getDrawable(
-                    coverKind == com.nous.codecanvas.data.DocumentKind.HTML ? R.drawable.cover_web
-                            : coverKind == com.nous.codecanvas.data.DocumentKind.SVG ? R.drawable.cover_vector
-                            : R.drawable.cover_document);
-
             cover.setClipToOutline(true);
             cover.setTag(key);
             cover.setContentDescription("作品缩略图；还没生成好时显示文件类型封面");
-            bindThumbnail(cover, key, typeCover);
+            bindThumbnail(cover, key, coverKind, doc);
 
             if (txtTitle != null) txtTitle.setText(doc.getTitle());
             if (txtTag != null) {
                 txtTag.setText(coverKind.label());
                 KindStyle.applyChip(txtTag, coverKind);
             }
-            String when = dateFormat.format(new Date(doc.getUpdatedAt()));
-            if (txtSize != null) txtSize.setText(presentation.sizeText + " · " + when);
-            if (txtTime != null) txtTime.setText(when);
+            if (txtSize != null) {
+                txtSize.setText(ListMeta.rowDetail(presentation.sizeText,
+                        System.currentTimeMillis(), doc.getUpdatedAt()));
+            }
+            if (txtTime != null) txtTime.setText("");
 
             // Selection chrome: badge + row tint; type cover stays under the badge.
             boolean selected = selectionMode && selectedIds.contains(doc.getId());
@@ -1436,72 +1420,50 @@ public class MainActivity extends Activity {
      * miss (thumbnail still being rendered) shows the type cover, and the finished capture
      * crossfades in when the backfiller stores it.
      */
-    /**
-     * Zoom the thumbnail until it fills the tile, then slide to the band that actually
-     * has ink. A centred crop misses a heading that sits at the top; fitting the whole
-     * page shrinks that heading to a speck.
-     */
+    /** Ink is already cropped. Fill the square so a heading or a chart stays readable. */
     private void showThumbnailTop(android.widget.ImageView cover, android.graphics.Bitmap bitmap) {
-        cover.setScaleType(android.widget.ImageView.ScaleType.MATRIX);
+        cover.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
         cover.setImageBitmap(bitmap);
-        final Object token = cover.getTag();
-        Runnable apply = () -> {
-            if (bitmap.isRecycled() || (token != null && !token.equals(cover.getTag()))) return;
-            int vw = cover.getWidth();
-            int vh = cover.getHeight();
-            if (vw <= 1 || vh <= 1 || bitmap.getWidth() <= 1) return;
-            float scale = Math.max(vw / (float) bitmap.getWidth(), vh / (float) bitmap.getHeight());
-            int window = Math.max(1, Math.round(vh / scale));
-            int focus = bitmap.getHeight() <= window ? 0 : densestRow(bitmap, window);
-            float dx = (vw - bitmap.getWidth() * scale) / 2f;
-            float dy = bitmap.getHeight() * scale <= vh
-                    ? (vh - bitmap.getHeight() * scale) / 2f
-                    : -focus * scale;
-            android.graphics.Matrix matrix = new android.graphics.Matrix();
-            matrix.setScale(scale, scale);
-            matrix.postTranslate(dx, dy);
-            cover.setImageMatrix(matrix);
-        };
-        if (cover.getWidth() > 0) apply.run();
-        else cover.post(apply);
     }
 
-    /** The source row where a window of {@code window} pixels contains the most non-paper ink. */
-    private static int densestRow(android.graphics.Bitmap bitmap, int window) {
-        int height = bitmap.getHeight();
-        int width = bitmap.getWidth();
-        int stepY = Math.max(1, height / 24);
-        int stepX = Math.max(1, width / 16);
-        int bestY = 0;
-        int best = -1;
-        for (int y = 0; y + window <= height; y += stepY) {
-            int score = 0;
-            int sampleY = Math.min(height - 1, y + window / 3);
-            for (int x = 0; x < width; x += stepX) {
-                int pixel = bitmap.getPixel(x, sampleY);
-                int lum = (android.graphics.Color.red(pixel) * 299
-                        + android.graphics.Color.green(pixel) * 587
-                        + android.graphics.Color.blue(pixel) * 114) / 1000;
-                if (lum < 236) score += 236 - lum;
-            }
-            if (score > best) {
-                best = score;
-                bestY = y;
+    private void showPlaceholder(android.widget.ImageView cover, com.nous.codecanvas.data.DocumentKind kind) {
+        cover.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        cover.setImageBitmap(KindPlaceholder.bitmap(this, kind));
+    }
+
+    private static boolean isPixelKind(com.nous.codecanvas.data.DocumentKind kind) {
+        return kind == com.nous.codecanvas.data.DocumentKind.IMAGE
+                || kind == com.nous.codecanvas.data.DocumentKind.GIF
+                || kind == com.nous.codecanvas.data.DocumentKind.PDF;
+    }
+
+    /** First page of a picture or PDF, straight from the stored bytes. */
+    private android.graphics.Bitmap decodeStoredBlob(CanvasDocument doc) {
+        java.io.File file = com.nous.codecanvas.data.FileImporter.blobFile(this, doc.getId());
+        if (file == null || !file.isFile()) return null;
+        if (doc.kind() == com.nous.codecanvas.data.DocumentKind.PDF) {
+            try {
+                return PdfPageRenderer.render(file, 0, 480).bitmap;
+            } catch (Exception e) {
+                return null;
             }
         }
-        return bestY;
+        android.graphics.BitmapFactory.Options bounds = new android.graphics.BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
+        android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+        opts.inSampleSize = EditorActivity.sampleSizeFor(bounds.outWidth, bounds.outHeight);
+        return android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
     }
 
-    private void bindThumbnail(android.widget.ImageView cover, String key, Drawable typeCover) {
+    private void bindThumbnail(android.widget.ImageView cover, String key,
+                               com.nous.codecanvas.data.DocumentKind kind, CanvasDocument doc) {
         if (!CanvasPrefs.thumbnailsEnabled(MainActivity.this)) {
-            cover.setScaleType(android.widget.ImageView.ScaleType.CENTER);
-            cover.setImageDrawable(typeCover);
+            showPlaceholder(cover, kind);
             return;
         }
         android.graphics.Bitmap cached = ThumbnailBackfiller.memoryGet(key);
-        if (cached != null && !cached.isRecycled()) {
-            // A memory hit lands in the same frame, with no animation and no intermediate paint —
-            // animating a cache hit is the other half of what makes a list flicker.
+        if (cached != null && !cached.isRecycled() && !PreviewThumbnailCache.lacksContent(cached)) {
             cover.setAlpha(1f);
             showThumbnailTop(cover, cached);
             cover.setContentDescription("作品预览缩略图");
@@ -1509,18 +1471,21 @@ public class MainActivity extends Activity {
             return;
         }
         boolean alreadyShowingThis = key.equals(cover.getTag(TAG_THUMB_BOUND));
-        cover.setScaleType(android.widget.ImageView.ScaleType.CENTER);
-        cover.setImageDrawable(typeCover);
+        showPlaceholder(cover, kind);
         if (!alreadyShowingThis) cover.setAlpha(1f);
         thumbnailExecutor.execute(() -> {
-            android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(
+            android.graphics.Bitmap bitmap = isPixelKind(kind)
+                    ? decodeStoredBlob(doc)
+                    : android.graphics.BitmapFactory.decodeFile(
                     PreviewThumbnailCache.file(getApplicationContext(), key).getAbsolutePath());
-            if (bitmap != null && PreviewThumbnailCache.looksBlank(bitmap)) {
+            // A photo or PDF page can be mostly paper and still be the real file.
+            // Web captures that never painted are discarded so the coloured tile stays.
+            if (bitmap != null && !isPixelKind(kind) && PreviewThumbnailCache.lacksContent(bitmap)) {
                 bitmap.recycle();
                 PreviewThumbnailCache.file(getApplicationContext(), key).delete();
                 bitmap = null;
             }
-            if (bitmap != null) ThumbnailBackfiller.memoryPut(key, bitmap);
+            if (bitmap != null && !isPixelKind(kind)) ThumbnailBackfiller.memoryPut(key, bitmap);
             final android.graphics.Bitmap loaded = bitmap;
             final boolean fadeIn = !alreadyShowingThis;
             runOnUiThread(() -> {
@@ -1529,8 +1494,6 @@ public class MainActivity extends Activity {
                     cover.setContentDescription("作品预览缩略图");
                     cover.setTag(TAG_THUMB_BOUND, key);
                     if (fadeIn) {
-                        // Only a capture generated during this visit fades in; a row that already
-                        // showed its thumbnail simply stays put.
                         cover.setAlpha(0f);
                         cover.animate().alpha(1f).setDuration(THUMB_FADE_MS)
                                 .setInterpolator(new android.view.animation.DecelerateInterpolator())

@@ -107,7 +107,7 @@ final class ThumbnailBackfiller {
         if (!f.isFile()) return false;
         Bitmap existing = android.graphics.BitmapFactory.decodeFile(f.getAbsolutePath());
         if (existing == null) return false;
-        boolean blank = PreviewThumbnailCache.looksBlank(existing);
+        boolean blank = PreviewThumbnailCache.lacksContent(existing);
         existing.recycle();
         if (blank) {
             f.delete();
@@ -162,27 +162,54 @@ final class ThumbnailBackfiller {
         request.allowScripts = CanvasPrefs.scriptsAllowed(activity);
         final String page = PreviewPage.build(request);
 
+        boolean bundledEngine = doc.kind() == com.nous.codecanvas.data.DocumentKind.MARKDOWN
+                || doc.kind() == com.nous.codecanvas.data.DocumentKind.MERMAID;
+        web.getSettings().setJavaScriptEnabled(bundledEngine || CanvasPrefs.scriptsAllowed(activity));
         web.setWebViewClient(new WebViewClient() {
             @Override
+            public android.webkit.WebResourceResponse shouldInterceptRequest(
+                    WebView view, android.webkit.WebResourceRequest request) {
+                if (request == null || request.getUrl() == null) return null;
+                return com.nous.codecanvas.util.PreviewAssets.respond(
+                        activity, request.getUrl().toString());
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
-                // Give the page its first paint before asking for pixels.
-                view.postVisualStateCallback(nextRequestId(), new WebView.VisualStateCallback() {
-                    @Override
-                    public void onComplete(long id) {
-                        if (view != web) return;
-                        Bitmap shot = PreviewThumbnailCache.capture(view);
-                        if (shot != null) {
-                            memoryPut(key, shot.copy(shot.getConfig() != null ? shot.getConfig() : android.graphics.Bitmap.Config.ARGB_8888, false));
-                            PreviewThumbnailCache.store(activity.getApplicationContext(), key, shot);
-                            if (onThumbnailStored != null) onThumbnailStored.run();
-                        }
-                        startNext();
-                    }
-                });
+                // Markdown and Mermaid fill in after deferred scripts. The first paint is
+                // an empty page; wait until there is ink, then give up and keep the tile.
+                captureWhenReady(view, key, 0);
             }
         });
         web.loadDataWithBaseURL("https://codecanvas.invalid/gallery/" + Math.abs(key.hashCode()) + "/",
                 page, "text/html", "UTF-8", null);
+    }
+
+    private void captureWhenReady(WebView view, String key, int attempt) {
+        view.postDelayed(() -> {
+            if (view != web) return;
+            Bitmap shot = PreviewThumbnailCache.capture(view);
+            Bitmap cropped = PreviewThumbnailCache.cropToInk(shot);
+            if (cropped != null && cropped != shot && shot != null) shot.recycle();
+            shot = cropped;
+            boolean ready = shot != null;
+            boolean last = attempt >= 14;
+            if (ready) {
+                Bitmap copy = shot.copy(shot.getConfig() != null
+                        ? shot.getConfig() : android.graphics.Bitmap.Config.ARGB_8888, false);
+                memoryPut(key, copy);
+                PreviewThumbnailCache.store(activity.getApplicationContext(), key, shot);
+                if (onThumbnailStored != null) onThumbnailStored.run();
+                startNext();
+                return;
+            }
+            if (shot != null) shot.recycle();
+            if (last) {
+                startNext();
+            } else {
+                captureWhenReady(view, key, attempt + 1);
+            }
+        }, attempt == 0 ? 400 : 700);
     }
 
     /** Off-screen but attached and laid out: a WebView that is not in the hierarchy will not paint. */
@@ -198,7 +225,9 @@ final class ThumbnailBackfiller {
                     Math.max(1, w), Math.max(1, h));
             web.setLayoutParams(lp);
             web.setTranslationX(-30000f);
-            web.setVisibility(View.INVISIBLE);
+            // VISIBLE so deferred scripts actually paint. It sits off-screen at alpha 0.
+            web.setVisibility(View.VISIBLE);
+            web.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
             web.setBackgroundColor(Color.WHITE);
             WebSettings s = web.getSettings();
             // Same sandbox as the editor: no file/content access, no network, zoomed to page width.
@@ -253,7 +282,16 @@ final class ThumbnailBackfiller {
                     & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                     == android.content.res.Configuration.UI_MODE_NIGHT_YES;
             String key = PreviewKey.forDocument(doc.getId(), doc.getContent(), dark);
-            if (!PreviewThumbnailCache.file(activity.getApplicationContext(), key).isFile()) {
+            java.io.File file = PreviewThumbnailCache.file(activity.getApplicationContext(), key);
+            if (!file.isFile()) {
+                missing.add(doc);
+                continue;
+            }
+            Bitmap existing = android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath());
+            boolean empty = existing == null || PreviewThumbnailCache.lacksContent(existing);
+            if (existing != null) existing.recycle();
+            if (empty) {
+                file.delete();
                 missing.add(doc);
             }
         }
