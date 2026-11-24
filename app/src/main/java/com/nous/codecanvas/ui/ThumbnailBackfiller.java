@@ -43,21 +43,51 @@ final class ThumbnailBackfiller {
      * every bind — and, worse, paint the type cover first and swap the bitmap in a frame later,
      * which is the visible "flash" on every cold open. Binds now consult this cache first; a hit
      * lands the finished thumbnail in the same frame, and the cache is filled once per key.
+     * Only content-checked bitmaps enter this cache. They must not be modified after insertion,
+     * so readers can reuse that decision without scanning pixels on every bind or refresh.
      */
-    private static final android.util.LruCache<String, Bitmap> MEMORY =
-            new android.util.LruCache<String, Bitmap>((int) (Runtime.getRuntime().maxMemory() / 8)) {
+    private static final class MemoryThumbnail {
+        final Bitmap bitmap;
+        final int byteCount;
+
+        MemoryThumbnail(Bitmap bitmap) {
+            this.bitmap = bitmap;
+            // LruCache also asks for size on removal, after a bitmap may have been recycled.
+            this.byteCount = bitmap.getByteCount();
+        }
+    }
+
+    private static final android.util.LruCache<String, MemoryThumbnail> MEMORY =
+            new android.util.LruCache<String, MemoryThumbnail>((int) (Runtime.getRuntime().maxMemory() / 8)) {
                 @Override
-                protected int sizeOf(String key, Bitmap value) {
-                    return value.getByteCount();
+                protected int sizeOf(String key, MemoryThumbnail value) {
+                    return value.byteCount;
                 }
             };
 
     static Bitmap memoryGet(String key) {
-        return MEMORY.get(key);
+        synchronized (MEMORY) {
+            MemoryThumbnail entry = MEMORY.get(key);
+            if (entry != null && entry.bitmap.isRecycled()) {
+                MEMORY.remove(key);
+                return null;
+            }
+            return entry == null ? null : entry.bitmap;
+        }
     }
 
-    static void memoryPut(String key, Bitmap bitmap) {
-        if (key != null && bitmap != null && !bitmap.isRecycled()) MEMORY.put(key, bitmap);
+    static boolean memoryPut(String key, Bitmap bitmap) {
+        if (key == null || bitmap == null || bitmap.isRecycled()
+                || PreviewThumbnailCache.lacksContent(bitmap)) return false;
+        memoryPutContent(key, bitmap);
+        return true;
+    }
+
+    /** The caller has already checked lacksContent on this bitmap (or its identical copy). */
+    static void memoryPutContent(String key, Bitmap bitmap) {
+        if (key != null && bitmap != null && !bitmap.isRecycled()) {
+            MEMORY.put(key, new MemoryThumbnail(bitmap));
+        }
     }
 
     private final Activity activity;
@@ -173,7 +203,7 @@ final class ThumbnailBackfiller {
             tiles.execute(() -> {
                 Bitmap tile = TextTile.draw(text, dark, PreviewThumbnailCache.CARD_W, PreviewThumbnailCache.CARD_H);
                 Bitmap shown = tile.copy(Bitmap.Config.ARGB_8888, false);
-                memoryPut(key, shown);
+                if (!memoryPut(key, shown) && shown != null) shown.recycle();
                 PreviewThumbnailCache.store(activity.getApplicationContext(), key, tile);
                 activity.runOnUiThread(() -> {
                     inflight = null;
@@ -232,7 +262,7 @@ final class ThumbnailBackfiller {
             boolean last = attempt >= 8;
             if (ready) {
                 Bitmap copy = framed.copy(Bitmap.Config.ARGB_8888, false);
-                memoryPut(key, copy);
+                memoryPutContent(key, copy);
                 PreviewThumbnailCache.store(activity.getApplicationContext(), key, framed);
                 inflight = null;
                 if (onThumbnailStored != null) onThumbnailStored.run();
