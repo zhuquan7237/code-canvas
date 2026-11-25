@@ -342,11 +342,20 @@ public class MainActivity extends Activity {
         buildFilterChips();
     }
 
-    /** The paste action floats. In a selection it would cover the last rows, so it steps aside. */
+    /** Scroll through the space behind the floating action, but clear it at the end. */
     private void applyHomeChrome() {
-        if (btnQuickPaste != null) {
-            btnQuickPaste.setVisibility(selectionMode ? View.GONE : View.VISIBLE);
-        }
+        if (btnQuickPaste == null) return;
+        boolean showPaste = !selectionMode && !allDocuments.isEmpty();
+        btnQuickPaste.setVisibility(showPaste ? View.VISIBLE : View.GONE);
+        int bottom = dp(showPaste ? 88 : 12);
+        setGalleryBottomPadding(listDocuments, bottom);
+        setGalleryBottomPadding(gridDocuments, bottom);
+    }
+
+    private static void setGalleryBottomPadding(View gallery, int bottom) {
+        if (gallery.getPaddingBottom() == bottom) return;
+        gallery.setPaddingRelative(gallery.getPaddingStart(), gallery.getPaddingTop(),
+                gallery.getPaddingEnd(), bottom);
     }
 
     @Override
@@ -607,6 +616,7 @@ public class MainActivity extends Activity {
         }
         if (emptyPaste != null) emptyPaste.setVisibility(libraryEmpty ? View.VISIBLE : View.GONE);
         if (emptyImport != null) emptyImport.setVisibility(libraryEmpty ? View.VISIBLE : View.GONE);
+        applyHomeChrome();
     }
 
     /** "其它" is everything that is not HTML, SVG or XML. There is no DocumentKind named RAW. */

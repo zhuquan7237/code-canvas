@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  图标背景层：硬编码白色，刻意不引用 @color/canvas_bg。
-
-  图标资源按「启动器当前的主题」解析颜色，而启动器并不总是跟着应用的深浅色走：引用主题色时，
-  浅色启动器上这一层会变成 #F5F7FA 的浅底板，深蓝的图形压在上面几乎看不清。图标必须与主题解耦。
-
-  白色也是这枚图标的原始底色：深蓝圆角框 + 亮蓝三角的负空间靠白底才成立。
--->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#FFFFFF" />
-</shape>
+<!-- 不引用 App 主题色：系统启动器独立应用圆形或圆角等形状遮罩。 -->
+<vector xmlns:aapt="http://schemas.android.com/aapt" xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M0 0H108V108H0Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="108" android:endY="108" android:startColor="#FFE5CB" android:endColor="#FFAD91" />
+        </aapt:attr>
+    </path>
+    <path android:pathData="M40 11 A43 43 0 0 1 126 11 A43 43 0 0 1 40 11Z" android:fillColor="#FFF1DC" android:fillAlpha="0.45" />
+</vector>
