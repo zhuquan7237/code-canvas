@@ -65,7 +65,8 @@ public class ThumbnailBackfillTest extends InstrumentationTestCase {
             Bitmap b = BitmapFactory.decodeFile(thumb.getAbsolutePath());
             assertNotNull("缩略图必须能解码", b);
             assertFalse("生成的缩略图不能是空白帧", PreviewThumbnailCache.looksBlank(b));
-            assertEquals("缩略图宽度固定为 480", 480, b.getWidth());
+            assertEquals(PreviewThumbnailCache.CARD_W, b.getWidth());
+            assertEquals(PreviewThumbnailCache.CARD_H, b.getHeight());
 
             // The page is teal with white text: the capture must show the painted background, which
             // is exactly what the old "min >= 248 means blank" rule threw away.

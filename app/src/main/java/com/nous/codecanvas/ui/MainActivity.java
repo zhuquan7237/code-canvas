@@ -797,7 +797,6 @@ public class MainActivity extends Activity {
                 meta.setText(presentation.kind.label() + " · " + presentation.sizeText);
                 String key = presentation.previewKey;
                 thumb.setTag(key);
-                android.graphics.Bitmap cached = ThumbnailBackfiller.memoryGet(key);
                 thumb.setPadding(0, 0, 0, 0);
                 bindThumbnail(thumb, key, presentation.kind, doc);
             } else {
@@ -1496,9 +1495,13 @@ public class MainActivity extends Activity {
     }
 
     private void showPlaceholder(android.widget.ImageView cover, com.nous.codecanvas.data.DocumentKind kind) {
+        cover.animate().cancel();
+        cover.setAlpha(1f);
+        cover.setTag(TAG_THUMB_BOUND, null);
         cover.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
         cover.setBackgroundResource(R.drawable.bg_thumbnail);
         cover.setImageBitmap(KindPlaceholder.bitmap(this, kind));
+        cover.setContentDescription(null);
     }
 
     /** After a fling, fill the tiles that were left as placeholders. */
@@ -1531,7 +1534,7 @@ public class MainActivity extends Activity {
     }
 
     private void paintVisible(android.widget.AbsListView list, int imageId) {
-        if (list == null) return;
+        if (list == null || !CanvasPrefs.thumbnailsEnabled(MainActivity.this)) return;
         for (int i = 0; i < list.getChildCount(); i++) {
             android.view.View row = list.getChildAt(i);
             android.widget.ImageView cover = row.findViewById(imageId);
@@ -1539,7 +1542,7 @@ public class MainActivity extends Activity {
             Object key = cover.getTag();
             if (!(key instanceof String)) continue;
             android.graphics.Bitmap bitmap = ThumbnailBackfiller.memoryGet((String) key);
-            if (bitmap != null && !bitmap.isRecycled()) showThumbnailTop(cover, bitmap);
+            if (bitmap != null) paintThumbnail(cover, (String) key, bitmap, false);
         }
     }
 
@@ -1600,14 +1603,14 @@ public class MainActivity extends Activity {
             return;
         }
         android.graphics.Bitmap cached = ThumbnailBackfiller.memoryGet(key);
-        if (cached != null && !cached.isRecycled() && !PreviewThumbnailCache.lacksContent(cached)) {
-            cover.setAlpha(1f);
-            showThumbnailTop(cover, cached);
-            cover.setContentDescription("作品预览缩略图");
-            cover.setTag(TAG_THUMB_BOUND, key);
+        if (cached != null) {
+            paintThumbnail(cover, key, cached, false);
             return;
         }
-        boolean alreadyShowingThis = key.equals(cover.getTag(TAG_THUMB_BOUND));
+        android.graphics.drawable.Drawable shown = cover.getDrawable();
+        boolean alreadyShowingThis = key.equals(cover.getTag(TAG_THUMB_BOUND))
+                && shown instanceof android.graphics.drawable.BitmapDrawable
+                && !((android.graphics.drawable.BitmapDrawable) shown).getBitmap().isRecycled();
         if (!alreadyShowingThis) showPlaceholder(cover, kind);
         // A fling must not decode bitmaps or post results back onto the scrolling frame.
         if (listScrollState != android.widget.AbsListView.OnScrollListener.SCROLL_STATE_IDLE) return;
@@ -1622,25 +1625,33 @@ public class MainActivity extends Activity {
                 PreviewThumbnailCache.file(getApplicationContext(), key).delete();
                 bitmap = null;
             }
-            if (bitmap != null && !isPixelKind(kind)) ThumbnailBackfiller.memoryPut(key, bitmap);
+            if (bitmap != null && !isPixelKind(kind)) ThumbnailBackfiller.memoryPutContent(key, bitmap);
             final android.graphics.Bitmap loaded = bitmap;
             final boolean fadeIn = !alreadyShowingThis;
-            runOnUiThread(() -> {
-                if (key.equals(cover.getTag()) && loaded != null && !loaded.isRecycled()) {
-                    showThumbnailTop(cover, loaded);
-                    cover.setContentDescription("作品预览缩略图");
-                    cover.setTag(TAG_THUMB_BOUND, key);
-                    if (fadeIn) {
-                        cover.setAlpha(0f);
-                        cover.animate().alpha(1f).setDuration(THUMB_FADE_MS)
-                                .setInterpolator(new android.view.animation.DecelerateInterpolator())
-                                .start();
-                    } else {
-                        cover.setAlpha(1f);
-                    }
-                }
-            });
+            runOnUiThread(() -> applyThumbnail(cover, key, loaded, fadeIn));
         });
+    }
+
+    /** A queued result must not paint a reused row or revive a disabled thumbnail. */
+    private void applyThumbnail(android.widget.ImageView cover, String key,
+                                android.graphics.Bitmap bitmap, boolean fadeIn) {
+        if (!key.equals(cover.getTag()) || bitmap == null || bitmap.isRecycled()
+                || !CanvasPrefs.thumbnailsEnabled(this)) return;
+        paintThumbnail(cover, key, bitmap, fadeIn);
+    }
+
+    private void paintThumbnail(android.widget.ImageView cover, String key,
+                                android.graphics.Bitmap bitmap, boolean fadeIn) {
+        cover.animate().cancel();
+        showThumbnailTop(cover, bitmap);
+        cover.setContentDescription("作品预览缩略图");
+        cover.setTag(TAG_THUMB_BOUND, key);
+        cover.setAlpha(fadeIn ? 0f : 1f);
+        if (fadeIn) {
+            cover.animate().alpha(1f).setDuration(THUMB_FADE_MS)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                    .start();
+        }
     }
 
     /** Share the document's real bytes: an image or PDF must not be re-encoded as text. */
