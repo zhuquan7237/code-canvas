@@ -26,6 +26,8 @@ public class CanvasDocument {
     private String kind;
     /** Charset the text was decoded from; null means UTF-8. */
     private String encoding;
+    private boolean byteOrderMark;
+    private boolean uncertainDecoding;
     /** Dominant line terminator of the original file: "\n", "\r\n" or "\r". */
     private String lineEnding;
     /** True when the payload lives in a blob file instead of {@link #content} (images, PDFs). */
@@ -113,6 +115,14 @@ public class CanvasDocument {
         this.encoding = encoding;
     }
 
+    public boolean hasByteOrderMark() { return byteOrderMark; }
+
+    public void setByteOrderMark(boolean value) { byteOrderMark = value; }
+
+    public boolean hasUncertainDecoding() { return uncertainDecoding; }
+
+    public void setUncertainDecoding(boolean value) { uncertainDecoding = value; }
+
     public String getLineEnding() {
         return lineEnding;
     }
@@ -160,6 +170,8 @@ public class CanvasDocument {
         if (mimeType != null) obj.put("mimeType", mimeType);
         if (kind != null) obj.put("kind", kind);
         if (encoding != null) obj.put("encoding", encoding);
+        if (byteOrderMark) obj.put("byteOrderMark", true);
+        if (uncertainDecoding) obj.put("uncertainDecoding", true);
         if (lineEnding != null) obj.put("lineEnding", lineEnding);
         if (blob) obj.put("blob", true);
         if (byteSize > 0) obj.put("byteSize", byteSize);
@@ -178,6 +190,8 @@ public class CanvasDocument {
         doc.mimeType = emptyToNull(obj.optString("mimeType", null));
         doc.kind = emptyToNull(obj.optString("kind", null));
         doc.encoding = emptyToNull(obj.optString("encoding", null));
+        doc.byteOrderMark = obj.optBoolean("byteOrderMark", false);
+        doc.uncertainDecoding = obj.optBoolean("uncertainDecoding", false);
         doc.lineEnding = emptyToNull(obj.optString("lineEnding", null));
         doc.blob = obj.optBoolean("blob", false);
         doc.byteSize = obj.optLong("byteSize", 0L);
@@ -194,6 +208,8 @@ public class CanvasDocument {
         copy.mimeType = this.mimeType;
         copy.kind = this.kind;
         copy.encoding = this.encoding;
+        copy.byteOrderMark = this.byteOrderMark;
+        copy.uncertainDecoding = this.uncertainDecoding;
         copy.lineEnding = this.lineEnding;
         copy.blob = this.blob;
         copy.byteSize = this.byteSize;

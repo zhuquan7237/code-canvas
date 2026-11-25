@@ -109,4 +109,14 @@ public class FileKindDetectorTest {
         assertEquals("", FileKindDetector.extensionOf("trailing."));
         assertEquals("dockerfile", FileKindDetector.extensionOf("Dockerfile"));
     }
+
+    @org.junit.Test public void extensionlessSvgUsesMimeBeforeGenericImage() {
+        org.junit.Assert.assertEquals(DocumentKind.SVG,
+                FileKindDetector.detect("drawing", "image/svg+xml", new byte[]{'<', 's', 'v', 'g'}));
+    }
+
+    @org.junit.Test public void extensionlessUtf16BomIsNotBinary() {
+        org.junit.Assert.assertEquals(DocumentKind.TEXT, FileKindDetector.detect(
+                "notes", "application/octet-stream", new byte[]{(byte) 0xFF, (byte) 0xFE, 'a', 0}));
+    }
 }

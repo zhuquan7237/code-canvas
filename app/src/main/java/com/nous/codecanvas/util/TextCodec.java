@@ -39,18 +39,20 @@ public final class TextCodec {
         public final String lineEnding;
         /** True when the bytes were not valid in any encoding we know: text is a best effort. */
         public final boolean lossy;
+        public final boolean byteOrderMark;
 
-        Decoded(String text, String encoding, String lineEnding, boolean lossy) {
+        Decoded(String text, String encoding, String lineEnding, boolean lossy, boolean byteOrderMark) {
             this.text = text;
             this.encoding = encoding;
             this.lineEnding = lineEnding;
             this.lossy = lossy;
+            this.byteOrderMark = byteOrderMark;
         }
     }
 
     public static Decoded decode(byte[] bytes) {
-        if (bytes == null) return new Decoded("", UTF8, "\n", false);
-        if (bytes.length == 0) return new Decoded("", UTF8, "\n", false);
+        if (bytes == null) return new Decoded("", UTF8, "\n", false, false);
+        if (bytes.length == 0) return new Decoded("", UTF8, "\n", false, false);
 
         String encoding = null;
         int offset = 0;
@@ -82,8 +84,10 @@ public final class TextCodec {
             }
         }
 
-        String text = new String(body, Charset.forName(encoding));
-        return new Decoded(text, encoding, detectLineEnding(text), lossy);
+        Charset charset = Charset.forName(encoding);
+        String text = new String(body, charset);
+        return new Decoded(text, encoding, detectLineEnding(text),
+                lossy || (offset > 0 && !isValid(body, charset)), offset > 0);
     }
 
     /** Re-encode with the document's own charset, replacing unmappable characters visibly. */
@@ -106,6 +110,20 @@ public final class TextCodec {
         } catch (CharacterCodingException e) {
             return text.getBytes(StandardCharsets.UTF_8);
         }
+    }
+
+    /** Encode a document while preserving the Unicode BOM, when it had one at import. */
+    public static byte[] encode(String text, String encoding, boolean byteOrderMark) {
+        byte[] bytes = encode(text, encoding);
+        if (!byteOrderMark) return bytes;
+        byte[] prefix;
+        if (UTF8.equalsIgnoreCase(encoding)) prefix = new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+        else if (UTF16LE.equalsIgnoreCase(encoding)) prefix = new byte[]{(byte) 0xFF, (byte) 0xFE};
+        else if (UTF16BE.equalsIgnoreCase(encoding)) prefix = new byte[]{(byte) 0xFE, (byte) 0xFF};
+        else return bytes;
+        byte[] result = java.util.Arrays.copyOf(prefix, prefix.length + bytes.length);
+        System.arraycopy(bytes, 0, result, prefix.length, bytes.length);
+        return result;
     }
 
     /** True when every character of {@code text} survives a round trip through {@code encoding}. */

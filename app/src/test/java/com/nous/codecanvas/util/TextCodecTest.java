@@ -107,4 +107,20 @@ public class TextCodecTest {
         assertEquals(TextCodec.UTF8, decoded.encoding);
         assertEquals("\n", decoded.lineEnding);
     }
+
+    @org.junit.Test public void unicodeBomSurvivesDecodeAndEncode() {
+        for (String encoding : new String[]{TextCodec.UTF8, TextCodec.UTF16LE, TextCodec.UTF16BE}) {
+            byte[] bytes = TextCodec.encode("原文\r\n", encoding, true);
+            TextCodec.Decoded decoded = TextCodec.decode(bytes);
+            org.junit.Assert.assertTrue(decoded.byteOrderMark);
+            org.junit.Assert.assertEquals("原文\r\n", decoded.text);
+            org.junit.Assert.assertArrayEquals(bytes, TextCodec.encode(decoded.text,
+                    decoded.encoding, decoded.byteOrderMark));
+        }
+    }
+
+    @org.junit.Test public void malformedBomTextIsFlagged() {
+        org.junit.Assert.assertTrue(TextCodec.decode(new byte[]{
+                (byte) 0xFF, (byte) 0xFE, 'a'}).lossy);
+    }
 }

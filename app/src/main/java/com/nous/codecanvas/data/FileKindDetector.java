@@ -49,6 +49,9 @@ public final class FileKindDetector {
         if (byMime != null) return byMime;
 
         if (head != null && head.length > 0) {
+            // UTF-16 uses zero bytes in ordinary ASCII-range characters.
+            if (head.length >= 2 && ((head[0] == (byte) 0xFF && head[1] == (byte) 0xFE)
+                    || (head[0] == (byte) 0xFE && head[1] == (byte) 0xFF))) return DocumentKind.TEXT;
             return looksBinary(head) ? DocumentKind.BINARY : DocumentKind.TEXT;
         }
         return DocumentKind.UNKNOWN;
@@ -112,8 +115,8 @@ public final class FileKindDetector {
         if (m.isEmpty() || m.equals("*/*") || m.equals("application/octet-stream")) return null;
         if (m.equals("application/pdf")) return DocumentKind.PDF;
         if (m.equals("image/gif")) return DocumentKind.GIF;
-        if (m.startsWith("image/")) return DocumentKind.IMAGE;
         if (m.equals("image/svg+xml")) return DocumentKind.SVG;
+        if (m.startsWith("image/")) return DocumentKind.IMAGE;
         if (m.equals("text/markdown")) return DocumentKind.MARKDOWN;
         if (m.equals("text/csv")) return DocumentKind.CSV;
         if (m.equals("application/json") || m.endsWith("+json")) return DocumentKind.JSON;
@@ -129,8 +132,7 @@ public final class FileKindDetector {
 
     /**
      * A NUL byte in the first few KB is the classic binary tell; so is a high share of control
-     * characters. Text in any of the encodings this app supports (UTF-8/16, GB18030, Latin-1) never
-     * contains a raw NUL.
+     * characters. Known UTF-16 BOMs are handled before using this heuristic.
      */
     public static boolean looksBinary(byte[] head) {
         if (head == null || head.length == 0) return false;
