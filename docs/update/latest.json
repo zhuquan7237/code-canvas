@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "versionName": "0.6.2",
-  "versionCode": 62,
+  "versionName": "0.6.3",
+  "versionCode": 63,
   "channel": "stable",
-  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.6.2.apk?v=a41b4f59ec4c",
-  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.6.2/code-canvas-0.6.2.apk",
-  "sha256": "a41b4f59ec4c8d4823621cd4a8d4b35352d4d533e96750a38ecc8c49da4dc5ed",
-  "size": 1396518,
-  "notes": "# 代码画布 Android 0.6.2\r\n\r\nversionCode 62 · minSdk 26\r\n\r\n- 首页格子、列表和侧栏命中内存缩略图时，直接使用已经检查过的图，不再重复扫描像素。\r\n- 空白、缺失或已回收的缩略图继续显示类型占位图；关闭缩略图或滑到另一项后，迟到的解码结果不会把旧图画回来。\r\n- 继续保留 16:10 的 SVG 等比显示与 HTML 首屏顶部裁切。桌面端不变。",
+  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.6.3.apk?v=bd8aa1f9b708",
+  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.6.3/code-canvas-0.6.3.apk",
+  "sha256": "bd8aa1f9b7087909bb14d33fc8e8974adf57bad5b0724ff006034a9949f16c2d",
+  "size": 1286266,
+  "notes": "# 代码画布 Android 0.6.3\r\n\r\nversionCode 63 · minSdk 26\r\n\r\n- 新图标换成你选的「珊瑚画笔」，支持 Android 自适应形状和系统主题图标。\r\n- 首页格子随可用宽度改变列数。列表和格子不再提前截断底部，滚到末尾仍会避开「粘贴」按钮；没有文件时只保留一个粘贴入口，横屏可滚动看到导入操作。\r\n- 小屏或放大系统字号时，把联网与脚本控制收进「更多操作」，给预览留出空间。横屏也能从菜单恢复适应窗口或适应内容。\r\n- 全屏旋转时不再加回内边距；退出后恢复进入前的旋转设置。",
   "minSdk": 26
 }
