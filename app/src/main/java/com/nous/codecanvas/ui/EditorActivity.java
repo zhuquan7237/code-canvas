@@ -169,8 +169,7 @@ public class EditorActivity extends Activity {
     private long previewTicket = -1L;
     private boolean previewRendererDead = false;
     /** Last text pushed into the preview, so an unchanged document is not re-parsed on a tab switch. */
-    private String lastRenderedContent;
-    private String lastRenderedViewBox;
+    private String lastRenderedFingerprint;
     /** True when the user has unsaved edits (drives the dot and the leave prompt). */
     private boolean dirty = false;
     /** The text as last saved, for "discard changes". */
@@ -1944,6 +1943,14 @@ public class EditorActivity extends Activity {
         String content = editorTextOrStored();
         String title = currentDocument.getTitle();
 
+        String fingerprint = PreviewKey.forDocument(currentDocument.getId(), content, isDark())
+                + "|" + kind.name() + "|" + isAllowJs + "|" + isAllowNetwork
+                + "|" + svgViewBoxOverride + "|" + title;
+        // A format-changing rename can change the preview even when all source bytes are equal.
+        // Check the full key before clearing the current page's advice.
+        if (!force && fingerprint.equals(lastRenderedFingerprint)) return;
+        lastRenderedFingerprint = fingerprint;
+
         if (!sourceTooLarge) {
             ((TextView) findViewById(R.id.txt_preview_advice)).setVisibility(View.GONE);
         }
@@ -1970,15 +1977,6 @@ public class EditorActivity extends Activity {
             webPreview.getSettings().setDisplayZoomControls(false);
             webPreview.getSettings().setJavaScriptEnabled(previewJavaScriptEnabled());
         }
-
-        String fingerprint = PreviewKey.forDocument(currentDocument.getId(), content, isDark())
-                + kind.name() + isAllowJs + isAllowNetwork + svgViewBoxOverride;
-        if (!force && content.equals(lastRenderedContent)
-                && java.util.Objects.equals(svgViewBoxOverride, lastRenderedViewBox)) {
-            return;
-        }
-        lastRenderedContent = content;
-        lastRenderedViewBox = svgViewBoxOverride;
 
         // Only markup can have "external resource" problems; scanning a 300KB YAML or code file with
         // five regexes on every preview refresh was pure cost.
@@ -2557,6 +2555,7 @@ public class EditorActivity extends Activity {
                     kind = currentDocument.kind();
                     txtEditorTitle.setText(newTitle);
                     applyKindToChrome();
+                    if (viewFlipper.getDisplayedChild() == 1) renderPreview(false);
                     saveCurrentDocument(false, () -> Toast.makeText(EditorActivity.this,
                             "已重命名为: " + newTitle, Toast.LENGTH_SHORT).show(), true);
                 }

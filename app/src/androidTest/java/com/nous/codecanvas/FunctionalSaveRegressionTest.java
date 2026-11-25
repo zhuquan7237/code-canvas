@@ -145,4 +145,21 @@ public final class FunctionalSaveRegressionTest extends InstrumentationTestCase 
             assertEquals("<svg/>", TextCodec.decodeToString(TextCodec.readAll(b)));
         }
     }
+
+    public void testRenamingSameTextReloadsThePreviewForTheNewType() throws Exception {
+        getInstrumentation().runOnMainSync(() -> editor.findViewById(R.id.tab_preview).performClick());
+        getInstrumentation().waitForIdleSync();
+        int loads = editor.getPreviewLoadCountForTest();
+        assertTrue(loads > 0);
+        getInstrumentation().runOnMainSync(() -> {
+            editor.findViewById(R.id.layout_title_clickable).performClick();
+            AlertDialog dialog = editor.getActiveDialogForTest();
+            ((EditText) dialog.findViewById(R.id.dialog_edit_input)).setText("renamed.xml");
+            dialog.findViewById(R.id.dialog_btn_positive).performClick();
+        });
+        getInstrumentation().waitForIdleSync();
+        assertTrue("the old plain-text preview must be reloaded",
+                editor.getPreviewLoadCountForTest() > loads);
+        assertEquals(com.nous.codecanvas.data.DocumentKind.XML, editor.getKindForTest());
+    }
 }
