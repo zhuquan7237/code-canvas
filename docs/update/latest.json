@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "versionName": "0.6.3",
-  "versionCode": 63,
+  "versionName": "0.6.4",
+  "versionCode": 64,
   "channel": "stable",
-  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.6.3.apk?v=bd8aa1f9b708",
-  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.6.3/code-canvas-0.6.3.apk",
-  "sha256": "bd8aa1f9b7087909bb14d33fc8e8974adf57bad5b0724ff006034a9949f16c2d",
-  "size": 1286266,
-  "notes": "# 代码画布 Android 0.6.3\r\n\r\nversionCode 63 · minSdk 26\r\n\r\n- 新图标换成你选的「珊瑚画笔」，支持 Android 自适应形状和系统主题图标。\r\n- 首页格子随可用宽度改变列数。列表和格子不再提前截断底部，滚到末尾仍会避开「粘贴」按钮；没有文件时只保留一个粘贴入口，横屏可滚动看到导入操作。\r\n- 小屏或放大系统字号时，把联网与脚本控制收进「更多操作」，给预览留出空间。横屏也能从菜单恢复适应窗口或适应内容。\r\n- 全屏旋转时不再加回内边距；退出后恢复进入前的旋转设置。",
+  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.6.4.apk?v=304fe701ac7f",
+  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.6.4/code-canvas-0.6.4.apk",
+  "sha256": "304fe701ac7f2376376b8bb6441c8c3e3b3862854262c85b60fcc0772346f4cd",
+  "size": 1287398,
+  "notes": "# 代码画布 Android 0.6.4\n\nversionCode 64 · minSdk 26\n\n- 自动保存、另存为和分享不再覆盖导入的原文件。只有按「保存」才会尝试写回；编码不确定或无法容纳新字符时保留应用内修改，不改原文件。\n- 保留新导入 UTF-8、UTF-16 文件的 BOM；无扩展名的 UTF-16 文本或系统标为 SVG 的矢量文件也能正确识别。\n- 多选分享时，每份作品各自保留文件名和内容，不再把源码拼成一个文本文件。\n- 未修改正文也能保存重命名；改扩展名后，预览随格式刷新。选择「保存并离开」要等应用内保存成功；放弃尚未保存的修改不会在退出时触发自动保存。",
   "minSdk": 26
 }
