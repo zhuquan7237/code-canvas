@@ -230,6 +230,43 @@ public class ThumbnailMemoryTest extends InstrumentationTestCase {
         });
     }
 
+    public void testLateDecodeCannotRepaintDisabledOrReusedCover() {
+        getInstrumentation().runOnMainSync(() -> {
+            String key = "queued-" + System.nanoTime();
+            Bitmap bitmap = frame(Color.BLUE);
+            ImageView cover = cover(key);
+            Bitmap placeholder = KindPlaceholder.bitmap(home, DocumentKind.HTML);
+            try {
+                Method apply = MainActivity.class.getDeclaredMethod("applyThumbnail",
+                        ImageView.class, String.class, Bitmap.class, boolean.class);
+                apply.setAccessible(true);
+                CanvasPrefs.setThumbnailsEnabled(home, false);
+                cover.setAlpha(0.25f);
+                bind(cover, key);
+                assertSame(placeholder, displayed(cover));
+                assertEquals(1f, cover.getAlpha(), 0f);
+
+                apply.invoke(home, cover, key, bitmap, false);
+                assertSame("late decode while disabled", placeholder, displayed(cover));
+
+                CanvasPrefs.setThumbnailsEnabled(home, true);
+                cover.setTag(key + "-reused");
+                apply.invoke(home, cover, key, bitmap, false);
+                assertSame("late decode for recycled row", placeholder, displayed(cover));
+
+                cover.setTag(key);
+                apply.invoke(home, cover, key, bitmap, false);
+                assertSame("matching result still fills an enabled cover", bitmap, displayed(cover));
+            } catch (Exception e) {
+                throw new AssertionError(e);
+            } finally {
+                CanvasPrefs.setThumbnailsEnabled(home, false);
+                cover.setImageDrawable(null);
+                bitmap.recycle();
+            }
+        });
+    }
+
     private Bitmap frame(int color) {
         Bitmap bitmap = Bitmap.createBitmap(PreviewThumbnailCache.CARD_W,
                 PreviewThumbnailCache.CARD_H, Bitmap.Config.ARGB_8888);
