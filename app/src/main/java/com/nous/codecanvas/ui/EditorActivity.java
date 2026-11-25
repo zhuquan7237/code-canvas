@@ -169,8 +169,7 @@ public class EditorActivity extends Activity {
     private long previewTicket = -1L;
     private boolean previewRendererDead = false;
     /** Last text pushed into the preview, so an unchanged document is not re-parsed on a tab switch. */
-    private String lastRenderedContent;
-    private String lastRenderedViewBox;
+    private String lastRenderedFingerprint;
     /** True when the user has unsaved edits (drives the dot and the leave prompt). */
     private boolean dirty = false;
     /** The text as last saved, for "discard changes". */
@@ -1944,6 +1943,14 @@ public class EditorActivity extends Activity {
         String content = editorTextOrStored();
         String title = currentDocument.getTitle();
 
+        String fingerprint = PreviewKey.forDocument(currentDocument.getId(), content, isDark())
+                + "|" + kind.name() + "|" + isAllowJs + "|" + isAllowNetwork
+                + "|" + svgViewBoxOverride + "|" + title;
+        // A format-changing rename can change the preview even when all source bytes are equal.
+        // Check the full key before clearing the current page's advice.
+        if (!force && fingerprint.equals(lastRenderedFingerprint)) return;
+        lastRenderedFingerprint = fingerprint;
+
         if (!sourceTooLarge) {
             ((TextView) findViewById(R.id.txt_preview_advice)).setVisibility(View.GONE);
         }
@@ -1970,15 +1977,6 @@ public class EditorActivity extends Activity {
             webPreview.getSettings().setDisplayZoomControls(false);
             webPreview.getSettings().setJavaScriptEnabled(previewJavaScriptEnabled());
         }
-
-        String fingerprint = PreviewKey.forDocument(currentDocument.getId(), content, isDark())
-                + kind.name() + isAllowJs + isAllowNetwork + svgViewBoxOverride;
-        if (!force && content.equals(lastRenderedContent)
-                && java.util.Objects.equals(svgViewBoxOverride, lastRenderedViewBox)) {
-            return;
-        }
-        lastRenderedContent = content;
-        lastRenderedViewBox = svgViewBoxOverride;
 
         // Only markup can have "external resource" problems; scanning a 300KB YAML or code file with
         // five regexes on every preview refresh was pure cost.
@@ -2223,19 +2221,14 @@ public class EditorActivity extends Activity {
             return;
         }
         activeDialog = CanvasConfirmDialog.show(this, "还有未保存的修改",
-                "离开前要先保存吗？「放弃」会丢掉这次编辑。", "保存并离开", "放弃修改", true,
+                "保存会把这次修改留在应用内。「放弃」只丢弃尚未保存的修改。",
+                "保存并离开", "放弃修改", true,
+                () -> saveCurrentDocument(false, this::finish),
                 () -> {
-                    saveCurrentDocument(true);
-                    // The write is queued. Leaving before it runs drops the edit the user just
-                    // asked to keep, so wait for that queue and only then close the screen.
-                    new Thread(() -> {
-                        com.nous.codecanvas.data.DocumentSaveCoordinator.drainAndWait(8000);
-                        runOnUiThread(() -> {
-                            if (!isFinishing()) finish();
-                        });
-                    }, "canvas-leave-save").start();
-                },
-                this::finish);
+                    handler.removeCallbacks(autoSaveRunnable);
+                    markDirty(false); // onPause must not schedule the discarded edit.
+                    finish();
+                });
     }
 
     private void switchToTab(int tabIndex) {
@@ -2324,15 +2317,27 @@ public class EditorActivity extends Activity {
      * @param explicit true when the user pressed save (shows a toast either way)
      */
     private void saveCurrentDocument(boolean explicit) {
+        saveCurrentDocument(explicit, null);
+    }
+
+    private void saveCurrentDocument(boolean explicit, Runnable afterCommit) {
+        saveCurrentDocument(explicit, afterCommit, false);
+    }
+
+    private void saveCurrentDocument(boolean explicit, Runnable afterCommit, boolean rename) {
         if (documentLoadFailed || currentDocument == null || editCode == null) return;
         // The source was never loaded into the editor, so there is nothing to write back and
         // saving an empty buffer would destroy the file. Images and PDFs are the same case:
         // the editor buffer is empty, and the bytes live beside the document.
-        if (sourceTooLarge || currentDocument.isBlob() || !kind.editable()) return;
+        if (!rename && (sourceTooLarge || currentDocument.isBlob() || !kind.editable())) return;
         // Opening a file and leaving used to rewrite it and bump the timestamp even when
         // nothing had changed. Only an explicit save, or an edit that is still dirty, writes.
-        if (!explicit && !dirty) return;
-        final String content = editCode.getText().toString();
+        if (!rename && !explicit && !dirty) {
+            if (afterCommit != null) afterCommit.run();
+            return;
+        }
+        final CanvasDocument target = currentDocument.snapshot();
+        final String content = editorTextOrStored();
         final String title = currentDocument.getTitle();
         final long capturedEdit = editRevision;
         final boolean creating = documentIsNew;
@@ -2351,14 +2356,15 @@ public class EditorActivity extends Activity {
                         // The app-store write succeeded; now try the real file.
                         final boolean[] sourceWritten = {false};
                         final String[] sourceProblem = {null};
-                        if (currentDocument.getSourceUri() != null && !currentDocument.isBlob()) {
+                        if (explicit && target.getSourceUri() != null) {
                             try {
-                                byte[] payload = SourceWriter.payloadBytes(
-                                        EditorActivity.this, currentDocument, content);
-                                sourceWritten[0] = SourceWriter.saveToSource(
-                                        EditorActivity.this, currentDocument, payload);
-                                if (!sourceWritten[0]) {
-                                    sourceProblem[0] = "原文件没有写入权限，修改只保存在应用内";
+                                if (target.hasUncertainDecoding()
+                                        || SourceWriter.needsEncodingUpgrade(target, content)) {
+                                    sourceProblem[0] = "原文件的编码无法安全写回，修改已存应用内；可另存为新文件";
+                                } else {
+                                    byte[] payload = SourceWriter.payloadBytes(EditorActivity.this, target, content);
+                                    sourceWritten[0] = SourceWriter.saveToSource(EditorActivity.this, target, payload);
+                                    if (!sourceWritten[0]) sourceProblem[0] = "原文件没有写入权限，修改只保存在应用内";
                                 }
                             } catch (Exception e) {
                                 sourceProblem[0] = "写回原文件失败：" + describe(e);
@@ -2375,8 +2381,7 @@ public class EditorActivity extends Activity {
                             // indicator ended up lying to the user.
                             if (capturedEdit == editRevision) {
                                 markDirty(false);
-                                txtSaveIndicator.setText(sourceProblem[0] != null
-                                        ? "已存应用内" : "已保存");
+                                txtSaveIndicator.setText(sourceWritten[0] ? "已保存到原文件" : "已存应用内");
                                 if (sourceProblem[0] != null && explicit) {
                                     Toast.makeText(EditorActivity.this, sourceProblem[0], Toast.LENGTH_LONG).show();
                                 } else if (explicit) {
@@ -2388,6 +2393,7 @@ public class EditorActivity extends Activity {
                                             sourceWritten[0] ? "已保存到原文件" : "已保存",
                                             Toast.LENGTH_SHORT).show();
                                 }
+                                if (afterCommit != null) afterCommit.run();
                             }
                         });
                     }
@@ -2410,10 +2416,12 @@ public class EditorActivity extends Activity {
                                     return;
                                 }
                                 String mine = editorTextOrStored();
-                                if (mine.equals(latest.getContent())) {
+                                if (!rename && mine.equals(latest.getContent())) {
                                     adoptStoredMetadata(latest);
                                     markDirty(false);
-                                    if (txtSaveIndicator != null) txtSaveIndicator.setText("已保存");
+                                    if (txtSaveIndicator != null) txtSaveIndicator.setText("已存应用内");
+                                    if (explicit) saveCurrentDocument(true, afterCommit);
+                                    else if (afterCommit != null) afterCommit.run();
                                     return;
                                 }
                                 final CanvasDocument newer = latest.snapshot();
@@ -2423,9 +2431,19 @@ public class EditorActivity extends Activity {
                                         "保留我的修改", "改用已保存版本", false,
                                         () -> {
                                             adoptStoredMetadata(newer);
-                                            saveCurrentDocument(true);
+                                            if (rename) {
+                                                currentDocument.setTitle(title);
+                                                com.nous.codecanvas.data.FileKindDetector.applyTo(currentDocument);
+                                                kind = currentDocument.kind();
+                                                txtEditorTitle.setText(title);
+                                                applyKindToChrome();
+                                            }
+                                            saveCurrentDocument(explicit, afterCommit, rename);
                                         },
-                                        () -> reloadStoredDocument(newer));
+                                        () -> {
+                                            reloadStoredDocument(newer);
+                                            if (afterCommit != null && !rename) afterCommit.run();
+                                        });
                             });
                             return;
                         }
@@ -2443,6 +2461,8 @@ public class EditorActivity extends Activity {
         currentDocument.setRevision(latest.getRevision());
         currentDocument.setKindName(latest.getKindName());
         currentDocument.setEncoding(latest.getEncoding());
+        currentDocument.setByteOrderMark(latest.hasByteOrderMark());
+        currentDocument.setUncertainDecoding(latest.hasUncertainDecoding());
         currentDocument.setLineEnding(latest.getLineEnding());
         currentDocument.setSourceUri(latest.getSourceUri());
         currentDocument.setMimeType(latest.getMimeType());
@@ -2535,8 +2555,9 @@ public class EditorActivity extends Activity {
                     kind = currentDocument.kind();
                     txtEditorTitle.setText(newTitle);
                     applyKindToChrome();
-                    saveCurrentDocument(false);
-                    Toast.makeText(EditorActivity.this, "已重命名为: " + newTitle, Toast.LENGTH_SHORT).show();
+                    if (viewFlipper.getDisplayedChild() == 1) renderPreview(false);
+                    saveCurrentDocument(false, () -> Toast.makeText(EditorActivity.this,
+                            "已重命名为: " + newTitle, Toast.LENGTH_SHORT).show(), true);
                 }
         );
         activeDialog = dialog;
@@ -2549,7 +2570,7 @@ public class EditorActivity extends Activity {
         saveCurrentDocument(false);
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("*/*");
+        intent.setType(SourceWriter.mimeFor(currentDocument));
         intent.putExtra(Intent.EXTRA_TITLE, currentDocument.getTitle());
         try {
             startActivityForResult(intent, REQ_EXPORT_SAF);
@@ -2569,13 +2590,14 @@ public class EditorActivity extends Activity {
 
     private void writeToSafUri(Uri uri) {
         if (currentDocument == null) return;
+        final CanvasDocument doc = currentDocument.snapshot();
         final String content = editorTextOrStored();
         new Thread(() -> {
             try {
-                byte[] payload = SourceWriter.payloadBytes(this, currentDocument, content);
+                byte[] payload = SourceWriter.payloadBytes(this, doc, content);
                 SourceWriter.writeToUri(this, uri, payload);
                 runOnUiThread(() -> Toast.makeText(EditorActivity.this,
-                        "已另存为 " + currentDocument.getTitle(), Toast.LENGTH_SHORT).show());
+                        "已另存为新文件", Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
                 runOnUiThread(() -> Toast.makeText(EditorActivity.this,
                         "另存失败: " + describe(e), Toast.LENGTH_SHORT).show());
@@ -2586,11 +2608,12 @@ public class EditorActivity extends Activity {
     private void shareFile() {
         if (documentLoadFailed || currentDocument == null) return;
         saveCurrentDocument(false);
-        final String docTitle = currentDocument.getTitle();
+        final CanvasDocument doc = currentDocument.snapshot();
+        final String docTitle = doc.getTitle();
         final String docContent = editorTextOrStored();
         new Thread(() -> {
             try {
-                byte[] payload = SourceWriter.payloadBytes(this, currentDocument, docContent);
+                byte[] payload = SourceWriter.payloadBytes(this, doc, docContent);
                 String authority = getPackageName() + CanvasFileProvider.AUTHORITY_SUFFIX;
                 com.nous.codecanvas.util.ShareExporter.Staged staged =
                         SourceWriter.stageForShare(this, authority, docTitle, payload);

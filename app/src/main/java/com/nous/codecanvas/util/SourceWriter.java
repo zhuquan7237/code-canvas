@@ -49,7 +49,7 @@ public final class SourceWriter {
             // would silently replace it with '?', so fall back to UTF-8 and say so.
             return normalized.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         }
-        return TextCodec.encode(normalized, encoding);
+        return TextCodec.encode(normalized, encoding, doc.hasByteOrderMark());
     }
 
     /** True when the payload had to be re-encoded because the original charset could not hold it. */
@@ -79,6 +79,17 @@ public final class SourceWriter {
     public static com.nous.codecanvas.util.ShareExporter.Staged stageForShare(
             Context context, String authority, String displayName, byte[] bytes) throws IOException {
         return ShareExporter.stageBytes(context, authority, displayName, bytes);
+    }
+
+    /** Preserve each independent source when building a multi-file share. */
+    public static android.content.Intent shareDocuments(Context context, String authority,
+            java.util.List<CanvasDocument> documents) throws IOException {
+        java.util.List<ShareExporter.Staged> staged = new java.util.ArrayList<>();
+        for (CanvasDocument doc : documents) {
+            staged.add(stageForShare(context, authority, doc.getTitle(),
+                    payloadBytes(context, doc, doc.getContent())));
+        }
+        return ShareExporter.chooserIntent(context, staged, "分享");
     }
 
     /** Keep an app-private copy of a binary payload so it survives a cache wipe. */

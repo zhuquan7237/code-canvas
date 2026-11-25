@@ -319,7 +319,6 @@ public class CodeCanvasActivityE2ETest extends android.test.InstrumentationTestC
         // Step 6: Test XML error view
         final String malformedXml = "<root><unclosedTag>test</root>";
         final View xmlLayout = editorActivity.findViewById(R.id.layout_xml_view);
-        final TextView txtXmlStatus = editorActivity.findViewById(R.id.txt_xml_status);
 
         runTestOnUiThread(() -> {
             tabCode.performClick();
@@ -332,9 +331,27 @@ public class CodeCanvasActivityE2ETest extends android.test.InstrumentationTestC
         });
         instrumentation.waitForIdleSync();
 
-        assertEquals(View.VISIBLE, xmlLayout.getVisibility());
-        assertEquals(View.GONE, webView.getVisibility());
-        assertTrue("XML error must be surfaced", txtXmlStatus.getText().toString().contains("解析异常") || txtXmlStatus.getText().toString().contains("⚠"));
+        // XML now uses the bundled, collapsible offline WebView view, not the old native panel.
+        // Check the actual error markup rendered by this app instead of exempting the old test.
+        runTestOnUiThread(() -> {
+            assertEquals(View.GONE, xmlLayout.getVisibility());
+            assertEquals(View.VISIBLE, webView.getVisibility());
+            assertTrue(webView.getSettings().getBlockNetworkLoads());
+        });
+        AtomicReference<String> xmlError = new AtomicReference<>();
+        for (int i = 0; i < 10; i++) {
+            CountDownLatch xmlLatch = new CountDownLatch(1);
+            runTestOnUiThread(() -> webView.evaluateJavascript(
+                    "document.querySelector('.cc-err')?.textContent || ''", value -> {
+                xmlError.set(value);
+                xmlLatch.countDown();
+            }));
+            assertTrue(xmlLatch.await(3, TimeUnit.SECONDS));
+            if (xmlError.get() != null && xmlError.get().contains("XML 解析异常")) break;
+            Thread.sleep(300);
+        }
+        assertTrue("XML error must be surfaced", xmlError.get() != null
+                && xmlError.get().contains("XML 解析异常"));
 
         // Step 7: Test Network switch gating (default blockNetworkLoads=true, confirm dialog allows, click disable, new Editor reverts)
         runTestOnUiThread(() -> {

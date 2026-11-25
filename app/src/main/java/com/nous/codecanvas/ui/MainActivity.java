@@ -924,44 +924,19 @@ public class MainActivity extends Activity {
                 }).start());
     }
 
-    /** Share the selection. Text files are joined; any image or PDF is shared as its own file. */
+    /** Each selected canvas keeps its filename and bytes, regardless of the other selections. */
     private void shareSelection() {
         List<CanvasDocument> docs = selectedDocuments();
         if (docs.isEmpty()) return;
-        boolean binary = false;
-        for (CanvasDocument d : docs) {
-            if (d.isBlob() || !d.kind().editable()) binary = true;
-        }
-        final boolean shareEach = binary;
         new Thread(() -> {
             try {
                 String authority = getPackageName() + com.nous.codecanvas.provider.CanvasFileProvider.AUTHORITY_SUFFIX;
-                Intent chooser;
-                if (shareEach) {
-                    java.util.List<com.nous.codecanvas.util.ShareExporter.Staged> staged = new java.util.ArrayList<>();
-                    for (CanvasDocument d : docs) {
-                        byte[] payload = com.nous.codecanvas.util.SourceWriter.payloadBytes(
-                                MainActivity.this, d, d.getContent());
-                        staged.add(com.nous.codecanvas.util.ShareExporter.stageBytes(
-                                MainActivity.this, authority, d.getTitle(), payload));
-                    }
-                    chooser = com.nous.codecanvas.util.ShareExporter.chooserIntent(
-                            MainActivity.this, staged, "分享");
-                } else {
-                    StringBuilder sb = new StringBuilder();
-                    for (CanvasDocument d : docs) {
-                        if (sb.length() > 0) sb.append("\n\n");
-                        sb.append(d.getContent());
-                    }
-                    String name = docs.size() == 1 ? docs.get(0).getTitle() : "code-canvas-" + docs.size() + "-files.txt";
-                    com.nous.codecanvas.util.ShareExporter.Staged staged =
-                            com.nous.codecanvas.util.ShareExporter.stage(this, authority, name, sb.toString());
-                    chooser = com.nous.codecanvas.util.ShareExporter.chooserIntent(this, staged, "分享源码");
-                }
-                final Intent send = chooser;
-                runOnUiThread(() -> startActivity(send));
+                Intent chooser = com.nous.codecanvas.util.SourceWriter.shareDocuments(
+                        MainActivity.this, authority, docs);
+                runOnUiThread(() -> startActivity(chooser));
             } catch (Exception e) {
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "分享失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                        "分享失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
         }).start();
     }
@@ -1288,6 +1263,8 @@ public class MainActivity extends Activity {
     private void startSafImport() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         intent.setType("*/*");
         try {
             startActivityForResult(intent, REQ_IMPORT_SAF);
@@ -1302,6 +1279,12 @@ public class MainActivity extends Activity {
         if (requestCode == REQ_IMPORT_SAF && resultCode == RESULT_OK && data != null) {
             Uri uri = data.getData();
             if (uri != null) {
+                int granted = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                if (granted != 0) {
+                    try { getContentResolver().takePersistableUriPermission(uri, granted); }
+                    catch (SecurityException ignored) { /* The app's own imported copy still works. */ }
+                }
                 importFromUri(uri);
             }
         } else if (requestCode == REQ_EXPORT_DOCUMENT) {

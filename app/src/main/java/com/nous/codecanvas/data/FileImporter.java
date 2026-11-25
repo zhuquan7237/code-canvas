@@ -97,6 +97,8 @@ public final class FileImporter {
             TextCodec.Decoded decoded = TextCodec.decode(all);
             doc.setContent(decoded.text);
             doc.setEncoding(decoded.encoding);
+            doc.setByteOrderMark(decoded.byteOrderMark);
+            doc.setUncertainDecoding(decoded.lossy);
             doc.setLineEnding(decoded.lineEnding);
             doc.setBlob(false);
         } else {
@@ -152,22 +154,6 @@ public final class FileImporter {
             out.write(bytes);
             out.flush();
             return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    public static boolean canWriteSource(Context context, CanvasDocument doc) {
-        String uriString = doc.getSourceUri();
-        if (uriString == null || uriString.isEmpty()) return false;
-        try {
-            Uri uri = Uri.parse(uriString);
-            // Documents opened with a read grant only cannot be written back; ask the provider.
-            try (OutputStream probe = context.getContentResolver().openOutputStream(uri, "wt")) {
-                return probe != null;
-            } catch (Exception e) {
-                return false;
-            }
         } catch (Exception e) {
             return false;
         }
