@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 珊瑚画笔：画布和画笔位于自适应图标中心安全区，系统负责取形。 -->
+<vector xmlns:aapt="http://schemas.android.com/aapt" xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <group android:scaleX="0.346" android:scaleY="0.346" android:translateX="10.404" android:translateY="10.058">
+        <group android:rotation="-9.0" android:pivotX="120.0" android:pivotY="134.0">
+            <path android:pathData="M79.0 66.0H162.0Q186.0 66.0 186.0 90.0V178.0Q186.0 202.0 162.0 202.0H79.0Q55.0 202.0 55.0 178.0V90.0Q55.0 66.0 79.0 66.0Z" android:fillColor="#c15e58" android:fillAlpha="0.17" />
+        </group>
+        <group android:rotation="-9.0" android:pivotX="120.0" android:pivotY="126.0">
+            <path android:pathData="M76.0 58.0H163.0Q187.0 58.0 187.0 82.0V169.0Q187.0 193.0 163.0 193.0H76.0Q52.0 193.0 52.0 169.0V82.0Q52.0 58.0 76.0 58.0Z" android:fillColor="#fffaf0" />
+        </group>
+        <path android:pathData="M94 101L78 120L98 134M125 136L146 133" android:strokeColor="#302642" android:strokeWidth="11.0" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M105 168C126 163 135 163 149 166" android:strokeColor="#e96356" android:strokeWidth="7.0" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M122 154L128 129L180 78Q186 72 192 78L201 87Q207 93 201 99L149 151Z" android:strokeColor="#fff6e9" android:strokeWidth="5.0" android:strokeLineCap="round" android:strokeLineJoin="round">
+            <aapt:attr name="android:fillColor">
+                <gradient android:type="linear" android:startX="126" android:startY="78" android:endX="201" android:endY="150" android:startColor="#FA744F" android:endColor="#E94746" />
+            </aapt:attr>
+        </path>
+        <path android:pathData="M128 130L146 149L121 156Z" android:fillColor="#32283e" />
+        <path android:pathData="M174 85L193 104" android:strokeColor="#ffd29e" android:strokeWidth="5.0" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M121 39V50M115.5 44.5H126.5" android:strokeColor="#b54747" android:strokeWidth="3.5" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    </group>
+</vector>

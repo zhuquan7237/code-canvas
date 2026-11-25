@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 主题图标专用的负空间线稿；系统只读取此层的 alpha 并自行着色。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <group android:scaleX="0.346" android:scaleY="0.346" android:translateX="10.404" android:translateY="10.058">
+        <path android:pathData="M61 70L142 57Q153 55 159 64L162 70M54 78Q49 83 50 92L65 176Q67 190 81 190L169 176Q181 173 179 160L176 142" android:strokeColor="#FFFFFF" android:strokeWidth="11" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M98 98L81 118L101 133" android:strokeColor="#FFFFFF" android:strokeWidth="12" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M113 165L148 160" android:strokeColor="#FFFFFF" android:strokeWidth="10" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M126 152L134 123L174 83L191 100L150 140Z" android:fillColor="#FFFFFF" />
+        <path android:pathData="M181 76L187 70Q191 66 196 70L203 77Q209 83 204 88L197 95Z" android:fillColor="#FFFFFF" />
+    </group>
+</vector>

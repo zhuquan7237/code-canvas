@@ -108,6 +108,7 @@ public class EditorActivity extends Activity {
     private Button btnPreviewFullscreen;
     private Button btnExitFullscreen;
     private boolean isFullscreen = false;
+    private int orientationBeforeFullscreen = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
     private TextView txtRenderModeBadge;
     private Switch switchAllowJs;
     private View headerModeSwitch;
@@ -333,8 +334,19 @@ public class EditorActivity extends Activity {
         boolean hasSource = kind != null && kind.hasSourceTab() && !sourceTooLarge;
         boolean preview = viewFlipper != null && viewFlipper.getDisplayedChild() == 1;
         boolean html = kind == DocumentKind.HTML;
+        android.content.res.Configuration config = getResources().getConfiguration();
+        boolean compact = config.screenWidthDp > 0 && (config.screenWidthDp < 340
+                || (config.screenWidthDp < 390 && config.fontScale >= 1.25f));
+        if (headerEditor != null) headerEditor.setVisibility(isFullscreen ? View.GONE : View.VISIBLE);
+        View adviceRegion = findViewById(R.id.preview_advice_region);
+        if (adviceRegion != null) adviceRegion.setVisibility(isFullscreen ? View.GONE : View.VISIBLE);
+        if (toolbarPreviewControls != null) {
+            toolbarPreviewControls.setVisibility(preview && !isFullscreen && !documentLoadFailed
+                    ? View.VISIBLE : View.GONE);
+        }
         if (layoutEditorTabs != null) {
-            layoutEditorTabs.setVisibility(!land && hasSource ? View.VISIBLE : View.GONE);
+            layoutEditorTabs.setVisibility(!isFullscreen && !land && hasSource && !documentLoadFailed
+                    ? View.VISIBLE : View.GONE);
         }
         if (headerModeSwitch != null) {
             headerModeSwitch.setVisibility(land && hasSource ? View.VISIBLE : View.GONE);
@@ -353,14 +365,14 @@ public class EditorActivity extends Activity {
             viewportToolbar.setVisibility(!land && preview && zoomable ? View.VISIBLE : View.GONE);
         }
         if (switchAllowJs != null) {
-            switchAllowJs.setVisibility(!land && preview && html ? View.VISIBLE : View.GONE);
+            switchAllowJs.setVisibility(!land && !compact && preview && html ? View.VISIBLE : View.GONE);
         }
         View network = findViewById(R.id.btn_preview_network);
         if (network != null) {
-            network.setVisibility(!land && preview && html ? View.VISIBLE : View.GONE);
+            network.setVisibility(!land && !compact && preview && html ? View.VISIBLE : View.GONE);
         }
         if (containerPreviewCanvas != null) {
-            int pad = land ? dp(4) : dp(8);
+            int pad = isFullscreen ? 0 : land ? dp(4) : dp(8);
             containerPreviewCanvas.setPadding(pad, pad, pad, pad);
         }
     }
@@ -1807,7 +1819,16 @@ public class EditorActivity extends Activity {
         if (preview) {
             menu.getMenu().add(0, 4, 0, "刷新");
             menu.getMenu().add(0, 6, 0, "全屏");
-            if (kind == DocumentKind.HTML) menu.getMenu().add(0, 5, 0, "联网加载");
+            if (kind == DocumentKind.HTML) {
+                menu.getMenu().add(0, 5, 0, isAllowNetwork ? "切回离线" : "联网加载");
+                menu.getMenu().add(0, 8, 0, "允许页面脚本").setCheckable(true).setChecked(isAllowJs);
+            }
+            if (viewportToolbar != null && viewportToolbar.getVisibility() != View.VISIBLE
+                    && (kind == DocumentKind.SVG || kind == DocumentKind.MERMAID
+                    || isImageKind() || kind == DocumentKind.PDF)) {
+                menu.getMenu().add(0, 9, 0, "适应窗口");
+                menu.getMenu().add(0, 10, 0, "适应内容");
+            }
         }
         menu.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == 1) toggleSearch();
@@ -1817,6 +1838,9 @@ public class EditorActivity extends Activity {
             else if (item.getItemId() == 4) findViewById(R.id.btn_preview_refresh).performClick();
             else if (item.getItemId() == 5) findViewById(R.id.btn_preview_network).performClick();
             else if (item.getItemId() == 6) findViewById(R.id.btn_preview_fullscreen).performClick();
+            else if (item.getItemId() == 8) switchAllowJs.setChecked(!switchAllowJs.isChecked());
+            else if (item.getItemId() == 9) btnViewportFit.performClick();
+            else if (item.getItemId() == 10) btnViewportFitContent.performClick();
             return true;
         });
         menu.show();
@@ -2137,30 +2161,19 @@ public class EditorActivity extends Activity {
     // ------------------------------------------------------------------ fullscreen / tabs
 
     private void setFullscreen(boolean fullscreen) {
+        if (isFullscreen == fullscreen) return;
         isFullscreen = fullscreen;
         if (fullscreen) {
-            if (headerEditor != null) headerEditor.setVisibility(View.GONE);
-            if (layoutEditorTabs != null) layoutEditorTabs.setVisibility(View.GONE);
-            if (toolbarPreviewControls != null) toolbarPreviewControls.setVisibility(View.GONE);
-            if (editorHelpersView != null) editorHelpersView.setVisibility(View.GONE);
-            View advice = findViewById(R.id.txt_preview_advice);
-            if (advice != null) advice.setVisibility(View.GONE);
-            if (btnExitFullscreen != null) btnExitFullscreen.setVisibility(View.VISIBLE);
-            if (containerPreviewCanvas != null) containerPreviewCanvas.setPadding(0, 0, 0, 0);
-            // Auto rotate to landscape for wider aspect ratios
+            orientationBeforeFullscreen = getRequestedOrientation();
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
         } else {
-            if (headerEditor != null) headerEditor.setVisibility(View.VISIBLE);
-            if (layoutEditorTabs != null && kind.hasSourceTab()) layoutEditorTabs.setVisibility(View.VISIBLE);
-            if (toolbarPreviewControls != null) toolbarPreviewControls.setVisibility(View.VISIBLE);
-            if (btnExitFullscreen != null) btnExitFullscreen.setVisibility(View.GONE);
-            if (containerPreviewCanvas != null) {
-                int p12 = (int) (12 * getResources().getDisplayMetrics().density);
-                int p14 = (int) (14 * getResources().getDisplayMetrics().density);
-                containerPreviewCanvas.setPadding(p12, p12, p12, p14);
-            }
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            setRequestedOrientation(orientationBeforeFullscreen);
         }
+        if (btnExitFullscreen != null) {
+            btnExitFullscreen.setVisibility(fullscreen ? View.VISIBLE : View.GONE);
+        }
+        // Apply the same visibility and padding rules here and after Android dispatches a rotation.
+        applyEditorChrome();
     }
 
     @Override

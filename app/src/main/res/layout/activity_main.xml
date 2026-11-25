@@ -140,7 +140,7 @@
     <!-- Section header: count on the left, update + view-mode on the right. -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="36dp"
+        android:layout_height="@dimen/touch_min"
         android:layout_marginTop="4dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
@@ -164,7 +164,7 @@
 
         <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
+            android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:padding="0dp"
@@ -172,9 +172,9 @@
 
             <ImageButton
                 android:id="@+id/btn_layout_list"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:padding="8dp"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:padding="12dp"
                 android:background="@drawable/bg_icon_toggle"
                 android:tint="@color/icon_toggle_tint"
                 android:src="@drawable/ic_view_list"
@@ -182,9 +182,9 @@
 
             <ImageButton
                 android:id="@+id/btn_layout_grid"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:padding="8dp"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:padding="12dp"
                 android:background="@drawable/bg_icon_toggle"
                 android:tint="@color/icon_toggle_tint"
                 android:src="@drawable/ic_view_grid"
@@ -206,92 +206,99 @@
             android:listSelector="@android:color/transparent"
             android:paddingHorizontal="8dp"
             android:paddingTop="0dp"
-            android:paddingBottom="128dp"
-            android:clipToPadding="true" />
+            android:paddingBottom="88dp"
+            android:clipToPadding="false" />
 
         <GridView
             android:id="@+id/grid_documents"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:numColumns="2"
+            android:numColumns="auto_fit"
+            android:columnWidth="136dp"
             android:horizontalSpacing="@dimen/space_16"
             android:verticalSpacing="@dimen/space_16"
             android:paddingHorizontal="@dimen/screen_inset"
             android:paddingTop="2dp"
-            android:paddingBottom="128dp"
-            android:clipToPadding="true"
+            android:paddingBottom="88dp"
+            android:clipToPadding="false"
             android:stretchMode="columnWidth"
             android:visibility="gone" />
 
-        <LinearLayout
+        <ScrollView
             android:id="@+id/view_empty"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:gravity="center_horizontal|top"
-            android:paddingHorizontal="32dp"
-            android:paddingTop="28dp"
             android:visibility="gone">
 
-            <ImageView
-                android:id="@+id/img_empty"
-                android:layout_width="96dp"
-                android:layout_height="96dp"
-                android:src="@drawable/ic_empty_canvas"
-                android:importantForAccessibility="no" />
-
-            <TextView
-                android:id="@+id/txt_empty"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:text="把第一段代码变成作品"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@color/canvas_ink_primary" />
-
-            <TextView
-                android:id="@+id/txt_empty_hint"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:gravity="center"
-                android:text="在 AI 聊天里复制 HTML、SVG 或 XML 代码，粘进来就能看到效果，不用装浏览器。"
-                android:textSize="13sp"
-                android:lineSpacingMultiplier="1.4"
-                android:textColor="@color/canvas_ink_secondary" />
+                android:orientation="vertical"
+                android:gravity="center_horizontal|top"
+                android:paddingHorizontal="32dp"
+                android:paddingTop="28dp"
+                android:paddingBottom="@dimen/space_24">
 
-            <Button
-                android:id="@+id/btn_empty_paste"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="20dp"
-                android:background="@drawable/bg_button_primary"
-                android:text="粘贴并预览"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="@color/canvas_on_primary" />
+                <ImageView
+                    android:id="@+id/img_empty"
+                    android:layout_width="96dp"
+                    android:layout_height="96dp"
+                    android:src="@drawable/ic_empty_canvas"
+                    android:importantForAccessibility="no" />
 
-            <Button
-                android:id="@+id/btn_empty_import"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginTop="4dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:paddingHorizontal="12dp"
-                android:text="或从手机导入代码文件"
-                android:textSize="13sp"
-                android:textColor="@color/canvas_primary" />
+                <TextView
+                    android:id="@+id/txt_empty"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="把第一段代码变成作品"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/canvas_ink_primary" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:gravity="center"
-                android:text="代码只保存在本机，不会上传。"
-                android:textSize="12sp"
-                android:textColor="@color/canvas_ink_tertiary" />
-        </LinearLayout>
+                <TextView
+                    android:id="@+id/txt_empty_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:text="在 AI 聊天里复制 HTML、SVG 或 XML 代码，粘进来就能看到效果，不用装浏览器。"
+                    android:textSize="13sp"
+                    android:lineSpacingMultiplier="1.4"
+                    android:textColor="@color/canvas_ink_secondary" />
+
+                <Button
+                    android:id="@+id/btn_empty_paste"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="20dp"
+                    android:background="@drawable/bg_button_primary"
+                    android:text="粘贴并预览"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/canvas_on_primary" />
+
+                <Button
+                    android:id="@+id/btn_empty_import"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="4dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:paddingHorizontal="12dp"
+                    android:text="或从手机导入代码文件"
+                    android:textSize="13sp"
+                    android:textColor="@color/canvas_primary" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center"
+                    android:text="代码只保存在本机，不会上传。"
+                    android:textSize="12sp"
+                    android:textColor="@color/canvas_ink_tertiary" />
+            </LinearLayout>
+        </ScrollView>
     </FrameLayout>
     </LinearLayout>
 
