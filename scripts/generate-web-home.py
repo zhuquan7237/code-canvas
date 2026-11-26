@@ -32,7 +32,9 @@ for key, t in TEXT.items():
     page = f"""<!doctype html>
 <html lang="{t["lang"]}">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self'; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{escape(t["description"], quote=True)}">
 <title>{t["brand"]}</title><link rel="icon" href="{base}app/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="{base}site.css">
 </head>
