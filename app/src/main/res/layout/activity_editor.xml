@@ -381,7 +381,8 @@
             <Button
                 android:id="@+id/btn_preview_refresh"
                 android:layout_width="wrap_content"
-                android:layout_height="34dp"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_min"
                 android:minWidth="60dp"
                 android:background="@drawable/bg_button_subtle"
                 android:paddingHorizontal="12dp"
@@ -394,7 +395,8 @@
             <Button
                 android:id="@+id/btn_preview_network"
                 android:layout_width="wrap_content"
-                android:layout_height="34dp"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_min"
                 android:minWidth="76dp"
                 android:background="@drawable/bg_button_subtle"
                 android:paddingHorizontal="12dp"
@@ -406,7 +408,8 @@
             <Button
                 android:id="@+id/btn_preview_fullscreen"
                 android:layout_width="wrap_content"
-                android:layout_height="34dp"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_min"
                 android:minWidth="60dp"
                 android:background="@drawable/bg_button_subtle"
                 android:paddingHorizontal="12dp"
@@ -417,78 +420,11 @@
                 android:layout_marginStart="8dp" />
         </LinearLayout>
 
-        <!-- Viewport toolbar: 适应窗口 is always present because it is the one action that
-             always recovers the drawing. -->
-        <LinearLayout
-            android:id="@+id/viewport_toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="46dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:visibility="gone">
-
-            <Button
-                android:id="@+id/btn_viewport_fit"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_button_subtle"
-                android:text="适应窗口"
-                android:textSize="12sp"
-                android:textColor="@color/canvas_ink_primary"
-                android:stateListAnimator="@null" />
-
-            <Button
-                android:id="@+id/btn_viewport_fit_content"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                android:background="@drawable/bg_button_subtle"
-                android:text="适应内容"
-                android:textSize="12sp"
-                android:textColor="@color/canvas_ink_primary"
-                android:stateListAnimator="@null" />
-
-            <Button
-                android:id="@+id/btn_viewport_zoom_out"
-                android:layout_width="46dp"
-                android:layout_height="38dp"
-                android:layout_marginStart="6dp"
-                android:background="@drawable/bg_button_subtle"
-                android:text="−"
-                android:textSize="16sp"
-                android:textColor="@color/canvas_ink_primary"
-                android:stateListAnimator="@null"
-                android:contentDescription="缩小" />
-
-            <TextView
-                android:id="@+id/txt_viewport_zoom"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minWidth="46dp"
-                android:gravity="center"
-                android:text="100%"
-                android:textSize="11sp"
-                android:fontFamily="monospace"
-                android:textColor="@color/canvas_ink_secondary" />
-
-            <Button
-                android:id="@+id/btn_viewport_zoom_in"
-                android:layout_width="46dp"
-                android:layout_height="38dp"
-                android:background="@drawable/bg_button_subtle"
-                android:text="+"
-                android:textSize="16sp"
-                android:textColor="@color/canvas_ink_primary"
-                android:stateListAnimator="@null"
-                android:contentDescription="放大" />
-        </LinearLayout>
-
         <Switch
             android:id="@+id/switch_allow_js"
             android:layout_width="match_parent"
-            android:layout_height="36dp"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/touch_min"
             android:text="允许页面脚本运行"
             android:textSize="12sp"
             android:textColor="@color/canvas_ink_secondary" />
@@ -732,6 +668,97 @@
             </FrameLayout>
         </FrameLayout>
     </ViewFlipper>
+
+    <!-- A dock below the artwork preserves a reachable thumb zone without obscuring pixels. -->
+    <HorizontalScrollView
+        android:id="@+id/preview_dock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginHorizontal="8dp"
+        android:layout_marginBottom="8dp"
+        android:padding="2dp"
+        android:clipToPadding="false"
+        android:scrollbars="none"
+        android:visibility="gone">
+
+            <LinearLayout
+            android:id="@+id/viewport_toolbar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/touch_min"
+            android:background="@drawable/bg_studio_dock"
+            android:paddingHorizontal="4dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btn_viewport_fit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_min"
+                android:minWidth="76dp"
+                android:paddingHorizontal="10dp"
+                android:background="@drawable/bg_studio_tool"
+                android:text="适应窗口"
+                android:textSize="12sp"
+                android:textColor="@color/canvas_ink_primary"
+                android:stateListAnimator="@null" />
+
+            <Button
+                android:id="@+id/btn_viewport_fit_content"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_min"
+                android:minWidth="76dp"
+                android:paddingHorizontal="10dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_studio_tool"
+                android:text="适应内容"
+                android:textSize="12sp"
+                android:textColor="@color/canvas_ink_primary"
+                android:stateListAnimator="@null" />
+
+            <Button
+                android:id="@+id/btn_viewport_zoom_out"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:minWidth="0dp"
+                android:padding="0dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_studio_tool"
+                android:text="−"
+                android:textSize="16sp"
+                android:textColor="@color/canvas_ink_primary"
+                android:stateListAnimator="@null"
+                android:contentDescription="缩小" />
+
+            <TextView
+                android:id="@+id/txt_viewport_zoom"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="46dp"
+                android:gravity="center"
+                android:text="100%"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:textColor="@color/canvas_ink_secondary" />
+
+            <Button
+                android:id="@+id/btn_viewport_zoom_in"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:minWidth="0dp"
+                android:padding="0dp"
+                android:background="@drawable/bg_studio_tool"
+                android:text="+"
+                android:textSize="16sp"
+                android:textColor="@color/canvas_ink_primary"
+                android:stateListAnimator="@null"
+                android:contentDescription="放大" />
+        </LinearLayout>
+    </HorizontalScrollView>
 
     <!-- Symbol strip docked at the bottom: it sits right above the keyboard when
          one is open, and it no longer eats a row out of the top chrome. -->

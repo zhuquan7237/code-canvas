@@ -39,6 +39,8 @@ public class PreviewFullscreenTest extends InstrumentationTestCase {
             assertEquals("exit button hidden initially", View.GONE, btnExitFullscreen.getVisibility());
             assertEquals("header visible initially", View.VISIBLE, header.getVisibility());
 
+            int initialRequestedOrientation = activity.getRequestedOrientation();
+
             // Click fullscreen: turns to landscape and hides chrome
             runTestOnUiThread(btnFullscreen::performClick);
             getInstrumentation().waitForIdleSync();
@@ -49,14 +51,14 @@ public class PreviewFullscreenTest extends InstrumentationTestCase {
                     activity.getRequestedOrientation() == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                     || activity.getRequestedOrientation() == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
 
-            // Click exit: turns back to portrait and restores chrome
+            // Click exit: restores the user's original rotation policy and chrome
             runTestOnUiThread(btnExitFullscreen::performClick);
             getInstrumentation().waitForIdleSync();
 
             assertEquals("exit button hidden after exit", View.GONE, btnExitFullscreen.getVisibility());
             assertEquals("header restored after exit", View.VISIBLE, header.getVisibility());
-            assertEquals("orientation restored to portrait",
-                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT, activity.getRequestedOrientation());
+            assertEquals("original orientation policy restored",
+                    initialRequestedOrientation, activity.getRequestedOrientation());
 
         } finally {
             final EditorActivity toFinish = activity;

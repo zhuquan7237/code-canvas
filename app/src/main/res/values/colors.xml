@@ -10,6 +10,14 @@
       ThemeContrastInstrumentedTest. Do not edit one without the other.
     -->
 
+    <!-- Gallery and preview chrome. Separate from document colors. -->
+    <color name="studio_brand">#992C20</color>
+    <color name="studio_on_brand">#FFFFFF</color>
+    <color name="studio_brand_pressed">#792015</color>
+    <color name="studio_paper">#F7F3F0</color>
+    <color name="studio_control">#FFFDFC</color>
+    <color name="studio_outline">#D3C3BF</color>
+
     <!-- Surfaces -->
     <color name="canvas_bg">#F5F7FA</color>
     <color name="canvas_surface">#FFFFFF</color>

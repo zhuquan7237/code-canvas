@@ -360,7 +360,10 @@ public class EditorActivity extends Activity {
         if (actions != null) actions.setVisibility(!land && preview ? View.VISIBLE : View.GONE);
         boolean zoomable = isWebZoomKind() || isVectorKind() || isImageKind() || kind == DocumentKind.PDF;
         if (viewportToolbar != null) {
-            viewportToolbar.setVisibility(!land && preview && zoomable ? View.VISIBLE : View.GONE);
+            boolean showViewportDock = !land && preview && zoomable && !isFullscreen && !documentLoadFailed;
+            viewportToolbar.setVisibility(showViewportDock ? View.VISIBLE : View.GONE);
+            View previewDock = findViewById(R.id.preview_dock);
+            if (previewDock != null) previewDock.setVisibility(showViewportDock ? View.VISIBLE : View.GONE);
         }
         if (switchAllowJs != null) {
             switchAllowJs.setVisibility(!land && !compact && preview
