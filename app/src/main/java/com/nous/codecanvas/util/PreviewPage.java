@@ -30,8 +30,8 @@ public final class PreviewPage {
         public String fileName = "";
         public boolean dark;
         public boolean allowScripts = true;
-        /** Preview-only viewBox for SVG "fit to content"; null keeps the document's own. */
-        public String svgViewBoxOverride;
+        /** Whether the live vector renderer starts fitted to measured artwork. */
+        public boolean fitSvgContent;
         /** A blob content URI for images and PDFs, or null. */
         public String blobUri;
         /** True when the document's own network access has been granted for this visit. */
@@ -43,7 +43,7 @@ public final class PreviewPage {
         switch (kind) {
             case "HTML": return html(request);
             case "SVG": return SvgWrapper.wrapSvgInResponsiveHtml(request.content,
-                    request.dark, request.svgViewBoxOverride, request.allowScripts);
+                    request.dark, null, request.allowScripts, request.fitSvgContent);
             case "MARKDOWN": return markdown(request);
             case "MERMAID": return mermaid(request);
             case "JSON": return json(request);

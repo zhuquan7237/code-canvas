@@ -1,31 +1,31 @@
 WEBVTT
 
 1
-00:00:00.120 --> 00:00:08.190
-This is Code Canvas for the web. The Design Lab opens with three studies
-in light, color, and space.
+00:00:00.120 --> 00:00:08.390
+This is Code Canvas for the web. The library starts empty. Let's import
+a local SVG illustration.
 
 2
-00:00:08.420 --> 00:00:18.190
-Open Coral study and zoom in on the ribbon. Turn on the alignment grid.
-Tap the percentage to fit the artwork again.
+00:00:08.620 --> 00:00:17.390
+Fit Window shows the whole canvas. Fit Content focuses on the artwork
+without changing the source file.
 
 3
-00:00:18.420 --> 00:00:25.690
-Back in the library, you can import your own file. Here I'm opening a
-standalone SVG illustration.
+00:00:17.620 --> 00:00:26.390
+Refresh reloads the preview. Full screen gives the canvas more room.
+Exit to return to the workspace.
 
 4
-00:00:25.920 --> 00:00:35.690
-Open the top-right menu and choose Source. Edit the title, then choose
-Apply and Preview to see the result.
+00:00:26.620 --> 00:00:36.390
+Open Code, change a shape’s color in the SVG, then choose Apply and
+Preview to see the result.
 
 5
-00:00:35.920 --> 00:00:44.190
-The same library and canvas work on a phone. No sign-in is needed.
+00:00:36.620 --> 00:00:45.890
+On a phone, open the file from the library and pick either fit mode.
 Imports stay in this browser.
 
 6
-00:00:44.420 --> 00:00:54.190
-Finally, export the source from the artwork menu to keep a backup. The
-web and Android apps have separate links on the project page.
+00:00:46.120 --> 00:00:55.390
+Finally, export the edited source as a backup. The project page links to
+both the web and Android apps.

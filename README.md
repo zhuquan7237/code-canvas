@@ -10,15 +10,15 @@
 
 | 你想做什么 | 推荐版本 |
 | --- | --- |
-| 在 Windows、Mac、iPhone、iPad 或 Android 上直接试用 | [打开基于 Apple 版的 PWA](https://canvas.zhuquan.xyz/app/)。支持 HTML / SVG 的隔离预览、文本编辑、本地草稿与文件导出。首次成功加载缓存后，在支持的浏览器中可离线打开。 |
+| 在 Windows、Mac、iPhone、iPad 或 Android 上直接试用 | [打开 PWA](https://canvas.zhuquan.xyz/app/)。支持 HTML / SVG 的隔离预览、文本编辑、本地草稿与文件导出。首次成功加载缓存后，在支持的浏览器中可离线打开。 |
 | 在 Android 上打开更多格式、通过系统分享导入或导出 | [下载安卓 APK](https://github.com/zhuquan7237/code-canvas/releases/latest)，Android 8.0 及以上。支持 HTML、SVG、Markdown、Mermaid、JSON/JSONL、XML、YAML、CSV、常用文本代码、图片/动图、PDF，功能因格式而异。 |
 | 查看原生 Apple UI 设计 | [SwiftUI 设计样机](https://github.com/zhuquan7237/code-canvas/releases/tag/v0.6.6)。是 Xcode 源码，不是可安装的 iOS 正式版。 |
 | 使用已有 Windows 原生工具 | [Windows 原生版 v0.5.0](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe)。不是网页版；它的版本与功能范围独立。 |
 
 ## 30 秒上手
 
-1. 打开网页版，在作品库选一个 Apple 设计样例，或点「新建」粘贴代码，或点「导入文件」导入。
-2. 打开作品后，在画布底栏缩放、适配或切换网格；需要修改时切到**源码**。网页版的 HTML／SVG 预览不执行脚本，也不加载联网资源；其他文本按源码查看。
+1. 打开网页版，在作品库粘贴代码、导入本地文件，或新建空白文档。初次打开不会内置作品。
+2. 打开作品后，可切换适应窗口、适应内容和手动缩放；需要修改时切到**代码**。SVG 可以按绘制区域适应内容，HTML 在独立的预览区滚动。网页版的 HTML／SVG 预览不执行脚本，也不加载联网资源；其他文本按源码查看。
 3. **导出**留一份文件。网页版草稿只留在当前浏览器，不跨设备同步，清除站点数据前先导出。当前每个文件最多 512 KB，浏览器工作区最多保留 8 份草稿。旧地址的本地草稿不会自动迁入新站。
 
 **安卓**：点「粘贴」，也可以从其他应用通过系统分享打开；作品库支持搜索、文件类型筛选、列表或网格。

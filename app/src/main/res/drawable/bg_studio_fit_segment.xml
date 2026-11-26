@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/canvas_selection">
+    <!-- The parent supplies the only outline and clips both children to it. A rectangular
+         selected fill under that clip cannot form a white sliver at the rounded end. -->
+    <item>
+        <selector>
+            <item android:state_selected="true">
+                <shape><solid android:color="@color/canvas_selection"/></shape>
+            </item>
+            <item android:drawable="@android:color/transparent"/>
+        </selector>
+    </item>
+    <item android:id="@android:id/mask" android:drawable="@android:color/white"/>
+</ripple>

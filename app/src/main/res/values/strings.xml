@@ -8,4 +8,5 @@
     <string name="library_local_note">作品默认存放在本机，可自行分享或导出。</string>
     <string name="library_paste">粘贴</string>
     <string name="library_no_matches_hint">没有匹配的文件或内容。清除搜索和筛选即可返回全部作品。</string>
+    <string name="svg_fit_unavailable">暂时无法测量 SVG 的内容边界，保留适应窗口。</string>
 </resources>

@@ -95,7 +95,7 @@
             android:layout_width="@dimen/touch_min"
             android:layout_height="@dimen/touch_min"
             android:padding="8dp"
-            android:background="@drawable/bg_icon_button"
+            android:background="@drawable/bg_studio_outline_action"
             android:src="@drawable/ic_more"
             android:contentDescription="文件操作" />
     </LinearLayout>
