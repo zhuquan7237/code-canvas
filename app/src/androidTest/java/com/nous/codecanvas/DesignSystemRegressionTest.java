@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.graphics.drawable.GradientDrawable;
 import android.test.InstrumentationTestCase;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -128,9 +129,21 @@ public class DesignSystemRegressionTest extends InstrumentationTestCase {
         // The HTML pill narrows both surfaces to HTML only.
         ui(() -> {
             LinearLayout filters = main.findViewById(R.id.drawer_filters);
-            View htmlChip = filters.getChildAt(1);
-            assertEquals("HTML", ((TextView) htmlChip.findViewById(R.id.filter_label)).getText().toString());
-            htmlChip.performClick();
+            View htmlChip = null;
+            for (int row = 0; row < filters.getChildCount(); row++) {
+                ViewGroup wrapRow = (ViewGroup) filters.getChildAt(row);
+                for (int col = 0; col < wrapRow.getChildCount(); col++) {
+                    View chip = wrapRow.getChildAt(col);
+                    TextView label = chip.findViewById(R.id.filter_label);
+                    if (label != null && "HTML".contentEquals(label.getText())) {
+                        htmlChip = chip;
+                        break;
+                    }
+                }
+                if (htmlChip != null) break;
+            }
+            assertNotNull("The HTML filter must be reachable across wrapped rows", htmlChip);
+            assertTrue(htmlChip.performClick());
         });
         ui(() -> {
             ListView drawer = main.findViewById(R.id.drawer_list);
