@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
  *       {@code preserveAspectRatio="…slice"} plus {@code width:100vw;height:100vh}. {@code slice}
  *       means "crop the overflow to fill the viewport", which on a portrait phone cuts a wide
  *       drawing down to its middle band. Any {@code slice} is rewritten to {@code meet} and the
- *       viewport units are stripped.</li>
+ *       SVG viewport is sized uniformly to its live viewBox.</li>
  *   <li><b>Zooming stays vector and costs nothing per frame.</b> The page exposes
  *       {@code CCViewport.set(scale, dx, dy)}, which writes one CSS transform on the wrapper. The
  *       SVG is parsed once; a pinch changes a transform, not a document.</li>
@@ -140,8 +140,11 @@ public final class SvgWrapper {
             };
             """;
 
-    private static String nativeSvg(String content, String viewBoxOverride) {
+    static String nativeSvg(String content, String viewBoxOverride) {
         String svg = sanitizeRootSvg(content);
+        // Import has already decoded the source to a Java string. The Blob is always UTF-8.
+        svg = svg.replaceFirst("(?i)(\\A\\uFEFF?<\\?xml\\b[^?]*?\\bencoding\\s*=\\s*)['\"][^'\"]*['\"]",
+                "$1\"UTF-8\"");
         SvgGeometry.Box box = SvgGeometry.measure(svg);
         if (viewBoxOverride != null && viewBoxOverride.matches("[-+.eE0-9 ,]+")) {
             svg = overrideViewBox(svg, viewBoxOverride);
@@ -163,7 +166,6 @@ public final class SvgWrapper {
      * Rewrite the root {@code <svg>} so the drawing arrives whole:
      * <ul>
      *   <li>{@code slice} → {@code meet} (crop → contain)</li>
-     *   <li>{@code width:100vw}/{@code height:100vh} removed</li>
      *   <li>an explicit {@code preserveAspectRatio="xMidYMid meet"} added when absent</li>
      * </ul>
      */
@@ -178,11 +180,7 @@ public final class SvgWrapper {
         boolean selfClosing = attrs.endsWith("/");
         String updatedAttrs = selfClosing ? attrs.substring(0, attrs.length() - 1) : attrs;
 
-        // 1. Remove inline 100vw/100vh from root tag if present
-        updatedAttrs = updatedAttrs.replaceAll("(?i)(width\\s*:\\s*100vw\\s*;?)", "");
-        updatedAttrs = updatedAttrs.replaceAll("(?i)(height\\s*:\\s*100vh\\s*;?)", "");
-
-        // 2. Replace or add preserveAspectRatio="xMidYMid meet"
+        // Replace or add preserveAspectRatio="xMidYMid meet". Sizing CSS is preview state.
         Matcher aspectMatch = PRESERVE_ASPECT_PATTERN.matcher(updatedAttrs);
         if (aspectMatch.find()) {
             String val = aspectMatch.group(1);

@@ -45,7 +45,7 @@ public class LivePreviewRegressionTest extends InstrumentationTestCase {
         doc = new CanvasDocument("live-" + System.nanoTime(), title, source, System.currentTimeMillis());
         if (blob != null) {
             doc.setBlob(true);
-            doc.setMimeType("image/webp");
+            doc.setMimeType(title.endsWith(".pdf") ? "application/pdf" : "image/webp");
             doc.setByteSize(blob.length);
             FileImporter.writeBlob(context(), doc.getId(), blob);
         }
@@ -132,6 +132,43 @@ public class LivePreviewRegressionTest extends InstrumentationTestCase {
         getInstrumentation().runOnMainSync(() -> editor.findViewById(R.id.btn_viewport_zoom_in).performClick());
         Thread.sleep(550);
         assertTrue(Double.parseDouble(eval("visualViewport.scale"))>before*1.1);
+    }
+
+    public void testTallPdfFitsBelowItsPager() throws Exception {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        android.graphics.pdf.PdfDocument pdf = new android.graphics.pdf.PdfDocument();
+        try {
+            android.graphics.pdf.PdfDocument.Page page = pdf.startPage(
+                    new android.graphics.pdf.PdfDocument.PageInfo.Builder(180, 16000, 1).create());
+            android.graphics.Paint paint = new android.graphics.Paint();
+            paint.setColor(android.graphics.Color.RED);
+            page.getCanvas().drawRect(0, 0, 180, 900, paint);
+            paint.setColor(android.graphics.Color.BLUE);
+            page.getCanvas().drawRect(0, 15100, 180, 16000, paint);
+            pdf.finishPage(page);
+            pdf.writeTo(out);
+        } finally { pdf.close(); }
+        open("tall-page.pdf", "", out.toByteArray());
+        ImageView image = editor.findViewById(R.id.preview_image);
+        android.view.View viewport = editor.findViewById(R.id.preview_viewport);
+        android.view.View pager = editor.findViewById(R.id.pdf_pager);
+        long deadline = System.currentTimeMillis() + 12000;
+        AtomicReference<android.graphics.drawable.Drawable> result = new AtomicReference<>();
+        do {
+            getInstrumentation().runOnMainSync(() -> result.set(image.getDrawable()));
+            if (result.get() != null) break;
+            Thread.sleep(100);
+        } while (System.currentTimeMillis() < deadline);
+        assertTrue(result.get() instanceof android.graphics.drawable.BitmapDrawable);
+        getInstrumentation().runOnMainSync(() -> {
+            assertTrue(viewport.getTop() >= pager.getBottom());
+            android.graphics.Bitmap bitmap = ((android.graphics.drawable.BitmapDrawable) result.get()).getBitmap();
+            assertTrue(bitmap.getHeight() <= 3072);
+            int mid = bitmap.getWidth()/2;
+            int h = bitmap.getHeight();
+            assertEquals(android.graphics.Color.RED, bitmap.getPixel(mid, h/50));
+            assertEquals(android.graphics.Color.BLUE, bitmap.getPixel(mid, h-h/50));
+        });
     }
 
     public void testAnimatedWebpProducesPlayingDrawable() throws Exception {

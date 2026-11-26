@@ -686,9 +686,9 @@ public class EditorActivity extends Activity {
         if (webPreview == null) return;
         ensureWebViewReady();
         final long ticket = previewState.generation;
-        // Give HTML games storage without sharing it across imported documents.
-        // Nothing under this reserved hostname is served by the Internet.
-        String host = kind == DocumentKind.HTML
+        // Imported markup gets a distinct origin per document; localStorage (HTML only)
+        // never shares game state across imported files. The origin is not a real website.
+        String host = (kind == DocumentKind.HTML || isVectorKind())
                 ? "preview-" + PreviewKey.forDocument(currentDocument.getId(), "", false).substring(0, 32)
                     + "." + PreviewAssets.HOST
                 : PreviewAssets.HOST;
@@ -1970,7 +1970,16 @@ public class EditorActivity extends Activity {
         previewViewport.setInteractive(isVectorKind() || isImageKind() || kind == DocumentKind.PDF);
         // The script switch is meaningless for a raster image or a PDF.
         switchAllowJs.setVisibility(kind == DocumentKind.HTML || isVectorKind() ? View.VISIBLE : View.GONE);
-        if (pdfPager != null) pdfPager.setVisibility(kind == DocumentKind.PDF ? View.VISIBLE : View.GONE);
+        if (pdfPager != null) {
+            boolean pdf = kind == DocumentKind.PDF;
+            pdfPager.setVisibility(pdf ? View.VISIBLE : View.GONE);
+            android.widget.FrameLayout.LayoutParams lp = (android.widget.FrameLayout.LayoutParams) previewViewport.getLayoutParams();
+            int top = pdf ? getResources().getDimensionPixelSize(R.dimen.touch_min) : 0;
+            if (lp.topMargin != top) {
+                lp.topMargin = top; // The pager must never cover the top of a fitted page.
+                previewViewport.setLayoutParams(lp);
+            }
+        }
         applyEditorChrome();
     }
 
@@ -2030,6 +2039,12 @@ public class EditorActivity extends Activity {
                 || kind == DocumentKind.MARKDOWN))
                 ? com.nous.codecanvas.util.RenderingAdvisor.inspect(content)
                 : java.util.Collections.emptyList();
+        if (!isAllowJs && (kind == DocumentKind.HTML || isVectorKind())
+                && content.toLowerCase(java.util.Locale.ROOT).contains("<script")) {
+            java.util.List<String> notes = new java.util.ArrayList<>(warnings);
+            notes.add("页面脚本已关闭；动画和按钮需要开启「允许页面脚本」。仅运行可信文件。");
+            warnings = notes;
+        }
         if (!warnings.isEmpty()) {
             StringBuilder sb = new StringBuilder();
             for (String w : warnings) sb.append("• ").append(w).append("\n");

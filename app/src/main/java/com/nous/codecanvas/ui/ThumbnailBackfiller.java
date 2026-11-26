@@ -236,7 +236,8 @@ final class ThumbnailBackfiller {
         web.getSettings().setJavaScriptEnabled(scripts);
         web.getSettings().setDomStorageEnabled(kind == DocumentKind.HTML && scripts);
         web.getSettings().setLoadWithOverviewMode(kind == DocumentKind.HTML);
-        final String origin = "https://gallery-" + key.substring(0, 32) + ".codecanvas.invalid/" + ticket;
+        final String origin = "https://gallery-" + PreviewKey.forDocument(doc.getId(), "", false).substring(0, 32)
+                + ".codecanvas.invalid/" + ticket;
         web.setWebViewClient(new WebViewClient() {
             @Override
             public android.webkit.WebResourceResponse shouldInterceptRequest(
@@ -373,7 +374,7 @@ final class ThumbnailBackfiller {
     private void sizeWebView() {
         if (web == null) return;
         android.util.DisplayMetrics display = activity.getResources().getDisplayMetrics();
-        int w = Math.max(1, display.widthPixels - Math.round(24 * display.density));
+        int w = Math.max(1, display.widthPixels - Math.round(16 * display.density));
         int h = Math.max(1, display.heightPixels - Math.round(210 * display.density));
         web.setLayoutParams(new FrameLayout.LayoutParams(w, h));
         int ws = View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY);
