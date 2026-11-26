@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "versionName": "0.6.5",
-  "versionCode": 65,
+  "versionName": "0.6.6",
+  "versionCode": 66,
   "channel": "stable",
-  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.6.5.apk?v=3cd0567569f2",
-  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.6.5/code-canvas-0.6.5.apk",
-  "sha256": "3cd0567569f26619715d0c1ca1f2bad21606843931ade23da8f4da74c4be6c24",
-  "size": 1292002,
-  "notes": "# 代码画布 Android 0.6.5\r\n\r\nversionCode 65 · minSdk 26\r\n\r\n- SVG 按真实比例适配，首页缩略图从作品本身生成，不再被详情页的缩放或裁切覆盖。旧缩略图会重新生成。\r\n- 独立 SVG 保留原生文档和脚本；HTML 保留网页和互动逻辑，单幅 SVG / Canvas 舞台按窗口适配。HTML 可双指或用按钮缩放；可在预览里控制页面脚本和联网。\r\n- Mermaid 全图适配，可滚动、缩放。Android 9 及以上支持播放动态 WebP；PDF 过长页面限制渲染尺寸，快速翻页不会被上一页的异步结果覆盖。\r\n- 预览适配不会修改原文件。HTML 里的外部资源仍需单页联网；与原文件同目录的资源不会在导入单文件时自动带入。",
+  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.6.6.apk",
+  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.6.6/code-canvas-0.6.6.apk",
+  "sha256": "1cdc1905a84885f482978b03f88d664d078aa5ddddabeffaa4d8761d00111aa4",
+  "size": 1293658,
+  "notes": "# Code Canvas 0.6.6 · 珊瑚工作台\r\n\r\n## Android\r\n\r\n- 作品库改为暖纸底和浅浮层，缩略图保持原比例，支持紧凑列表和方格。\r\n- 珊瑚色只强调主要粘贴入口；分享、导入、长按多选、返回等继续沿用 Android 操作。没有安装新权限或替换 WebView。\r\n- 预览缩放和适应按钮移到独立底部工具栏，不覆盖画布。全屏、源码和紧凑横屏自动隐藏工具栏。\r\n- 放大系统字号后，网格转换为单列带小缩略图的条目。保留两行标题、可滚动缩放工具栏和关键按钮的 48dp 触摸目标。\r\n- 延续 0.6.5 的交互型 HTML、SVG、动画、PDF 和其他文件预览，不改用户原始文件。\r\n\r\n## Apple\r\n\r\n同批提供独立的 SwiftUI **界面预览源代码**，不是完整 iOS 版或可安装 IPA。可通过 Xcode 打开，运行在 iPhone/iPad 模拟器；不包含文件导入、代码编辑或通用网页渲染。正式参赛作品仍需参赛者亲自实现、验证并披露 AI 辅助。",
   "minSdk": 26
 }
