@@ -4,7 +4,7 @@
 
 把 AI 聊天里的代码或手头的文件，变成**能预览、能修改、能导出的作品**。无需账号；源文件和草稿留在本机。
 
-[![代码画布网页版实拍：源码编辑和画布预览](web/site/media/workspace-zh.webp)](https://dsh.zhuquan.xyz/code-canvas/app/)
+[![代码画布网页版实拍：作品库和画布预览](web/site/media/workspace-zh.webp)](https://dsh.zhuquan.xyz/code-canvas/app/)
 
 ## 从哪一版开始？
 

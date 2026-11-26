@@ -4,7 +4,7 @@
 
 Turn code from an AI chat or a local file into **something you can preview, edit, and export**. No account required. Your source and drafts stay on this device.
 
-[![Actual Code Canvas web app, showing the source editor and preview](web/site/media/workspace-en.webp)](https://dsh.zhuquan.xyz/code-canvas/app/?lang=en)
+[![Actual Code Canvas web app, showing the library and preview canvas](web/site/media/workspace-en.webp)](https://dsh.zhuquan.xyz/code-canvas/app/?lang=en)
 
 ## Choose your edition
 
