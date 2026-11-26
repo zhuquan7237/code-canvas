@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self'; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f8f2ee">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
   <meta name="description" content="A local-first HTML, SVG and text workspace.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Code Canvas">
@@ -12,68 +13,89 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icon-192.png">
-  <link rel="stylesheet" href="./styles.css">
-  <script src="./app.js" defer></script>
+  <link rel="stylesheet" href="./styles.css?v=apple2">
+  <script src="./studies.js?v=apple2" defer></script>
+  <script src="./app.js?v=apple2" defer></script>
 </head>
 <body>
   <a class="skip" href="#workspace" data-text="skip">跳到工作区</a>
-  <header class="mast">
-    <div class="mast-inner">
-      <div class="brand"><img src="./icon.svg" alt="" width="42" height="42"><div><strong data-text="brand">代码画布</strong><span data-text="brandTag">本地优先的代码工作台</span></div></div>
-      <div class="mast-tools">
-        <span id="connection" class="connection"><i aria-hidden="true"></i><span id="connection-label" data-text="local">仅在本机</span></span>
-        <button id="install-button" type="button" class="control" data-text="install">安装应用</button>
-        <button id="language-button" type="button" class="control language" lang="en">English</button>
-      </div>
-    </div>
+  <header class="nav" id="navigation">
+    <button id="library-toggle" class="round control back" type="button" data-label="back" aria-label="返回作品库" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4-8 8 8 8"/></svg></button>
+    <h1 id="library-title" data-text="brand">代码画布</h1>
+    <h1 id="document-title" tabindex="-1" hidden></h1>
+    <button id="about-button" class="round control trailing" type="button" data-label="about" aria-label="关于"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/></svg></button>
+    <button id="document-menu-button" class="round control trailing" type="button" data-label="actions" aria-label="作品操作" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01m6.99 0h.01m6.99 0h.01"/></svg></button>
   </header>
-  <main class="shell" id="workspace" tabindex="-1" data-library="closed">
-    <button type="button" class="control library-toggle" id="library-toggle" aria-expanded="false" aria-controls="library"><span aria-hidden="true">▤</span> <span data-text="library">作品库</span><span id="mobile-count" class="count"></span></button>
-    <aside class="library" id="library" aria-labelledby="library-heading">
-      <div class="shelf-head"><h2 id="library-heading" data-text="library">作品库</h2><span id="document-count" class="count"></span></div>
-      <div class="library-actions">
-        <button id="new-button" type="button" class="primary control"><span aria-hidden="true">＋</span><span data-text="new">新建</span></button>
-        <button id="import-button" type="button" class="control"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg><span data-text="import">导入文件</span></button>
-        <input id="file-picker" type="file" hidden accept=".svg,.html,.htm,.txt,.md,.css,.js,.json,.xml,text/plain,text/html,image/svg+xml">
-      </div>
-      <ul id="documents" class="documents"></ul>
-      <button id="demo-button" type="button" class="control demo-button">
-        <span class="sparkle" aria-hidden="true">✦</span><span data-text="openDemo">打开演示作品</span><span class="chev" aria-hidden="true">›</span>
-      </button>
-      <div class="shelf-note"><span aria-hidden="true">✦</span><span data-text="shelfNote">文件保存在这台设备的浏览器中。重要内容请导出备份。</span></div>
-    </aside>
-    <section class="workspace" aria-labelledby="document-title">
-      <header class="document-head">
-        <div class="document-heading"><div class="document-meta"><span id="kind-badge" class="type-badge">HTML</span><span class="meta-dot" aria-hidden="true">·</span><span id="save-state" data-text="saved">已保存在本机</span></div><h1 id="document-title">轨道 · 光影练习</h1></div>
-        <div class="document-actions">
-          <button type="button" id="rename-button" class="control" data-text="rename">重命名</button>
-          <button type="button" id="export-button" class="control"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4"/></svg><span data-text="export">导出</span></button>
-          <button type="button" id="remove-button" class="control icon-control" data-label="remove" aria-label="删除作品"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button>
+  <main id="workspace" tabindex="-1" data-screen="library">
+    <section id="library" aria-labelledby="library-title">
+      <div class="search-row"><label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4 4"/></svg><input id="search" type="search" data-label="findStudy" aria-label="搜索作品" autocomplete="off"></label></div>
+      <div class="library-content">
+        <div class="intro">
+          <p class="eyebrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16c-2-2-5-1-6 2-.2 1-.7 2-2 3 4 0 8-1 8-5Zm2-3 8-10c.6-.7 2-.7 2.6 0s.7 1.8 0 2.4l-9.9 9.1Z" fill="currentColor" stroke="none"/></svg><span data-text="designLab">设计实验室</span></p>
+          <h2 data-text="closerLook">走近画布</h2>
+          <p class="lead" data-text="studyIntro">用三个本地作品，探索光线、色彩与空间。</p>
         </div>
-      </header>
-      <div class="work-surface">
-        <div class="stage-chrome">
-          <div class="tablist" role="tablist" aria-label="工作区模式" data-label="tabs">
-            <button id="tab-preview" class="tab" type="button" role="tab" aria-controls="preview-panel" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12c2.4-4.1 5.5-6 9.5-6s7.1 1.9 9.5 6c-2.4 4.1-5.5 6-9.5 6s-7.1-1.9-9.5-6Z"/><circle cx="12" cy="12" r="2"/></svg><span data-text="preview">预览</span></button>
-            <button id="tab-code" class="tab" type="button" role="tab" aria-controls="code-panel" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-2-13-4 16"/></svg><span data-text="source">源码</span></button>
+        <ul class="study-grid" id="studies"></ul>
+        <section class="local-section" aria-labelledby="local-heading">
+          <div class="section-heading"><h2 id="local-heading" data-text="library">作品库</h2><span id="document-count" class="subtitle"></span></div>
+          <div class="library-actions">
+            <button id="new-button" type="button" class="control"><span aria-hidden="true">＋</span><span data-text="new">新建</span></button>
+            <button id="import-button" type="button" class="control"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg><span data-text="import">导入文件</span></button>
+            <input id="file-picker" type="file" hidden accept=".svg,.html,.htm,.txt,.md,.css,.js,.json,.xml,text/plain,text/html,image/svg+xml">
           </div>
-          <button id="toggle-fit" type="button" class="control stage-button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6"/></svg><span data-text="expanded">展开画布</span></button>
-        </div>
-        <section id="preview-panel" class="preview-panel" role="tabpanel" aria-labelledby="tab-preview">
-          <div class="preview-wrap" id="preview-wrap"><iframe id="preview" title="代码预览" data-title="frame" sandbox="" referrerpolicy="no-referrer"></iframe><pre id="plain-preview" hidden></pre></div>
-          <div class="stage-foot"><span><i aria-hidden="true"></i><span data-text="sandbox">隔离预览 · 禁用脚本与联网</span></span><span id="preview-format" class="preview-format">HTML</span></div>
-        </section>
-        <section id="code-panel" class="code-panel" role="tabpanel" aria-labelledby="tab-code" hidden>
-          <div class="code-actions"><label for="format-select" data-text="format">格式</label><select id="format-select"><option value="html">HTML</option><option value="svg">SVG</option><option value="text" data-text="plain">纯文本</option></select><button id="paste-button" type="button" class="control" data-text="paste">粘贴</button><button id="apply-button" type="button" class="primary control" data-text="apply">应用并预览</button></div>
-          <label for="editor" class="sr-only" data-text="sourceEditor">源码编辑器</label>
-          <textarea id="editor" dir="ltr" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" maxlength="524288"></textarea>
-          <div class="stage-foot"><span data-text="sourceNote">浏览器本地保存；不会上传。</span><span id="source-count"></span></div>
+          <ul id="documents" class="documents"></ul>
+          <p class="subtitle" id="no-docs" data-text="emptyList">暂无作品</p>
+          <p class="subtitle" data-text="shelfNote">文件保存在这台设备的浏览器中。重要内容请导出备份。</p>
         </section>
       </div>
     </section>
+    <section id="study-screen" class="detail" aria-labelledby="document-title" hidden>
+      <div class="detail-scroll">
+        <div class="detail-stage">
+          <section id="preview-panel" role="tabpanel" aria-labelledby="tab-preview">
+            <div class="preview-wrap" id="preview-wrap">
+              <div class="preview-content" id="preview-content">
+                <iframe id="preview" title="代码预览" data-title="frame" sandbox="" referrerpolicy="no-referrer"></iframe>
+                <pre id="plain-preview" hidden></pre>
+                <div id="alignment" class="alignment" aria-hidden="true" hidden></div>
+              </div>
+            </div>
+            <div class="stage-foot"><span id="study-subtitle" class="subtitle"></span><span id="preview-format" class="subtitle"></span></div>
+          </section>
+          <section id="code-panel" class="code-panel" role="tabpanel" aria-labelledby="tab-code" hidden>
+            <div class="code-actions"><label for="format-select" data-text="format">格式</label><select id="format-select"><option value="html">HTML</option><option value="svg">SVG</option><option value="text" data-text="plain">纯文本</option></select><button id="paste-button" type="button" class="control" data-text="paste">粘贴</button><button id="apply-button" type="button" class="primary control" data-text="apply">应用并预览</button></div>
+            <label for="editor" class="sr-only" data-text="sourceEditor">源码编辑器</label>
+            <textarea id="editor" dir="ltr" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" maxlength="524288"></textarea>
+            <div class="stage-foot"><span class="subtitle" data-text="sourceNote">浏览器本地保存；不会上传。</span><span class="subtitle" id="source-count"></span></div>
+          </section>
+        </div>
+      </div>
+      <div id="canvas-controls" class="canvas-controls" role="group" data-label="canvasControls" aria-label="画布控制">
+        <button id="zoom-out" class="tool" type="button" data-label="zoomOut" aria-label="缩小" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+        <button id="toggle-fit" class="tool percentage" type="button" data-label="fitCanvas" aria-label="适合画布">100%</button>
+        <button id="zoom-in" class="tool" type="button" data-label="zoomIn" aria-label="放大"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-7-7v14"/></svg></button>
+        <button id="toggle-grid" class="tool grid-tool" type="button" data-label="alignment" aria-label="对齐网格" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h4v4H4Zm6 0h4v4h-4Zm6 0h4v4h-4ZM4 10h4v4H4Zm6 0h4v4h-4Zm6 0h4v4h-4ZM4 16h4v4H4Zm6 0h4v4h-4Zm6 0h4v4h-4Z"/></svg></button>
+      </div>
+    </section>
   </main>
-  <footer class="sitefoot"><span>CODE CANVAS <b aria-hidden="true">/</b> <span data-text="webEdition">网页预览版</span></span><a href="https://github.com/zhuquan7237/code-canvas" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a></footer>
   <div id="status" role="status" aria-live="polite"></div>
+  <dialog id="about-dialog" aria-labelledby="about-title"><div class="dialog-content">
+    <h2 id="about-title" data-text="about">关于</h2><p data-text="aboutPort">此网页版复刻 Apple 版设计实验室。</p><p class="subtitle" data-text="sandbox">隔离预览 · 禁用脚本与联网</p>
+    <p id="connection" class="subtitle"><span id="connection-label" data-text="local">仅在本机</span></p>
+    <div class="sheet-actions"><button id="install-button" class="control" type="button" data-text="install">安装应用</button><button id="language-button" class="control" type="button" lang="en">English</button></div>
+    <a class="external" href="https://github.com/zhuquan7237/code-canvas" rel="noopener noreferrer">GitHub ↗</a>
+    <form method="dialog"><button class="control primary" data-text="close">关闭</button></form>
+  </div></dialog>
+  <dialog id="document-menu" aria-labelledby="doc-menu-title"><div class="dialog-content">
+    <h2 id="doc-menu-title" data-text="actions">作品操作</h2>
+    <p class="subtitle"><span id="kind-badge"></span><span id="save-state"></span></p>
+    <div class="sheet-actions" role="tablist" data-label="tabs">
+      <button id="tab-preview" class="control" type="button" role="tab" aria-controls="preview-panel" aria-selected="true" data-text="preview">预览</button>
+      <button id="tab-code" class="control" type="button" role="tab" aria-controls="code-panel" aria-selected="false" tabindex="-1" data-text="source">源码</button>
+    </div>
+    <div class="sheet-actions"><button type="button" id="export-button" class="control" data-text="export">导出</button><button type="button" id="rename-button" class="control" data-text="rename">重命名</button><button type="button" id="remove-button" class="control danger" data-text="remove">删除作品</button></div>
+    <form method="dialog"><button class="control primary" data-text="close">关闭</button></form>
+  </div></dialog>
   <dialog id="install-dialog" aria-labelledby="install-title"><div class="dialog-content"><h2 id="install-title" data-text="install">安装应用</h2><p data-text="installHelp">在 iPhone／iPad Safari 中点「分享 → 添加到主屏幕」。Android Chrome 可打开菜单选择「安装应用」或「添加到主屏幕」。</p><p class="subtle" data-text="offlineHelp">首次打开后等待「可离线使用」提示。在同一个浏览器或已安装的网页应用中使用。</p><form method="dialog"><button class="control primary" data-text="close">关闭</button></form></div></dialog>
   <dialog id="name-dialog" aria-labelledby="name-title"><form id="name-form" class="dialog-content"><h2 id="name-title"></h2><label for="name-input" data-text="name">文件名</label><input id="name-input" required maxlength="80"><label for="name-format" data-text="format">格式</label><select id="name-format"><option value="html">HTML</option><option value="svg">SVG</option><option value="text" data-text="plain">纯文本</option></select><div class="dialog-actions"><button type="button" class="control" data-close="name-dialog" data-text="cancel">取消</button><button class="control primary" type="submit" data-text="confirm">确定</button></div></form></dialog>
   <dialog id="delete-dialog" aria-labelledby="delete-title"><div class="dialog-content"><h2 id="delete-title" data-text="remove">删除作品</h2><p id="delete-message"></p><div class="dialog-actions"><button type="button" class="control" data-close="delete-dialog" data-text="cancel">取消</button><button id="delete-confirm" type="button" class="control danger" data-text="remove">删除作品</button></div></div></dialog>

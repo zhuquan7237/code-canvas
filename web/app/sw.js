@@ -1,8 +1,8 @@
 'use strict';
 const ROOT = new URL('./', self.location.href);
 const CACHE_PREFIX = 'code-canvas-pwa-' + ROOT.pathname + '-';
-const CACHE = CACHE_PREFIX + '20261126-v1';
-const SHELL = ['./index.html', './styles.css', './app.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'].map(path => new URL(path, ROOT).href);
+const CACHE = CACHE_PREFIX + '20261126-v2';
+const SHELL = ['./index.html', './styles.css?v=apple2', './app.js?v=apple2', './studies.js?v=apple2', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'].map(path => new URL(path, ROOT).href);
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });

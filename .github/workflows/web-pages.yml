@@ -17,16 +17,17 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - name: Temporarily hold the legacy PWA while the new edition is verified
+      - name: Assemble public site from the explicit web subtree
         run: |
-          mkdir -p _site/en
-          cp web/site/site.css _site/site.css
-          cat > _site/index.html <<'HTML'
-          <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>代码画布</title><link rel="stylesheet" href="./site.css"><main class="shell band"><h1>代码画布</h1><p>代码画布已迁到独立域名。基于 Apple 版设计的网页版正在验证，旧网页版已下线。</p><p><a href="https://github.com/zhuquan7237/code-canvas">GitHub 与安卓版</a> · <a href="./en/" lang="en">English</a></p></main></html>
-          HTML
-          cat > _site/en/index.html <<'HTML'
-          <!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Code Canvas</title><link rel="stylesheet" href="../site.css"><main class="shell band"><h1>Code Canvas</h1><p>Code Canvas has a dedicated address. The web edition based on its Apple design is undergoing verification. The previous web edition is retired.</p><p><a href="https://github.com/zhuquan7237/code-canvas">GitHub and Android</a> · <a href="../" lang="zh-CN">中文</a></p></main></html>
-          HTML
+          set -eu
+          mkdir -p _site/app
+          cp -a web/site/. _site/
+          cp -a web/app/. _site/app/
+          test -s _site/index.html
+          test -s _site/en/index.html
+          test -s _site/app/index.html
+          test -s _site/media/demo-zh.mp4
+          test -s _site/media/demo-en.mp4
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v4
         with:
