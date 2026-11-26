@@ -346,47 +346,82 @@ public final class PreviewPage {
     // ------------------------------------------------------------------ CSV
 
     private static String csv(Request request) {
-        char separator = CsvTable.guessSeparator(request.content);
-        CsvTable.Table table = CsvTable.parse(request.content, separator);
+        boolean tsv = request.fileName != null
+                && request.fileName.toLowerCase(Locale.ROOT).endsWith(".tsv");
+        char separator = CsvTable.guessSeparator(request.content, tsv ? '\t' : ',');
+        CsvTable.Table table = CsvTable.parsePreview(request.content, separator);
+        int rows = Math.min(120, table.rows.size());
+        int columns = Math.min(32, table.columnCount);
         String extra = "body{padding:0;background:var(--bg)}"
                 + ".cc-head{padding:12px 16px 8px;font-size:12px;color:var(--ink-2)}"
                 + ".cc-wrap{overflow:auto;-webkit-overflow-scrolling:touch;"
                 + "box-shadow:inset -18px 0 14px -14px rgba(15,23,42,.22)}"
                 + "table{border-collapse:separate;border-spacing:0;font-size:14px;width:max-content;min-width:100%}"
                 + "th,td{border:none;border-bottom:1px solid var(--line);padding:12px 16px;"
-                + "white-space:nowrap;vertical-align:middle;min-width:7.5rem}"
+                + "white-space:pre-wrap;overflow-wrap:anywhere;vertical-align:top;min-width:7.5rem;max-width:min(21rem,calc(100vw - 3rem))}"
                 + "th{position:sticky;top:0;background:var(--code-bg);font-weight:700;z-index:2;color:var(--ink)}"
                 + "td.cc-rowno,th.cc-rowno{position:sticky;left:0;min-width:2.6rem;width:2.6rem;"
                 + "padding-left:12px;padding-right:8px;text-align:right;color:var(--ink-2);"
                 + "font-variant-numeric:tabular-nums;background:var(--bg);z-index:3}"
                 + "th.cc-rowno{z-index:4;background:var(--code-bg)}"
+                + "th button{font:inherit;font-weight:inherit;color:inherit;background:transparent;border:0;"
+                + "padding:4px 0;min-height:32px;text-align:left;cursor:pointer;width:100%}"
+                + "th button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}"
+                + "th[aria-sort=ascending] button:after{content:' \u2191'}"
+                + "th[aria-sort=descending] button:after{content:' \u2193'}"
                 + "tbody tr:nth-child(odd) td{background:var(--bg)}"
                 + "tbody tr:nth-child(even) td{background:var(--surface)}";
         StringBuilder body = new StringBuilder();
-        body.append("<div class=\"cc-head\"><input id=\"cc-q\" placeholder=\"筛选行\" "
+        if (rows == 0) {
+            return shell(request.dark, extra,
+                    "<div class=\"cc-head\">" + (table.inputClipped
+                            ? "\u9996\u884c\u8d85\u51fa\u9884\u89c8\u8303\u56f4\uff0c\u53ef\u5728\u6e90\u6587\u67e5\u770b\u3002"
+                            : "\u8868\u683c\u4e2d\u6ca1\u6709\u53ef\u9884\u89c8\u7684\u884c\u3002") + "</div>", null);
+        }
+        body.append("<div class=\"cc-head\"><input id=\"cc-q\" type=\"search\" aria-label=\"\u7b5b\u9009\u9884\u89c8\u884c\" placeholder=\"筛选行\" "
                 + "style=\"width:100%;box-sizing:border-box;margin:0 0 8px;padding:8px 10px;"
-                + "border:0;border-radius:10px;background:var(--surface);color:var(--ink);font:inherit\">");
+                + "border:1px solid var(--line);min-height:44px;border-radius:10px;background:var(--surface);color:var(--ink);font:inherit\">");
+        if (table.inputClipped) body.append("\u5df2\u8bfb\u53d6\u524d ");
         body.append(escape(CsvTable.describe(table, separator)));
         if (!table.errors.isEmpty()) {
             body.append(" · <span class=\"cc-warn\">").append(table.errors.size()).append(" 处提示</span>");
         }
         body.append(" · 点表头排序，横向滑动看其余列</div>");
-        body.append("<div class=\"cc-wrap\"><table><thead>");
-        int rows = table.rows.size();
+        StringBuilder grid = new StringBuilder("<div class=\"cc-wrap\"><table><thead>");
+        boolean clippedCell = false;
+        int shownRows = 0;
         for (int r = 0; r < rows; r++) {
             CsvTable.Row row = table.rows.get(r);
-            body.append("<tr>");
-            body.append("<").append(r == 0 ? "th" : "td").append(" class=\"cc-rowno\">")
+            StringBuilder one = new StringBuilder("<tr>");
+            one.append("<").append(r == 0 ? "th" : "td").append(" class=\"cc-rowno\">")
                     .append(row.line).append("</").append(r == 0 ? "th" : "td").append(">");
-            for (int c = 0; c < table.columnCount; c++) {
+            for (int c = 0; c < columns; c++) {
                 String value = c < row.cells.size() ? row.cells.get(c) : "";
-                body.append("<").append(r == 0 ? "th" : "td").append(">")
-                        .append(escape(value)).append("</").append(r == 0 ? "th" : "td").append(">");
+                if (value.length() > 512) {
+                    int end = Character.isHighSurrogate(value.charAt(511)) ? 511 : 512;
+                    value = value.substring(0, end) + "\u2026";
+                    clippedCell = true;
+                }
+                if (r == 0) {
+                    one.append("<th scope=\"col\" aria-sort=\"none\"><button type=\"button\">")
+                            .append(value.trim().isEmpty() ? "\u7b2c " + (c + 1) + " \u5217" : escape(value))
+                            .append("</button></th>");
+                } else {
+                    one.append("<td>").append(escape(value)).append("</td>");
+                }
             }
-            body.append("</tr>");
-            if (r == 0) body.append("</thead><tbody>");
+            one.append("</tr>");
+            if (grid.length() + one.length() > 256 * 1024 && r > 0) break;
+            grid.append(one);
+            shownRows++;
+            if (r == 0) grid.append("</thead><tbody>");
         }
-        body.append(rows == 0 ? "</thead></table></div>" : "</tbody></table></div>");
+        if (table.inputClipped || shownRows < table.rows.size() || columns < table.columnCount || clippedCell) {
+            body.append("<div class=\"cc-head\">\u9884\u89c8\u9650\u524d ")
+                    .append(shownRows).append(" \u884c\u3001").append(columns)
+                    .append(" \u5217\u3002\u5b8c\u6574\u5185\u5bb9\u53ef\u5728\u6e90\u6587\u67e5\u770b\uff0c\u539f\u6587\u4ef6\u672a\u4fee\u6539\u3002</div>");
+        }
+        body.append(grid).append("</tbody></table></div>");
         if (!table.errors.isEmpty()) {
             body.append("<div class=\"cc-err\">");
             for (int i = 0; i < Math.min(6, table.errors.size()); i++) {
@@ -396,20 +431,22 @@ public final class PreviewPage {
         }
         String script = "(function(){var q=document.getElementById('cc-q');"
                 + "var table=document.querySelector('table');if(!q||!table||!table.tBodies[0])return;"
-                + "var rows=[].slice.call(table.tBodies[0].rows);"
+                + "var rows=Array.from(table.tBodies[0].rows);"
                 + "q.addEventListener('input',function(){var s=q.value.toLowerCase();"
-                + "rows.forEach(function(r){r.style.display=!s||r.textContent.toLowerCase().indexOf(s)>=0?'':'none';});});"
-                + "var heads=table.tHead?table.tHead.rows[0].cells:[];"
-                + "for(var c=1;c<heads.length;c++){(function(col){var dir=1;"
-                + "heads[col].style.cursor='pointer';"
-                + "heads[col].addEventListener('click',function(){dir=-dir;rows.sort(function(a,b){"
-                + "var av=(a.cells[col]&&a.cells[col].textContent)||'';"
-                + "var bv=(b.cells[col]&&b.cells[col].textContent)||'';"
-                + "var an=parseFloat(av),bn=parseFloat(bv);"
-                + "if(av.trim()!==''&&bv.trim()!==''&&!isNaN(an)&&!isNaN(bn))return(an-bn)*dir;"
-                + "return av.localeCompare(bv)*dir;});"
-                + "rows.forEach(function(r){table.tBodies[0].appendChild(r);});});})(c);}"
-                + "})();";
+                + "rows.forEach(function(r){r.hidden=!!s&&!Array.from(r.cells).slice(1)"
+                + ".some(function(c){return c.textContent.toLowerCase().includes(s);});});});"
+                + "var heads=Array.from(table.tHead.rows[0].cells),active=-1,dir=1;"
+                + "var strictNum=/^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$/;"
+                + "heads.slice(1).forEach(function(h,i){var col=i+1;"
+                + "h.querySelector('button').addEventListener('click',function(){"
+                + "dir=active===col?-dir:1;active=col;"
+                + "heads.slice(1).forEach(function(k){k.setAttribute('aria-sort',k===h?"
+                + "(dir===1?'ascending':'descending'):'none');});"
+                + "var vals=rows.map(function(r,idx){return {r:r,idx:idx,v:r.cells[col].textContent.trim()};});"
+                + "var numeric=vals.every(function(a){return !a.v||(strictNum.test(a.v)&&Number.isFinite(Number(a.v)));});"
+                + "vals.sort(function(a,b){if(!a.v||!b.v)return (a.v?0:1)-(b.v?0:1)||a.idx-b.idx;"
+                + "return dir*(numeric?Number(a.v)-Number(b.v):a.v.localeCompare(b.v))||a.idx-b.idx;});"
+                + "vals.forEach(function(a){table.tBodies[0].appendChild(a.r);});});});})();";
         return shell(request.dark, extra, body.toString(), script);
     }
 

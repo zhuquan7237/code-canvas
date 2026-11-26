@@ -233,4 +233,24 @@ public class LivePreviewRegressionTest extends InstrumentationTestCase {
             assertTrue(((AnimatedImageDrawable)v.getDrawable()).isRunning());
         });
     }
+    public void testCsvQuotedRecordsAndTableControls() throws Exception {
+        String content = "sample,value,doi\r\nTo,10,10.2/a\r\nOne,2,10.11/b\r\n"
+                + "Blank,,10.3/c\r\n\"w;x\r\ny;z\",4,10.1/d\r\n\"\"";
+        open("research.csv", content, null);
+        waitFor("document.querySelector('table tbody')?.rows.length===5");
+        assertEquals("true", eval("(()=>{const t=document.querySelector('table'),b=t.tBodies[0],q=document.querySelector('#cc-q');"
+                + "const cells=()=>Array.from(b.rows).map(r=>r.cells[1].textContent),"
+                + "headers=Array.from(t.tHead.rows[0].cells);"
+                + "if(b.rows[3].cells[1].textContent!=='w;x\\r\\ny;z'&&b.rows[3].cells[1].textContent!=='w;x\\ny;z')return false;"
+                + "if(b.rows[4].cells[1].textContent!=='')return false;"
+                + "headers[2].querySelector('button').click();"
+                + "if(cells()[0]!=='One'||headers[2].getAttribute('aria-sort')!=='ascending')return false;"
+                + "headers[2].querySelector('button').click();"
+                + "if(cells()[0]!=='To'||cells()[4]!=='')return false;"
+                + "q.value='w;x';q.dispatchEvent(new Event('input'));"
+                + "return Array.from(b.rows).filter(r=>!r.hidden).length===1})()"));
+        assertEquals(content, new DocumentRepository(context()).findById(doc.getId()).getContent());
+    }
+
+
 }
