@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "versionName": "0.6.7",
-  "versionCode": 67,
+  "versionName": "0.6.8",
+  "versionCode": 68,
   "channel": "stable",
-  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.6.7.apk",
-  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.6.7/code-canvas-0.6.7.apk",
-  "sha256": "d4263f4efb2e23c726c0d872387dc53ed03bc16958445f56b14b3a410efc96d0",
-  "size": 1296698,
-  "notes": "# Code Canvas 0.6.7 · 安卓工作台 + 网页版\n\n## Android\n\n- 作品库增加可直接触达的格式筛选，保留单手粘贴、系统分享和长按多选。\n- 搜索无结果时可以一键恢复；系统返回先清掉搜索，不会直接退出。\n- 列表、网格和筛选控件对齐，明暗色层次更清楚。双列卡片的标题和元信息保留两行，长短文件名混排不会挤到下一行。高字号下切换为单列。\n- 此次不更改 HTML/SVG 渲染、文件存储或签名方式。原有正式版可覆盖升级。\n\n## Web preview\n\n- [在线打开](https://dsh.zhuquan.xyz/code-canvas/app/) / [English](https://dsh.zhuquan.xyz/code-canvas/app/?lang=en): paste, import, edit, preview and export local files. The app shell can reopen offline after it has cached successfully.\n- Browser HTML and SVG preview is isolated, without scripts or external network resources. Other text is readable as source. Browser drafts do not sync; export before clearing site data.\n- The PWA archive is for HTTP(S) hosting. iPhone and iPad can use the online web app; this is not a native iOS app or an IPA.\n\n## Walkthroughs\n\n- [普通话配音 · 中文主字幕、英文辅字幕](https://dsh.zhuquan.xyz/code-canvas/#demo)\n- [English narration and captions](https://dsh.zhuquan.xyz/code-canvas/en/#demo)",
+  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.6.8.apk",
+  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.6.8/code-canvas-0.6.8.apk",
+  "sha256": "4a84de8eb4eb9dfec55c79c1a92878f4d9fc38d50814a58db17f3589789a334e",
+  "size": 1300390,
+  "notes": "# Code Canvas 0.6.8 · Android + Web\n\n## Android\n\n- 刷新、全屏、作品库和编辑器的主要按钮改为有边框的圆角控件。适配切换与缩放分组，选中项与外边框连贯。\n- SVG「适应窗口」还原作品自带的取景；「适应内容」按实际绘制范围重新取景。切换适配或旋转屏幕不会重载 SVG、清空正在运行的作品状态。\n- 改进窄屏、大字体和浅色／深色布局。正式 APK 沿用原签名，可覆盖升级。\n\n## Web/PWA\n\n- 按安卓版作品库和编辑预览设计重做。初次打开是空作品库；没有不能删除的示例。支持文件导入、编辑、导出、列表／网格、本地草稿和离线打开。\n- 预览的内容区与外框分开，边角不遮挡导入内容。作品库和代码／预览切换有短过渡，也尊重系统的减少动态效果设置。\n- 可测量的 SVG 可以按实际内容适配。复杂 SVG 保留原视口；HTML 可以独立滚动。网页预览继续禁用上传文件中的脚本和联网访问，与安卓原生版的能力不完全相同。\n- [打开网页版](https://canvas.zhuquan.xyz/app/) · [代码画布官网](https://canvas.zhuquan.xyz/) · [普通话实拍与双语字幕](https://canvas.zhuquan.xyz/#demo) · [English walkthrough](https://canvas.zhuquan.xyz/en/#demo)\n\n旧 dsh 域名的本地草稿不会自动迁移到 canvas。此版本不包含原生 iOS 安装包。\n\nThe new PWA follows the Android library and preview workflow. It opens to an empty personal library, keeps file contents local, and supports offline reopening. Install the Android APK for expanded format support and native sharing.",
   "minSdk": 26
 }
