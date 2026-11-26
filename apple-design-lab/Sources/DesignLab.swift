@@ -96,11 +96,11 @@ struct LibraryScreen: View {
             }
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle("Code Canvas")
-            .searchable(text: $query, prompt: "Find a study")
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Find a study")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button { showAbout = true } label: {
-                        Image(systemName: "info.circle").frame(minWidth: 44, minHeight: 44)
+                        Image(systemName: "info.circle").frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                     }
                     .accessibilityLabel("About this design lab")
                 }
@@ -175,6 +175,7 @@ private struct StudyScreen: View {
                             if showGrid { AlignmentGrid().accessibilityHidden(true) }
                         }
                         .frame(width: stageWidth(bounds) * CGFloat(zoom), height: stageWidth(bounds) * 0.625 * CGFloat(zoom))
+                        .accessibilityElement(children: .ignore)
                         .accessibilityLabel(study.description)
                         .accessibilityAddTraits(.isImage)
                     }
@@ -187,8 +188,8 @@ private struct StudyScreen: View {
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
                 .frame(width: stageWidth(bounds), alignment: .leading)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .frame(maxWidth: .infinity, minHeight: bounds.height)
             }
             .background(Color(uiColor: .systemGroupedBackground))
         }
@@ -221,16 +222,16 @@ private struct StudyScreen: View {
 
     @ViewBuilder private var zoomControls: some View {
         Button { changeZoom(max(1, zoom - 0.25)) } label: {
-            Image(systemName: "minus").frame(minWidth: 44, minHeight: 44)
+            Image(systemName: "minus").frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
         }.accessibilityLabel("Zoom out").disabled(zoom <= 1)
         Button { changeZoom(1) } label: {
             Text(zoom.formatted(.percent.precision(.fractionLength(0))))
                 .font(.callout.monospacedDigit()).padding(.horizontal, 4)
-                .frame(minWidth: 44, minHeight: 44)
+                .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
         }.accessibilityLabel("Fit artwork")
             .accessibilityValue(zoom.formatted(.percent.precision(.fractionLength(0))))
         Button { changeZoom(min(2, zoom + 0.25)) } label: {
-            Image(systemName: "plus").frame(minWidth: 44, minHeight: 44)
+            Image(systemName: "plus").frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
         }.accessibilityLabel("Zoom in").disabled(zoom >= 2)
     }
 
@@ -239,7 +240,7 @@ private struct StudyScreen: View {
             showGrid.toggle()
         } label: {
             Image(systemName: showGrid ? "square.grid.3x3.fill" : "square.grid.3x3")
-                .frame(minWidth: 44, minHeight: 44)
+                .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
         }
         .accessibilityLabel("Alignment grid")
         .accessibilityValue(showGrid ? "On" : "Off")

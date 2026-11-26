@@ -12,7 +12,7 @@
 | [Materials](https://developer.apple.com/design/human-interface-guidelines/materials) 和 [WWDC26](https://developer.apple.com/videos/play/wwdc2026/102/) | 系统导航优先；自定义玻璃仅用于浮层工具组，用 regular 而不是 clear。真实原生反光、折射和亮边交给系统。作品本身有方向明确的左上光，与 UI 材质分离。减少透明度时用不透明系统色和细边。 |
 | [Layout](https://developer.apple.com/design/human-interface-guidelines/layout)、[Typography](https://developer.apple.com/design/human-interface-guidelines/typography)、[UI Design Tips](https://developer.apple.com/design/tips/) | 20 pt 水平边距、16 pt 网格间距、20 pt 连续圆角；根据可用宽度决定列数，而不是查设备名称。系统字阶与语义色；图标按钮 44 pt 目标，大字体允许多行并滚动。 |
 
-不复制 Apple 界面、商标或素材。珊瑚色作为 Code Canvas 的视觉识别，不用于显示危险状态或替代文字。样机不包含正式图标；用原珊瑚画笔分层图稿进入 Icon Composer 是下一步，不要把展示缩略图当作 App Icon。
+不复制 Apple 界面、商标或素材。珊瑚色作为 Code Canvas 的视觉识别，不用于显示危险状态或替代文字。样机不包含正式图标；已附 [珊瑚画笔矢量分层](Icon-Layers)，导入 Icon Composer 并检查系统效果是下一步，不要把展示缩略图当作 App Icon。
 
 ## 验证与运行
 

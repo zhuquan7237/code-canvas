@@ -9,10 +9,10 @@ bundle=com.nous.codecanvas.designlab
 mkdir -p "$output"
 
 xcrun simctl boot "$SIM_ID" 2>/dev/null || true
-xcrun simctl bootstatus "$SIM_ID" -b
-xcrun simctl status_bar "$SIM_ID" override --time "9:41" --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState unplugged --batteryLevel 100
 xcodebuild build -project "$root/DesignLab.xcodeproj" -scheme DesignLab \
-  -destination "platform=iOS Simulator,id=$SIM_ID" -derivedDataPath "$derived"
+  -destination "generic/platform=iOS Simulator" -derivedDataPath "$derived"
+perl -e 'alarm 150; exec @ARGV or die $!' xcrun simctl bootstatus "$SIM_ID" -b
+xcrun simctl status_bar "$SIM_ID" override --time "9:41" --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState unplugged --batteryLevel 100
 xcrun simctl install "$SIM_ID" "$derived/Build/Products/Debug-iphonesimulator/DesignLab.app"
 
 capture() {

@@ -16,6 +16,10 @@ final class DesignLabUITests: XCTestCase {
         let grid = app.buttons["Alignment grid"]
         XCTAssertEqual(fit.value as? String, "100%")
         XCTAssertFalse(minus.isEnabled)
+        for element in [minus, fit, plus, grid] {
+            XCTAssertGreaterThanOrEqual(element.frame.width, 43.9)
+            XCTAssertGreaterThanOrEqual(element.frame.height, 43.9)
+        }
         for _ in 0..<4 { plus.tap() }
         XCTAssertEqual(fit.value as? String, "200%")
         XCTAssertFalse(plus.isEnabled)
@@ -40,10 +44,30 @@ final class DesignLabUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Coral study"].waitForExistence(timeout: 8))
     }
 
+    func testLandscapeKeepsCanvasControlsReachable() {
+        let device = XCUIDevice.shared
+        let app = XCUIApplication()
+        device.orientation = .portrait
+        defer { device.orientation = .portrait }
+        app.launch()
+        app.buttons["Coral study"].tap()
+        device.orientation = .landscapeLeft
+        let fit = app.buttons["Fit artwork"]
+        XCTAssertTrue(fit.waitForExistence(timeout: 8))
+        XCTAssertTrue(fit.isHittable)
+        app.buttons["Zoom in"].tap()
+        XCTAssertEqual(fit.value as? String, "125%")
+        fit.tap()
+        XCTAssertEqual(fit.value as? String, "100%")
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Landscape canvas"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     func testSearchFiltersToNamedStudy() {
         let app = XCUIApplication()
         app.launch()
-        app.swipeDown()
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 8))
         search.tap()
