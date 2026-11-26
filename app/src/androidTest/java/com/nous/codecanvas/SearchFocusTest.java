@@ -146,4 +146,37 @@ public class SearchFocusTest extends InstrumentationTestCase {
             assertEquals("文档不得被改动", body, code.getText().toString());
         });
     }
+
+    public void testSearchActionsAreFullyVisibleAndMoveAcrossTwoMatches() throws Throwable {
+        runTestOnUiThread(() -> {
+            editor.findViewById(R.id.btn_search).performClick();
+            ((EditText) editor.findViewById(R.id.edit_search_query)).setText("line_energy");
+        });
+        getInstrumentation().waitForIdleSync();
+        runTestOnUiThread(() -> {
+            assertEquals(2, editor.getSearchResultForTest().count());
+            android.view.View bar = editor.findViewById(R.id.search_bar);
+            android.view.View query = editor.findViewById(R.id.edit_search_query);
+            android.view.View actions = editor.findViewById(R.id.editor_search_actions);
+            android.view.View next = editor.findViewById(R.id.btn_search_next);
+            android.view.View prev = editor.findViewById(R.id.btn_search_prev);
+            for (android.view.View control : new android.view.View[] {query, next, prev}) {
+                android.graphics.Rect visible = new android.graphics.Rect();
+                assertTrue("Search control must be on screen", control.getGlobalVisibleRect(visible));
+                assertEquals("Parent must not clip the touch target vertically", control.getHeight(), visible.height());
+                assertEquals("Parent must not clip the touch target horizontally", control.getWidth(), visible.width());
+            }
+            if (((android.widget.LinearLayout) bar).getOrientation() == android.widget.LinearLayout.VERTICAL) {
+                assertTrue("Stacked rows must fit inside the search bar",
+                        bar.getHeight() >= query.getHeight() + actions.getHeight());
+            }
+            android.widget.TextView counter = editor.findViewById(R.id.txt_search_counter);
+            String initial = counter.getText().toString();
+            assertTrue(next.performClick());
+            assertFalse(initial.equals(counter.getText().toString()));
+            assertTrue(prev.performClick());
+            assertEquals(initial, counter.getText().toString());
+        });
+    }
+
 }
