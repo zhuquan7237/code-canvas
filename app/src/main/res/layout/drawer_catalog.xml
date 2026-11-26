@@ -1,131 +1,100 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 抽屉目录：类型筛选 + 完整文件索引。
-     没有 androidx 依赖，所以这是一个自绘抽屉（遮罩 + 面板 + 位移动画），
-     不是 DrawerLayout。 -->
+<!-- A modal index, layered above floating actions and independent of library layout. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/drawer_root"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:visibility="gone">
+    android:id="@+id/drawer_root" android:layout_width="match_parent"
+    android:layout_height="match_parent" android:visibility="gone"
+    android:elevation="24dp">
 
-    <!-- Scrim: tap anywhere outside the panel to close. -->
-    <View
-        android:id="@+id/drawer_scrim"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/canvas_scrim" />
+    <View android:id="@+id/drawer_scrim" android:layout_width="match_parent"
+        android:layout_height="match_parent" android:background="@color/canvas_scrim"
+        android:importantForAccessibility="no" />
 
-    <LinearLayout
-        android:id="@+id/drawer_panel"
-        android:layout_width="276dp"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:clickable="true"
-        android:focusable="true"
-        android:background="@color/canvas_surface_elevated"
-        android:elevation="16dp">
+    <LinearLayout android:id="@+id/drawer_panel" android:layout_width="304dp"
+        android:layout_height="match_parent" android:layout_gravity="start"
+        android:orientation="vertical" android:clickable="true" android:focusable="true"
+        android:background="@color/studio_control"
+        android:accessibilityPaneTitle="@string/catalog_title">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingStart="18dp"
-            android:paddingEnd="14dp"
-            android:layout_marginTop="16dp">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:paddingStart="@dimen/space_16" android:paddingEnd="@dimen/space_8"
+            android:paddingTop="@dimen/space_8" android:paddingBottom="@dimen/space_8">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginEnd="@dimen/space_4"
                 android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="目录"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/canvas_ink_primary" />
-
-                <TextView
-                    android:id="@+id/drawer_subtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="全部作品"
-                    android:textSize="12sp"
-                    android:textColor="@color/canvas_ink_tertiary" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="@string/catalog_title" android:textSize="22sp"
+                    android:textStyle="bold" android:textColor="@color/canvas_ink_primary"
+                    android:accessibilityHeading="true" />
+                <TextView android:id="@+id/drawer_subtitle" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginTop="@dimen/space_4"
+                    android:textSize="13sp" android:textColor="@color/canvas_ink_secondary" />
             </LinearLayout>
-
-            <ImageButton
-                android:id="@+id/btn_drawer_close"
-                android:layout_width="38dp"
-                android:layout_height="38dp"
-                android:padding="9dp"
-                android:scaleType="fitCenter"
-                android:background="@drawable/bg_icon_button"
-                android:src="@drawable/ic_close"
-                android:contentDescription="关闭目录" />
+            <ImageButton android:id="@+id/btn_drawer_close" android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min" android:padding="@dimen/space_12"
+                android:scaleType="fitCenter" android:background="@drawable/bg_icon_button"
+                android:src="@drawable/ic_close" android:tint="@color/studio_brand"
+                android:contentDescription="@string/catalog_close" />
         </LinearLayout>
 
-        <!-- Type filters wrap onto a second line. A single scrolling row hid 「其它」
-             off the edge of a 360dp phone, and nothing showed that it could scroll. -->
-        <LinearLayout
-            android:id="@+id/drawer_filters"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:paddingHorizontal="12dp"
-            android:orientation="vertical" />
+        <TextView android:id="@+id/drawer_format_heading"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginHorizontal="@dimen/space_16" android:text="@string/catalog_formats"
+            android:textSize="13sp" android:textStyle="bold" android:textColor="@color/studio_brand"
+            android:accessibilityHeading="true" />
+        <HorizontalScrollView android:id="@+id/drawer_filter_scroll"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_4" android:fillViewport="true">
+            <LinearLayout android:id="@+id/drawer_filters" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:paddingHorizontal="@dimen/space_16"
+                android:orientation="vertical" />
+        </HorizontalScrollView>
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="14dp"
-            android:background="@color/canvas_border" />
+        <TextView android:id="@+id/drawer_list_heading"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginHorizontal="@dimen/space_16"
+            android:layout_marginTop="@dimen/space_12" android:layout_marginBottom="@dimen/space_4"
+            android:text="@string/catalog_list" android:textSize="13sp"
+            android:textStyle="bold" android:textColor="@color/studio_brand"
+            android:accessibilityHeading="true" />
 
-        <ListView
-            android:id="@+id/drawer_list"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:divider="@null"
-            android:paddingTop="6dp"
-            android:paddingBottom="6dp"
-            android:clipToPadding="false" />
+        <FrameLayout android:layout_width="match_parent" android:layout_height="0dp"
+            android:layout_weight="1">
+            <ListView android:id="@+id/drawer_list" android:layout_width="match_parent"
+                android:layout_height="match_parent" android:divider="@null"
+                android:paddingHorizontal="@dimen/space_8" android:paddingBottom="@dimen/space_8"
+                android:clipToPadding="false" android:listSelector="@drawable/bg_catalog_row" />
+            <LinearLayout android:id="@+id/drawer_empty" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_gravity="top"
+                android:layout_marginHorizontal="@dimen/space_16"
+                android:layout_marginTop="@dimen/space_8" android:orientation="vertical"
+                android:background="@drawable/bg_catalog_footer"
+                android:padding="@dimen/space_12" android:visibility="gone">
+                <TextView android:id="@+id/drawer_empty_title" style="@style/PreferencesTitle"
+                    android:text="@string/catalog_empty_title" />
+                <TextView android:id="@+id/drawer_empty_hint" style="@style/PreferencesHint"
+                    android:text="@string/catalog_empty_hint" />
+            </LinearLayout>
+        </FrameLayout>
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/canvas_border" />
-
-        <LinearLayout
-            android:id="@+id/drawer_settings"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:focusable="true"
-            android:clickable="true"
-            android:contentDescription="打开设置"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="18dp"
-            android:background="@drawable/bg_sheet_action">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@drawable/ic_settings"
-                android:tint="@color/canvas_icon"
+        <LinearLayout android:id="@+id/drawer_settings" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:minHeight="@dimen/touch_min"
+            android:layout_marginHorizontal="@dimen/space_12" android:layout_marginTop="@dimen/space_4"
+            android:layout_marginBottom="@dimen/space_8" android:focusable="true" android:clickable="true"
+            android:contentDescription="@string/catalog_settings_description"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:paddingHorizontal="@dimen/space_12" android:paddingVertical="@dimen/space_8"
+            android:background="@drawable/bg_catalog_footer">
+            <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                android:src="@drawable/ic_settings" android:tint="@color/studio_on_tonal"
                 android:importantForAccessibility="no" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="14dp"
-                android:text="设置"
-                android:textSize="14sp"
-                android:textColor="@color/canvas_ink_primary" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginStart="@dimen/space_12"
+                android:text="@string/catalog_settings" android:textSize="15sp"
+                android:textStyle="bold" android:textColor="@color/studio_on_tonal"
+                android:importantForAccessibility="no" />
+            <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                android:src="@drawable/ic_catalog_chevron" android:importantForAccessibility="no" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

@@ -9,4 +9,12 @@
     <string name="library_paste">粘贴</string>
     <string name="library_no_matches_hint">没有匹配的文件或内容。清除搜索和筛选即可返回全部作品。</string>
     <string name="svg_fit_unavailable">暂时无法测量 SVG 的内容边界，保留适应窗口。</string>
+    <string name="library_add_title">添加到作品库</string>
+    <string name="library_add_subtitle">从空白开始，或打开已有文件。</string>
+    <string name="library_add_new">新建空白画布</string>
+    <string name="library_add_new_note">先命名，再编写或粘贴代码</string>
+    <string name="library_add_import">从文件导入</string>
+    <string name="library_add_import_note">选取设备上的代码、图片或 PDF</string>
+    <string name="library_add_close">关闭添加菜单</string>
+    <string name="library_file_actions">%1$s 的文件操作</string>
 </resources>

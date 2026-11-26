@@ -12,8 +12,8 @@ android {
         applicationId = "com.nous.codecanvas"
         minSdk = 26
         targetSdk = 35
-        versionCode = 68
-        versionName = "0.6.8"
+        versionCode = 69
+        versionName = "0.6.9"
 
         testInstrumentationRunner = "android.test.InstrumentationTestRunner"
     }

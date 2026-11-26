@@ -59,7 +59,9 @@ public class SettingsActivityTest extends InstrumentationTestCase {
                 R.id.switch_scripts,
                 R.id.switch_thumbnails,
                 R.id.switch_network,
+                R.id.switch_clipboard_auto,
                 R.id.btn_clear_cache,
+                R.id.btn_check_update,
         };
         runTestOnUiThread(() -> {
             for (int id : ids) {
@@ -123,6 +125,41 @@ public class SettingsActivityTest extends InstrumentationTestCase {
         });
         getInstrumentation().waitForIdleSync();
         assertFalse("关闭脚本必须写入偏好", CanvasPrefs.scriptsAllowed(c));
+    }
+
+    public void testNetworkRowUpdatesActualPermissionAndStateCopy() throws Throwable {
+        final Context context = getInstrumentation().getTargetContext();
+        final boolean original = CanvasPrefs.networkAllowedByDefault(context);
+        try {
+            runTestOnUiThread(() -> {
+                View row = settings.findViewById(R.id.pref_row_network);
+                Switch toggle = settings.findViewById(R.id.switch_network);
+                TextView hint = settings.findViewById(R.id.pref_network_hint);
+                assertEquals(original, toggle.isChecked());
+                assertEquals(settings.getString(original ? R.string.preferences_network_on_hint
+                        : R.string.preferences_network_off_hint), hint.getText().toString());
+                assertTrue(row.performClick());
+                assertEquals(!original, toggle.isChecked());
+                assertEquals(settings.getString(!original ? R.string.preferences_network_on_hint
+                        : R.string.preferences_network_off_hint), hint.getText().toString());
+            });
+            assertEquals(!original, CanvasPrefs.networkAllowedByDefault(context));
+        } finally {
+            CanvasPrefs.setNetworkAllowedByDefault(context, original);
+        }
+    }
+
+    public void testPreferenceControlsHaveFortyEightDpTouchTargets() throws Throwable {
+        runTestOnUiThread(() -> {
+            int target = settings.getResources().getDimensionPixelSize(R.dimen.touch_min);
+            for (int id : new int[] {R.id.btn_settings_back, R.id.btn_appearance_system,
+                    R.id.switch_scripts, R.id.switch_network, R.id.switch_thumbnails,
+                    R.id.switch_clipboard_auto, R.id.btn_clear_cache, R.id.btn_check_update}) {
+                View control = settings.findViewById(id);
+                assertTrue(settings.getResources().getResourceEntryName(id) + " has height " + control.getHeight(),
+                        control.getHeight() >= target);
+            }
+        });
     }
 
     /** The version shown must come from the package, not a hard-coded string. */

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="selection_action">Open in Code Canvas</string>
+    <string name="selection_file_prefix">Selected text</string>
+    <string name="selection_empty">No selected text to open</string>
+    <string name="selection_too_large">Select up to 256 KB at a time</string>
+    <string name="selection_save_failed">Could not save the selection. The original text was not changed.</string>
+</resources>

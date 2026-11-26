@@ -111,6 +111,9 @@ public class MainActivity extends Activity {
     private TextView drawerSubtitle;
     private LinearLayout drawerFilters;
     private DrawerAdapter drawerAdapter;
+    private int drawerWidth;
+    private boolean drawerCompact;
+    private final java.util.Map<View, Integer> drawerCoveredAccessibility = new java.util.HashMap<>();
     /** null = 全部, otherwise a RenderKind name. */
     private String typeFilter;
 
@@ -342,20 +345,20 @@ public class MainActivity extends Activity {
     public void onConfigurationChanged(android.content.res.Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         applyHomeChrome();
-        buildFilterChips();
+        if (drawerRoot != null) updateDrawerLayout();
     }
 
     /** Scroll through the space behind the floating action, but clear it at the end. */
     private void applyHomeChrome() {
         if (btnQuickPaste == null) return;
-        boolean showPaste = !selectionMode && !allDocuments.isEmpty();
+        boolean showPaste = !selectionMode && !filteredDocuments.isEmpty() && !editSearch.hasFocus();
         btnQuickPaste.setVisibility(showPaste ? View.VISIBLE : View.GONE);
         // Keep the selection scope stable until the user exits multi-select.
         findViewById(R.id.library_header).setVisibility(selectionMode ? View.INVISIBLE : View.VISIBLE);
         findViewById(R.id.btn_library_filter).setEnabled(!selectionMode);
         findViewById(R.id.btn_search_clear).setEnabled(!selectionMode);
         editSearch.setEnabled(!selectionMode);
-        int bottom = dp(showPaste ? 88 : 12);
+        int bottom = dp(showPaste ? 76 : 12);
         setGalleryBottomPadding(listDocuments, bottom);
         setGalleryBottomPadding(gridDocuments, bottom);
     }
@@ -499,20 +502,7 @@ public class MainActivity extends Activity {
         btnQuickPaste.setOnClickListener(v -> performQuickPasteAndPreview());
         btnNew.setOnClickListener(v -> showNewDocumentDialog());
         btnImport.setOnClickListener(v -> startSafImport());
-        View addMenu = findViewById(R.id.btn_add_menu);
-        if (addMenu != null) {
-            addMenu.setOnClickListener(v -> {
-                android.widget.PopupMenu menu = new android.widget.PopupMenu(this, v);
-                menu.getMenu().add(0, 1, 0, "新建");
-                menu.getMenu().add(0, 2, 0, "导入文件");
-                menu.setOnMenuItemClickListener(item -> {
-                    if (item.getItemId() == 1) showNewDocumentDialog();
-                    else startSafImport();
-                    return true;
-                });
-                menu.show();
-            });
-        }
+        findViewById(R.id.btn_add_menu).setOnClickListener(v -> showLibraryAddMenu());
         View settings = findViewById(R.id.btn_settings);
         if (settings != null) {
             settings.setOnClickListener(v -> {
@@ -529,6 +519,7 @@ public class MainActivity extends Activity {
                 editSearch.requestFocus();
             });
         }
+        editSearch.setOnFocusChangeListener((v, focused) -> applyHomeChrome());
         editSearch.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 finishLibrarySearch();
@@ -551,6 +542,22 @@ public class MainActivity extends Activity {
             }
             @Override public void afterTextChanged(Editable s) {}
         });
+    }
+
+    private void showLibraryAddMenu() {
+        if (selectionMode || (activeSheet != null && activeSheet.isShowing())) return;
+        finishLibrarySearch();
+        CanvasBottomSheet.Action[] actions = {
+                new CanvasBottomSheet.Action(1, R.drawable.ic_edit,
+                        getString(R.string.library_add_new), getString(R.string.library_add_new_note), false),
+                new CanvasBottomSheet.Action(2, R.drawable.ic_import,
+                        getString(R.string.library_add_import), getString(R.string.library_add_import_note), false)
+        };
+        activeSheet = CanvasBottomSheet.showCreation(this, getString(R.string.library_add_title),
+                getString(R.string.library_add_subtitle), actions, id -> {
+                    if (id == 1) btnNew.performClick();
+                    else if (id == 2) btnImport.performClick();
+                });
     }
 
     private void finishLibrarySearch() {
@@ -587,7 +594,7 @@ public class MainActivity extends Activity {
     private void setTypeFilter(String filter) {
         if (selectionMode) return;
         typeFilter = filter;
-        buildFilterChips();
+        updateDrawerFilterSelection();
         applyFilters();
     }
 
@@ -662,11 +669,7 @@ public class MainActivity extends Activity {
         listDocuments.post(this::loadVisibleThumbs);
         ((TextView) findViewById(R.id.txt_file_count)).setText(
                 (typeFilter == null ? "作品库" : filterLabel(typeFilter)) + " · " + filteredDocuments.size());
-        if (drawerSubtitle != null) {
-            drawerSubtitle.setText(typeFilter == null
-                    ? "全部作品 · " + filteredDocuments.size()
-                    : filterLabel(typeFilter) + " · " + filteredDocuments.size());
-        }
+        updateDrawerIndex();
         boolean noMatch = filteredDocuments.isEmpty();
         viewEmpty.setVisibility(noMatch ? View.VISIBLE : View.GONE);
         TextView emptyTitle = findViewById(R.id.txt_empty);
@@ -738,6 +741,7 @@ public class MainActivity extends Activity {
 
         drawerAdapter = new DrawerAdapter();
         drawerList.setAdapter(drawerAdapter);
+        drawerList.setEmptyView(findViewById(R.id.drawer_empty));
         tuneList(drawerList);
         drawerList.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
             @Override
@@ -775,54 +779,128 @@ public class MainActivity extends Activity {
         findViewById(R.id.btn_drawer).setOnClickListener(v -> openDrawer());
         findViewById(R.id.btn_drawer_close).setOnClickListener(v -> closeDrawer());
 
-        buildFilterChips();
-    }
-
-    /** 全部 / HTML / SVG / XML / 其它. Chips wrap so the last one is not clipped on a narrow phone. */
-    private void buildFilterChips() {
-        drawerFilters.removeAllViews();
-        int max = drawerPanel.getWidth() - dp(24);
-        if (max < dp(160)) max = dp(240);
-        LayoutInflater inflater = LayoutInflater.from(this);
-        LinearLayout row = newFilterRow();
-        drawerFilters.addView(row);
-        int used = 0;
-        for (String[] option : LIBRARY_FILTERS) {
-            View chip = inflater.inflate(R.layout.item_drawer_filter, row, false);
-            boolean active = option[1] == null ? typeFilter == null : option[1].equals(typeFilter);
-            chip.setSelected(active);
-            TextView label = chip.findViewById(R.id.filter_label);
-            label.setText(option[0]);
-            label.setSelected(active);
-            chip.setOnClickListener(v -> setTypeFilter(option[1]));
-            chip.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-            int width = chip.getMeasuredWidth() + dp(8);
-            if (used > 0 && used + width > max) {
-                row = newFilterRow();
-                drawerFilters.addView(row);
-                used = 0;
+        drawerRoot.addOnLayoutChangeListener((v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
+            if (drawerRoot.getVisibility() == View.VISIBLE && (r - l != oldR - oldL || b - t != oldB - oldT)) {
+                updateDrawerLayout();
             }
-            // Pin the measured width. Otherwise a nearly full row squeezes the last
-            // chip and "XML" wraps into two letters.
-            row.addView(chip, new LinearLayout.LayoutParams(
-                    chip.getMeasuredWidth(), LinearLayout.LayoutParams.WRAP_CONTENT));
-            used += width;
-        }
+        });
+        updateDrawerLayout();
+        updateDrawerIndex();
     }
 
-    private LinearLayout newFilterRow() {
+    private void updateDrawerIndex() {
+        if (drawerSubtitle == null) return;
+        drawerSubtitle.setText(typeFilter == null
+                ? getString(R.string.catalog_any_count, filteredDocuments.size())
+                : getString(R.string.catalog_type_count, filterLabel(typeFilter), filteredDocuments.size()));
+        boolean libraryEmpty = allDocuments.isEmpty();
+        ((TextView) findViewById(R.id.drawer_empty_title)).setText(libraryEmpty
+                ? R.string.catalog_empty_title : R.string.catalog_no_matches);
+        ((TextView) findViewById(R.id.drawer_empty_hint)).setText(libraryEmpty
+                ? R.string.catalog_empty_hint : R.string.catalog_no_matches_hint);
+    }
+
+    private void updateDrawerLayout() {
+        View parent = findViewById(R.id.root_main);
+        int available = parent.getWidth() - parent.getPaddingLeft() - parent.getPaddingRight();
+        if (available <= 0) available = getResources().getDisplayMetrics().widthPixels;
+        int height = parent.getHeight() - parent.getPaddingTop() - parent.getPaddingBottom();
+        if (height <= 0) height = getResources().getDisplayMetrics().heightPixels;
+        int width = Math.max(1, Math.min(dp(368), available - dp(36)));
+        boolean compact = height < dp(400);
+        if (drawerWidth == width && drawerCompact == compact && drawerFilters.getChildCount() > 0) return;
+        drawerWidth = width;
+        drawerCompact = compact;
+        drawerPanel.getLayoutParams().width = drawerWidth;
+        drawerPanel.requestLayout();
+        findViewById(R.id.drawer_format_heading).setVisibility(compact ? View.GONE : View.VISIBLE);
+        findViewById(R.id.drawer_list_heading).setVisibility(compact ? View.GONE : View.VISIBLE);
+        buildDrawerFilters();
+    }
+
+    /**
+     * Use balanced rows so there is no lonely, clipped “其它”. On short screens a single
+     * scrollable row gives the actual file index back its height.
+     */
+    private void buildDrawerFilters() {
+        drawerFilters.removeAllViews();
+        LayoutInflater inflater = LayoutInflater.from(this);
+        LinearLayout row = newDrawerFilterRow();
+        for (int i = 0; i < LIBRARY_FILTERS.length; i++) {
+            if (!drawerCompact && i == 3) {
+                row = newDrawerFilterRow();
+                row.setPadding(0, dp(4), 0, 0);
+            }
+            String[] option = LIBRARY_FILTERS[i];
+            View chip = inflater.inflate(R.layout.item_drawer_filter, row, false);
+            ((TextView) chip.findViewById(R.id.filter_label)).setText(option[0]);
+            chip.setContentDescription(option[0]);
+            chip.setTag(option[1]);
+            chip.setOnClickListener(v -> setTypeFilter(option[1]));
+            LinearLayout.LayoutParams params = drawerCompact
+                    ? new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT)
+                    : new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+            if (row.getChildCount() > 0) params.setMarginStart(dp(8));
+            row.addView(chip, params);
+        }
+        updateDrawerFilterSelection();
+    }
+
+    private LinearLayout newDrawerFilterRow() {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        drawerFilters.addView(row, new LinearLayout.LayoutParams(
+                drawerCompact ? LinearLayout.LayoutParams.WRAP_CONTENT : LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
         return row;
     }
 
+    private void updateDrawerFilterSelection() {
+        if (drawerFilters == null) return;
+        for (int r = 0; r < drawerFilters.getChildCount(); r++) {
+            ViewGroup row = (ViewGroup) drawerFilters.getChildAt(r);
+            for (int i = 0; i < row.getChildCount(); i++) {
+                View chip = row.getChildAt(i);
+                boolean active = java.util.Objects.equals(typeFilter, chip.getTag());
+                chip.setSelected(active);
+                chip.findViewById(R.id.filter_label).setSelected(active);
+            }
+        }
+    }
+
+    private void setHomeAccessibilityCovered(boolean covered) {
+        if (!(drawerRoot.getParent() instanceof ViewGroup)) return;
+        ViewGroup parent = (ViewGroup) drawerRoot.getParent();
+        if (covered) {
+            for (int i = 0; i < parent.getChildCount(); i++) {
+                View child = parent.getChildAt(i);
+                if (child == drawerRoot || drawerCoveredAccessibility.containsKey(child)) continue;
+                drawerCoveredAccessibility.put(child, child.getImportantForAccessibility());
+                child.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+            }
+        } else {
+            for (java.util.Map.Entry<View, Integer> previous : drawerCoveredAccessibility.entrySet()) {
+                previous.getKey().setImportantForAccessibility(previous.getValue());
+            }
+            drawerCoveredAccessibility.clear();
+        }
+    }
+
+    private int drawerOffscreenX() {
+        return drawerWidth * (drawerPanel.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL ? 1 : -1);
+    }
+
     private void openDrawer() {
-        buildFilterChips();
+        finishLibrarySearch();
+        updateDrawerLayout();
+        updateDrawerFilterSelection();
+        updateDrawerIndex();
         drawerAdapter.notifyDataSetChanged();
+        setHomeAccessibilityCovered(true);
         View scrim = findViewById(R.id.drawer_scrim);
         drawerRoot.setVisibility(View.VISIBLE);
-        int panelWidth = drawerPanel.getWidth() > 0 ? drawerPanel.getWidth() : dp(276);
         if (scrim != null) {
             scrim.animate().cancel();
             scrim.setAlpha(0f);
@@ -831,14 +909,14 @@ public class MainActivity extends Activity {
                     .start();
         }
         drawerPanel.animate().cancel();
-        drawerPanel.setTranslationX(-panelWidth);
+        drawerPanel.setTranslationX(drawerOffscreenX());
         drawerPanel.animate().translationX(0f).setDuration(220)
                 .setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f)).start();
+        findViewById(R.id.btn_drawer_close).requestFocus();
     }
 
     private void closeDrawer() {
         View scrim = findViewById(R.id.drawer_scrim);
-        int panelWidth = drawerPanel.getWidth() > 0 ? drawerPanel.getWidth() : dp(276);
         if (scrim != null) {
             scrim.animate().cancel();
             scrim.animate().alpha(0f).setDuration(180)
@@ -846,10 +924,14 @@ public class MainActivity extends Activity {
                     .start();
         }
         drawerPanel.animate().cancel();
-        drawerPanel.animate().translationX(-panelWidth)
+        drawerPanel.animate().translationX(drawerOffscreenX())
                 .setDuration(180)
                 .setInterpolator(new android.view.animation.AccelerateInterpolator())
-                .withEndAction(() -> drawerRoot.setVisibility(View.GONE))
+                .withEndAction(() -> {
+                    drawerRoot.setVisibility(View.GONE);
+                    setHomeAccessibilityCovered(false);
+                    findViewById(R.id.btn_drawer).requestFocus();
+                })
                 .start();
     }
 
@@ -1269,9 +1351,12 @@ public class MainActivity extends Activity {
                 new CanvasBottomSheet.Action(4, R.drawable.ic_share, "分享源码", null, false),
                 new CanvasBottomSheet.Action(5, R.drawable.ic_delete, "删除", "无法撤销", true),
         };
+        DocumentPresentation presentation = presentations.get(doc.getId());
+        String metadata = presentation == null ? null : ListMeta.rowDetail(presentation.sizeText,
+                System.currentTimeMillis(), doc.getUpdatedAt());
         activeSheet = CanvasBottomSheet.show(this,
                 doc.getTitle(),
-                null,
+                metadata,
                 actions,
                 id -> {
                     switch (id) {
@@ -1511,9 +1596,9 @@ public class MainActivity extends Activity {
                 bindThumbnail(cover, key, coverKind, doc);
             }
 
+            boolean compactCard = parent == gridDocuments && !largeLibraryText();
             if (txtTitle != null) txtTitle.setText(doc.getTitle());
             if (txtTag != null) {
-                boolean compactCard = parent == gridDocuments && !largeLibraryText();
                 String label = coverKind.label();
                 if (compactCard && coverKind == com.nous.codecanvas.data.DocumentKind.MARKDOWN) {
                     txtTag.setText("MD");
@@ -1525,8 +1610,11 @@ public class MainActivity extends Activity {
                 KindStyle.applyChip(txtTag, coverKind);
             }
             if (txtSize != null) {
-                txtSize.setText(ListMeta.rowDetail(presentation.sizeText,
-                        System.currentTimeMillis(), doc.getUpdatedAt()));
+                String details = ListMeta.rowDetail(presentation.sizeText,
+                        System.currentTimeMillis(), doc.getUpdatedAt());
+                // A grid card prioritizes the name and size; the action sheet and list show dates.
+                txtSize.setText(compactCard ? presentation.sizeText : details);
+                txtSize.setContentDescription(compactCard ? details : null);
             }
             if (txtTime != null) txtTime.setText("");
 
@@ -1541,10 +1629,9 @@ public class MainActivity extends Activity {
                     : (parent == gridDocuments ? R.drawable.bg_card : R.drawable.bg_list_row));
             convertView.setLongClickable(true);
             if (btnMore != null) {
-                // Keep the same text width and row geometry when the selection badge replaces More.
-                btnMore.setVisibility(selectionMode
-                        ? (parent == gridDocuments && !largeLibraryText() ? View.INVISIBLE : View.GONE)
-                        : View.VISIBLE);
+                btnMore.setContentDescription(getString(R.string.library_file_actions, doc.getTitle()));
+                // The cover badge replaces the menu at the same position, never over the labels.
+                btnMore.setVisibility(selectionMode ? View.GONE : View.VISIBLE);
             }
 
             return convertView;

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/studio_outline">
+    <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
+        <selector>
+            <item android:state_focused="true">
+                <shape>
+                    <solid android:color="@color/studio_tonal"/>
+                    <stroke android:width="2dp" android:color="@color/studio_brand"/>
+                    <corners android:radius="@dimen/radius_control"/>
+                </shape>
+            </item>
+            <item>
+                <shape>
+                    <solid android:color="@color/studio_tonal"/>
+                    <corners android:radius="@dimen/radius_control"/>
+                </shape>
+            </item>
+        </selector>
+    </item>
+</ripple>

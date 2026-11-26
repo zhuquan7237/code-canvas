@@ -72,6 +72,7 @@ public class EditorActivity extends Activity {
 
     public static final String EXTRA_DOC_ID = "extra_doc_id";
     public static final String EXTRA_START_PREVIEW = "extra_start_preview";
+    static final String EXTRA_SELECTED_TEXT = "extra_selected_text";
     private static final int REQ_EXPORT_SAF = 1002;
 
     private DocumentRepository repository;
@@ -295,6 +296,11 @@ public class EditorActivity extends Activity {
 
         isAllowJs = com.nous.codecanvas.util.CanvasPrefs.scriptsAllowed(this);
         isAllowNetwork = com.nous.codecanvas.util.CanvasPrefs.networkAllowedByDefault(this);
+        if (getIntent().getBooleanExtra(EXTRA_SELECTED_TEXT, false)) {
+            // External selection starts as source, with no implicit script or network access.
+            isAllowJs = false;
+            isAllowNetwork = false;
+        }
         if (savedInstanceState != null) {
             isAllowJs = savedInstanceState.getBoolean("key_allow_js", isAllowJs);
             isAllowNetwork = savedInstanceState.getBoolean("key_allow_network", isAllowNetwork);
@@ -337,6 +343,21 @@ public class EditorActivity extends Activity {
         android.content.res.Configuration config = getResources().getConfiguration();
         boolean compact = config.screenWidthDp > 0 && (config.screenWidthDp < 340
                 || (config.screenWidthDp < 390 && config.fontScale >= 1.25f));
+        if (editSearchQuery != null && editSearchQuery.getParent() instanceof LinearLayout) {
+            boolean stackSearch = config.screenWidthDp > 0
+                    && (config.screenWidthDp < 390 || (config.screenWidthDp < 450 && config.fontScale >= 1.25f));
+            LinearLayout search = (LinearLayout) editSearchQuery.getParent();
+            int orientation = stackSearch ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL;
+            if (search.getOrientation() != orientation) search.setOrientation(orientation);
+            LinearLayout.LayoutParams field = (LinearLayout.LayoutParams) editSearchQuery.getLayoutParams();
+            int fieldWidth = stackSearch ? android.view.ViewGroup.LayoutParams.MATCH_PARENT : 0;
+            float fieldWeight = stackSearch ? 0f : 1f;
+            if (field.width != fieldWidth || field.weight != fieldWeight) {
+                field.width = fieldWidth;
+                field.weight = fieldWeight;
+                editSearchQuery.setLayoutParams(field);
+            }
+        }
         if (headerEditor != null) headerEditor.setVisibility(isFullscreen ? View.GONE : View.VISIBLE);
         View adviceRegion = findViewById(R.id.preview_advice_region);
         if (adviceRegion != null) adviceRegion.setVisibility(isFullscreen ? View.GONE : View.VISIBLE);

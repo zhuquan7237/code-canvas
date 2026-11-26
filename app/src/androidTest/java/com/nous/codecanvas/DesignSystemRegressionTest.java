@@ -124,24 +124,41 @@ public class DesignSystemRegressionTest extends InstrumentationTestCase {
             assertTrue("目录必须列出作品", list.getAdapter().getCount() > 0);
             View panel = main.findViewById(R.id.drawer_panel);
             assertEquals("抽屉必须已滑到位", 0f, panel.getTranslationX(), 0.5f);
+            View paste = main.findViewById(R.id.btn_quick_paste_preview);
+            assertTrue("粘贴入口不能浮到目录遮罩上面", root.getZ() > paste.getZ());
+            ViewGroup parent = (ViewGroup) root.getParent();
+            for (int child = 0; child < parent.getChildCount(); child++) {
+                View covered = parent.getChildAt(child);
+                if (covered != root) {
+                    assertEquals("读屏不能访问被遮住的主页", View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS,
+                            covered.getImportantForAccessibility());
+                }
+            }
+            int min = main.getResources().getDimensionPixelSize(R.dimen.touch_min);
+            assertTrue(main.findViewById(R.id.btn_drawer_close).getHeight() >= min);
+            assertTrue(main.findViewById(R.id.drawer_settings).getHeight() >= min);
         });
 
         // The HTML pill narrows both surfaces to HTML only.
         ui(() -> {
             LinearLayout filters = main.findViewById(R.id.drawer_filters);
             View htmlChip = null;
+            int filterCount = 0;
+            int selectedCount = 0;
             for (int row = 0; row < filters.getChildCount(); row++) {
                 ViewGroup wrapRow = (ViewGroup) filters.getChildAt(row);
                 for (int col = 0; col < wrapRow.getChildCount(); col++) {
                     View chip = wrapRow.getChildAt(col);
                     TextView label = chip.findViewById(R.id.filter_label);
-                    if (label != null && "HTML".contentEquals(label.getText())) {
-                        htmlChip = chip;
-                        break;
+                    if (label != null) {
+                        filterCount++;
+                        if (chip.isSelected()) selectedCount++;
+                        if ("HTML".contentEquals(label.getText())) htmlChip = chip;
                     }
                 }
-                if (htmlChip != null) break;
             }
+            assertEquals(5, filterCount);
+            assertEquals(1, selectedCount);
             assertNotNull("The HTML filter must be reachable across wrapped rows", htmlChip);
             assertTrue(htmlChip.performClick());
         });

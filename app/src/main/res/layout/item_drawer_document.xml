@@ -4,16 +4,16 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:minHeight="52dp"
+    android:minHeight="56dp"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingHorizontal="18dp"
-    android:paddingVertical="7dp">
+    android:paddingHorizontal="@dimen/space_8"
+    android:paddingVertical="@dimen/space_8">
 
     <ImageView
         android:id="@+id/drawer_item_thumb"
-        android:layout_width="34dp"
-        android:layout_height="34dp"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
         android:background="@drawable/bg_thumbnail"
         android:scaleType="fitCenter"
         android:importantForAccessibility="no" />
@@ -22,25 +22,26 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="@dimen/space_12"
         android:orientation="vertical">
 
         <TextView
             android:id="@+id/drawer_item_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
+            android:textSize="15sp"
+            android:textStyle="bold"
             android:textColor="@color/canvas_ink_primary"
-            android:singleLine="true"
-            android:ellipsize="middle" />
+            android:maxLines="2"
+            android:ellipsize="end" />
 
         <TextView
             android:id="@+id/drawer_item_meta"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
-            android:textSize="11sp"
-            android:textColor="@color/canvas_ink_tertiary"
+            android:layout_marginTop="@dimen/space_4"
+            android:textSize="12sp"
+            android:textColor="@color/canvas_ink_secondary"
             android:singleLine="true"
             android:ellipsize="end" />
     </LinearLayout>

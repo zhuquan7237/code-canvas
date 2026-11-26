@@ -2,7 +2,6 @@ package com.nous.codecanvas.ui;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -57,6 +56,16 @@ public class SettingsActivity extends Activity {
 
         findViewById(R.id.btn_settings_back).setOnClickListener(v -> finish());
 
+        View scroll = findViewById(R.id.settings_scroll);
+        View column = findViewById(R.id.settings_column);
+        scroll.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            int maxWidth = Math.round(560 * getResources().getDisplayMetrics().density);
+            int width = Math.min(right - left, maxWidth);
+            if (width > 0 && column.getLayoutParams().width != width) {
+                column.getLayoutParams().width = width;
+                column.requestLayout();
+            }
+        });
         setupAppearance();
         setupSwitches();
         setupCache();
@@ -121,7 +130,7 @@ public class SettingsActivity extends Activity {
         recreate();
     }
 
-    /** The selected pill is driven by view state, which is what bg_segment_item styles. */
+    /** The selected choice is the only visual theme indicator. */
     private void renderAppearanceSelection() {
         ((Button) findViewById(R.id.btn_appearance_light))
                 .setSelected(appearanceShown == AppearanceManager.MODE_LIGHT);
@@ -129,33 +138,38 @@ public class SettingsActivity extends Activity {
                 .setSelected(appearanceShown == AppearanceManager.MODE_DARK);
         ((Button) findViewById(R.id.btn_appearance_system))
                 .setSelected(appearanceShown == AppearanceManager.MODE_SYSTEM);
-
-        TextView value = findViewById(R.id.txt_appearance_value);
-        value.setText(AppearanceManager.label(this, appearanceShown));
     }
 
     // --- preview switches ----------------------------------------------------------------------
 
     private void setupSwitches() {
-        Switch scripts = findViewById(R.id.switch_scripts);
-        scripts.setChecked(CanvasPrefs.scriptsAllowed(this));
-        scripts.setOnCheckedChangeListener((v, checked) ->
-                CanvasPrefs.setScriptsAllowed(SettingsActivity.this, checked));
+        bindToggle(R.id.pref_row_scripts, R.id.switch_scripts,
+                CanvasPrefs.scriptsAllowed(this), value -> CanvasPrefs.setScriptsAllowed(this, value));
+        bindToggle(R.id.pref_row_thumbnails, R.id.switch_thumbnails,
+                CanvasPrefs.thumbnailsEnabled(this), value -> CanvasPrefs.setThumbnailsEnabled(this, value));
+        TextView networkHint = findViewById(R.id.pref_network_hint);
+        boolean networkAllowed = CanvasPrefs.networkAllowedByDefault(this);
+        networkHint.setText(networkAllowed
+                ? R.string.preferences_network_on_hint : R.string.preferences_network_off_hint);
+        bindToggle(R.id.pref_row_network, R.id.switch_network, networkAllowed, value -> {
+            CanvasPrefs.setNetworkAllowedByDefault(this, value);
+            networkHint.setText(value
+                    ? R.string.preferences_network_on_hint : R.string.preferences_network_off_hint);
+        });
+        bindToggle(R.id.pref_row_clipboard_auto, R.id.switch_clipboard_auto,
+                CanvasPrefs.clipboardAutoDetect(this), value -> CanvasPrefs.setClipboardAutoDetect(this, value));
+    }
 
-        Switch thumbnails = findViewById(R.id.switch_thumbnails);
-        thumbnails.setChecked(CanvasPrefs.thumbnailsEnabled(this));
-        thumbnails.setOnCheckedChangeListener((v, checked) ->
-                CanvasPrefs.setThumbnailsEnabled(SettingsActivity.this, checked));
-
-        Switch network = findViewById(R.id.switch_network);
-        network.setChecked(CanvasPrefs.networkAllowedByDefault(this));
-        network.setOnCheckedChangeListener((v, checked) ->
-                CanvasPrefs.setNetworkAllowedByDefault(SettingsActivity.this, checked));
-
-        Switch clipboardAuto = findViewById(R.id.switch_clipboard_auto);
-        clipboardAuto.setChecked(CanvasPrefs.clipboardAutoDetect(this));
-        clipboardAuto.setOnCheckedChangeListener((v, checked) ->
-                CanvasPrefs.setClipboardAutoDetect(SettingsActivity.this, checked));
+    /** Let sighted readers tap a row; accessibility focus stays on the native switch. */
+    private void bindToggle(int rowId, int switchId, boolean initial,
+                            java.util.function.Consumer<Boolean> write) {
+        Switch toggle = findViewById(switchId);
+        toggle.setChecked(initial);
+        toggle.setOnCheckedChangeListener((v, checked) -> write.accept(checked));
+        View row = findViewById(rowId);
+        row.setOnClickListener(v -> toggle.performClick());
+        row.setFocusable(false);
+        row.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
     }
 
     // --- cache ---------------------------------------------------------------------------------
@@ -179,9 +193,8 @@ public class SettingsActivity extends Activity {
             return;
         }
         long bytes = previewCacheSize();
-        label.setText(bytes > 0
-                ? humanSize(bytes) + " · 清除后下次打开会重新生成"
-                : "暂无缓存");
+        label.setText(bytes > 0 ? getString(R.string.preferences_cache_used, humanSize(bytes))
+                : getString(R.string.preferences_cache_none));
     }
 
     private long previewCacheSize() {
@@ -251,10 +264,8 @@ public class SettingsActivity extends Activity {
             // Keep the placeholder rather than showing a wrong number.
         }
 
-        version.setText("代码画布 " + versionName);
-        detail.setText("任意后缀代码画布 · 原生 Java + 系统 WebView\n"
-                + "版本 " + versionName + "（" + versionCode + "）\n"
-                + "离线优先：不联网、不上传、不收集内容");
+        version.setText(getString(R.string.preferences_app_version, versionName));
+        detail.setText(getString(R.string.preferences_version_detail, versionName, versionCode));
     }
 
     @Override

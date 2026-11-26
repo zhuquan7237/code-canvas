@@ -226,7 +226,7 @@
         <EditText
             android:id="@+id/edit_search_query"
             android:layout_width="0dp"
-            android:layout_height="40dp"
+            android:layout_height="@dimen/touch_min"
             android:layout_weight="1"
             android:background="@drawable/bg_search"
             android:paddingHorizontal="10dp"
@@ -240,57 +240,65 @@
             android:textColorHint="@color/canvas_ink_secondary"
             android:contentDescription="搜索内容" />
 
-        <TextView
-            android:id="@+id/txt_search_counter"
+        <LinearLayout
+            android:id="@+id/editor_search_actions"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:minWidth="52dp"
-            android:gravity="center"
-            android:text="0 / 0"
-            android:textSize="12sp"
-            android:fontFamily="monospace"
-            android:textColor="@color/canvas_ink_secondary" />
+            android:layout_gravity="end"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:id="@+id/txt_search_counter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:minWidth="52dp"
+                android:gravity="center"
+                android:text="0 / 0"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:textColor="@color/canvas_ink_secondary" />
 
-        <ImageButton
-            android:id="@+id/btn_search_prev"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:padding="9dp"
-            android:background="@drawable/bg_icon_button"
-            android:src="@drawable/ic_arrow_up"
-            android:contentDescription="上一处" />
+            <ImageButton
+                android:id="@+id/btn_search_prev"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:padding="13dp"
+                android:background="@drawable/bg_icon_button"
+                android:src="@drawable/ic_arrow_up"
+                android:contentDescription="上一处" />
 
-        <ImageButton
-            android:id="@+id/btn_search_next"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:padding="9dp"
-            android:background="@drawable/bg_icon_button"
-            android:src="@drawable/ic_arrow_down"
-            android:contentDescription="下一处" />
+            <ImageButton
+                android:id="@+id/btn_search_next"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:padding="13dp"
+                android:background="@drawable/bg_icon_button"
+                android:src="@drawable/ic_arrow_down"
+                android:contentDescription="下一处" />
 
-        <TextView
-            android:id="@+id/btn_search_case"
-            android:layout_width="38dp"
-            android:layout_height="30dp"
-            android:layout_marginStart="4dp"
-            android:gravity="center"
-            android:text="Aa"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:background="@drawable/bg_segment_item"
-            android:textColor="@color/canvas_ink_secondary"
-            android:contentDescription="区分大小写" />
+            <TextView
+                android:id="@+id/btn_search_case"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:layout_marginStart="4dp"
+                android:gravity="center"
+                android:text="Aa"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:background="@drawable/bg_segment_item"
+                android:textColor="@color/canvas_ink_secondary"
+                android:contentDescription="区分大小写" />
 
-        <ImageButton
-            android:id="@+id/btn_search_close"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:padding="9dp"
-            android:background="@drawable/bg_icon_button"
-            android:src="@drawable/ic_close"
-            android:contentDescription="关闭搜索" />
+            <ImageButton
+                android:id="@+id/btn_search_close"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:padding="13dp"
+                android:background="@drawable/bg_icon_button"
+                android:src="@drawable/ic_close"
+                android:contentDescription="关闭搜索" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Code actions share the quiet outlined tools used in preview. -->
