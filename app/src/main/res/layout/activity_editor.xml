@@ -40,7 +40,7 @@
             android:clickable="true"
             android:focusable="true"
             android:minHeight="@dimen/touch_min"
-            android:background="@drawable/bg_studio_outline_action"
+            android:background="@drawable/bg_library_quiet_action"
             android:paddingHorizontal="10dp"
             android:paddingVertical="8dp">
 
@@ -115,27 +115,40 @@
                 android:background="@drawable/bg_studio_code_segment" />
         </LinearLayout>
 
-        <ImageButton
-            android:id="@+id/btn_save"
-            android:layout_width="@dimen/touch_min"
+        <!-- Save and secondary tools read as one quiet group without shrinking either hit target. -->
+        <LinearLayout
+            android:id="@+id/editor_header_actions"
+            android:layout_width="wrap_content"
             android:layout_height="@dimen/touch_min"
-            android:padding="12dp"
             android:layout_marginStart="4dp"
-            android:background="@drawable/bg_studio_outline_action"
-            android:src="@drawable/ic_check"
-            android:contentDescription="保存"
+            android:background="@drawable/bg_studio_fit_track"
+            android:clipToOutline="true"
+            android:foreground="@drawable/fg_editor_header_actions"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btn_save"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:background="@drawable/bg_library_quiet_action"
+                android:contentDescription="@string/editor_action_save"
+                android:padding="13dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_save"
                 android:stateListAnimator="@null" />
 
-        <ImageButton
-            android:id="@+id/btn_editor_overflow"
-            android:layout_width="@dimen/touch_min"
-            android:layout_height="@dimen/touch_min"
-            android:padding="12dp"
-            android:layout_marginStart="4dp"
-            android:background="@drawable/bg_studio_outline_action"
-            android:src="@drawable/ic_more"
-            android:contentDescription="更多操作"
+            <ImageButton
+                android:id="@+id/btn_editor_overflow"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:background="@drawable/bg_library_quiet_action"
+                android:contentDescription="@string/editor_action_more"
+                android:padding="13dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_editor_more"
                 android:stateListAnimator="@null" />
+        </LinearLayout>
 
         <!-- Still wired. The overflow menu calls them. Kept out of the row so the
              file name is not squeezed by four icons. -->
@@ -215,7 +228,8 @@
     <LinearLayout
         android:id="@+id/search_bar"
         android:layout_width="match_parent"
-        android:layout_height="54dp"
+        android:layout_height="wrap_content"
+        android:minHeight="54dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="12dp"
@@ -478,6 +492,22 @@
     </FrameLayout>
 
     <!-- Content: editor page or preview canvas. -->
+    <!-- Keep the fullscreen exit outside the canvas so it cannot hide artwork. -->
+    <Button
+        android:id="@+id/btn_exit_fullscreen"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/touch_min"
+        android:layout_gravity="end"
+        android:layout_marginHorizontal="8dp"
+        android:layout_marginVertical="2dp"
+        android:background="@drawable/bg_studio_outline_action"
+        android:paddingHorizontal="12dp"
+        android:text="退出全屏"
+        android:textSize="12sp"
+        android:textColor="@color/canvas_ink_primary"
+        android:visibility="gone"
+        android:stateListAnimator="@null" />
+
     <ViewFlipper
         android:id="@+id/view_flipper"
         android:layout_width="match_parent"
@@ -671,22 +701,6 @@
                             android:textIsSelectable="true" />
                     </LinearLayout>
                 </ScrollView>
-
-                <!-- Floating exit fullscreen button -->
-                <Button
-                    android:id="@+id/btn_exit_fullscreen"
-                    android:layout_width="wrap_content"
-                    android:layout_height="@dimen/touch_min"
-                    android:layout_gravity="top|end"
-                    android:layout_margin="12dp"
-                    android:background="@drawable/bg_studio_outline_action"
-                    android:paddingHorizontal="12dp"
-                    android:text="退出全屏"
-                    android:textSize="12sp"
-                    android:textColor="@color/canvas_ink_primary"
-                    android:elevation="4dp"
-                    android:visibility="gone"
-                android:stateListAnimator="@null" />
 
                 <TextView
                     android:id="@+id/preview_loading"

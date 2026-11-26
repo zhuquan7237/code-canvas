@@ -2,7 +2,8 @@ package com.nous.codecanvas.util;
 public final class PreviewKey {
  private PreviewKey(){}
  public static String forThumbnail(String id,String kind,String content,boolean dark,boolean scripts){
-  return forDocument(id+"\u0000"+kind+"\u0000"+scripts+"\u0000thumbnail-v8",content,dark);
+  String renderVersion = "HTML".equals(kind) ? "thumbnail-v9" : "thumbnail-v8";
+  return forDocument(id+"\u0000"+kind+"\u0000"+scripts+"\u0000"+renderVersion,content,dark);
  }
  public static String forDocument(String id,String content,boolean dark){
   try {
