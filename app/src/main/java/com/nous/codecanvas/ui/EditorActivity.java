@@ -1766,36 +1766,13 @@ public class EditorActivity extends Activity {
         }
         final String rawString = rawText.toString();
         List<com.nous.codecanvas.util.AiCodeExtractor.CodeBlock> blocks =
-                com.nous.codecanvas.util.AiCodeExtractor.extract(rawString);
-        if (blocks.size() > 1) {
-            showMultiBlockPicker(blocks, rawString);
+                com.nous.codecanvas.util.AiCodeExtractor.extractFenced(rawString);
+        if (blocks.size() > 1 || (blocks.size() == 1 && blocks.get(0).hasSurroundingText(rawString))) {
+            activeSheet = CodeBlockSheet.show(this, blocks, rawString,
+                    (text, language) -> promptAppendOrReplace(text));
         } else {
             promptAppendOrReplace(blocks.isEmpty() ? rawString : blocks.get(0).code);
         }
-    }
-
-    private void showMultiBlockPicker(final List<com.nous.codecanvas.util.AiCodeExtractor.CodeBlock> blocks,
-                                      final String originalRaw) {
-        CanvasBottomSheet.Action[] actions = new CanvasBottomSheet.Action[blocks.size() + 1];
-        for (int i = 0; i < blocks.size(); i++) {
-            com.nous.codecanvas.util.AiCodeExtractor.CodeBlock b = blocks.get(i);
-            String label = b.language.isEmpty() ? "代码块 " + (i + 1)
-                    : b.language.toUpperCase(Locale.ROOT) + " 块 " + (i + 1);
-            String snippet = b.code.length() > 34
-                    ? b.code.substring(0, 34).replace("\n", " ") + "…" : b.code.replace("\n", " ");
-            actions[i] = new CanvasBottomSheet.Action(i, R.drawable.ic_paste, label, snippet, false);
-        }
-        actions[blocks.size()] = new CanvasBottomSheet.Action(blocks.size(), R.drawable.ic_copy,
-                "完整原始剪贴板文本", originalRaw.length() + " 字符", false);
-
-        activeSheet = CanvasBottomSheet.show(this, "检测到 " + blocks.size() + " 段代码块",
-                "选择一段插入编辑器", actions, id -> {
-                    if (id < blocks.size()) {
-                        promptAppendOrReplace(blocks.get(id).code);
-                    } else {
-                        promptAppendOrReplace(originalRaw);
-                    }
-                });
     }
 
     private void promptAppendOrReplace(final String text) {
