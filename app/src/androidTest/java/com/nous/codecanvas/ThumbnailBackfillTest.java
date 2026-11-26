@@ -33,6 +33,47 @@ public class ThumbnailBackfillTest extends InstrumentationTestCase {
         TestAppearance.resetToSystem(getInstrumentation().getTargetContext());
     }
 
+    public void testSvgThumbnailReachesBothEdgesWithoutSquashing() throws Exception {
+        Context c = getInstrumentation().getTargetContext();
+        DocumentRepository repo = new DocumentRepository(c);
+        boolean scripts = CanvasPrefs.scriptsAllowed(c);
+        boolean thumbs = CanvasPrefs.thumbnailsEnabled(c);
+        CanvasPrefs.setScriptsAllowed(c, true);
+        CanvasPrefs.setThumbnailsEnabled(c, true);
+        CanvasDocument doc = new CanvasDocument("edge-" + System.nanoTime(), "wide.svg", """
+                <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 200 100">
+                  <rect width="200" height="100" fill="#174c3c"/>
+                  <rect width="20" height="100" fill="#ff0000"/>
+                  <rect x="180" width="20" height="100" fill="#0000ff"/>
+                </svg>
+                """, System.currentTimeMillis());
+        repo.saveDocument(doc);
+        boolean dark = (c.getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        File thumb = PreviewThumbnailCache.file(c,
+                PreviewKey.forThumbnail(doc.getId(), doc.kind().name(), doc.getContent(), dark, true));
+        MainActivity home = (MainActivity) getInstrumentation().startActivitySync(
+                new Intent(c, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        try {
+            long deadline = System.currentTimeMillis() + 25000;
+            while (!thumb.isFile() && System.currentTimeMillis() < deadline) Thread.sleep(200);
+            Bitmap b = BitmapFactory.decodeFile(thumb.getAbsolutePath());
+            assertNotNull("portrait gallery must capture the actual SVG", b);
+            assertEquals(Color.RED, b.getPixel(8, 100));
+            assertEquals(Color.BLUE, b.getPixel(b.getWidth() - 9, 100));
+            assertEquals(Color.rgb(23, 76, 60), b.getPixel(b.getWidth() / 2, 28));
+            assertFalse(Color.rgb(23, 76, 60) == b.getPixel(b.getWidth() / 2, 6));
+            b.recycle();
+        } finally {
+            getInstrumentation().runOnMainSync(home::finish);
+            repo.deleteDocument(doc.getId());
+            thumb.delete();
+            CanvasPrefs.setScriptsAllowed(c, scripts);
+            CanvasPrefs.setThumbnailsEnabled(c, thumbs);
+        }
+    }
+
     public void testUnopenedDocumentGetsAThumbnailFromTheHomeScreen() throws Exception {
         final Context c = getInstrumentation().getTargetContext();
         DocumentRepository repo = new DocumentRepository(c);
