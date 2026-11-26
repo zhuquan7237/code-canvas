@@ -5,4 +5,12 @@
     <string name="selection_empty">没有收到可打开的选中文字</string>
     <string name="selection_too_large">所选文本超过 256 KB，请分段打开</string>
     <string name="selection_save_failed">无法保存所选文字，原文本未改动</string>
+    <string name="selection_title">临时查看选中文字</string>
+    <string name="selection_close">关闭</string>
+    <string name="selection_save">保存到作品库</string>
+    <string name="selection_temporary">这里只显示原文，不运行代码。关闭后不会留下副本。</string>
+    <string name="selection_saving">正在保存到作品库…</string>
+    <string name="selection_reopen">临时文本已清空，请回到原应用重新选中打开</string>
+    <string name="selection_saved_large">已保存到作品库。文本较长，未自动打开编辑器。</string>
+    <string name="selection_temporary_excerpt">选区较长，只显示开头。保存会保留全文，直接关闭不会留下副本。</string>
 </resources>

@@ -5,4 +5,12 @@
     <string name="selection_empty">No selected text to open</string>
     <string name="selection_too_large">Select up to 256 KB at a time</string>
     <string name="selection_save_failed">Could not save the selection. The original text was not changed.</string>
+    <string name="selection_title">Inspect selected text</string>
+    <string name="selection_close">Close</string>
+    <string name="selection_save">Save to library</string>
+    <string name="selection_temporary">Only the source is shown. Closing without saving leaves no copy.</string>
+    <string name="selection_saving">Saving to the library…</string>
+    <string name="selection_reopen">Temporary text was cleared. Open the selection again from the other app.</string>
+    <string name="selection_saved_large">Saved to the library. The editor was not opened because the text is too long.</string>
+    <string name="selection_temporary_excerpt">Only the start of this long selection is shown. Save keeps all of it; closing without saving leaves no copy.</string>
 </resources>
