@@ -202,4 +202,79 @@ public class StructuredTextTest {
         CsvTable.Table t = CsvTable.parse("a,b\n1,2\n");
         assertEquals(2, t.rows.size());
     }
+    @Test
+    public void csvDetectionIgnoresPunctuationInQuotedResearchNotes() {
+        String s = "\uFEFF\u6837\u54c1,Icorr (\u00b5A/cm\u00b2),\u529f\u7387,DOI,\u5907\u6ce8\r\n"
+                + "316L,0.420,,10.3390/ma19184027,\"a;b;c;d;e;f;g;h;i;j;k\"\r\n"
+                + "4 mm/s,1.645,1000,10.3390/coatings14010040,\"l;m;n;o\"";
+        assertEquals(',', CsvTable.guessSeparator(s));
+        CsvTable.Table table = CsvTable.parse(s, CsvTable.guessSeparator(s));
+        assertEquals(5, table.columnCount);
+        assertEquals(3, table.rows.size());
+        assertEquals("", table.rows.get(1).cells.get(2));
+        assertEquals("a;b;c;d;e;f;g;h;i;j;k", table.rows.get(1).cells.get(4));
+        assertTrue(table.errors.isEmpty());
+    }
+
+    @Test
+    public void csvDetectionHandlesQuotedDelimitersAndMultilineTsv() {
+        String s = "kind\tvalue\r\nsample\t\"comma,comma,comma,comma;\rmore;\"\"escaped\"\"\"\r\n"
+                + "other\t\"comma,comma,comma,comma\"";
+        assertEquals('\t', CsvTable.guessSeparator(s));
+        assertEquals(';', CsvTable.guessSeparator("a;b\n1;\"a,b,c,d,e,f\""));
+        assertEquals('\t', CsvTable.guessSeparator("\"no,real;separator\"", '\t'));
+        assertEquals(',', CsvTable.guessSeparator("a,b,c\n1,2,3", '\t'));
+        String longField = "col1;col2\r\nvalue;\"" + new String(new char[9000]).replace('\0', ',');
+        assertEquals(';', CsvTable.guessSeparator(longField));
+    }
+
+    @Test
+    public void csvKeepsExplicitBlankRecordsAtEnd() {
+        for (String end : new String[]{"", "\r\n", "\r\n\r\n"}) {
+            CsvTable.Table t = CsvTable.parse("\u72b6\u6001\r\n\"\"\r\n\" \"" + end);
+            assertEquals(3, t.rows.size());
+            assertEquals("", t.rows.get(1).cells.get(0));
+            assertEquals(" ", t.rows.get(2).cells.get(0));
+        }
+        assertEquals(1, CsvTable.parse("\"\"").rows.size());
+        assertEquals(0, CsvTable.parse(" \r\n\r\n").columnCount);
+        assertEquals(2, CsvTable.parse("a,").rows.get(0).cells.size());
+    }
+
+    @Test
+    public void csvDiagnosticsCountPhysicalLinesInQuotedCells() {
+        for (String br : new String[]{"\r", "\r\n", "\n"}) {
+            String s = "a,b" + br + "\"x" + br + "y\",z" + br + "bad";
+            CsvTable.Table t = CsvTable.parse(s);
+            assertEquals("x" + br + "y", t.rows.get(1).cells.get(0));
+            assertEquals(4, t.rows.get(2).line);
+            assertEquals(1, t.errors.size());
+        }
+    }
+
+
+    @Test
+    public void csvDetectionDoesNotCountNewlinesInsideOtherDialectQuotes() {
+        assertEquals(',', CsvTable.guessSeparator("a,b\r\nx,\"u;v\nu;v\nu;v\nu;v\"\r\n"));
+        assertEquals(';', CsvTable.guessSeparator("a;b\r\nx;\"u,v\nu,v\nu,v\nu,v\"\r\n"));
+        assertEquals('\t', CsvTable.guessSeparator("a\tb\r\nx\t\"u,v\nu,v\nu,v\nu,v\"\r\n"));
+    }
+
+    @Test
+    public void csvMobilePreviewStopsBeforeAPartialRecord() {
+        String input = "name,value\r\nA,3\r\nB,\"" + new String(new char[140000]).replace('\0', '<') + "\"";
+        CsvTable.Table t = CsvTable.parsePreview(input, ',');
+        assertTrue(t.inputClipped);
+        assertEquals(2, t.rows.size());
+        assertTrue(t.errors.isEmpty());
+        assertEquals(3, CsvTable.parse(input).rows.size());
+        PreviewPage.Request req = new PreviewPage.Request();
+        req.kind = "CSV";
+        req.content = input;
+        String preview = PreviewPage.build(req);
+        assertTrue(preview.contains("\u9884\u89c8\u9650\u524d"));
+        assertTrue(preview.contains("<td>A</td><td>3</td>"));
+        assertFalse(preview.contains("<td>B</td>"));
+    }
+
 }
