@@ -1756,21 +1756,42 @@ public class EditorActivity extends Activity {
         }
     }
 
+    private final java.util.concurrent.ExecutorService pasteExecutor =
+            java.util.concurrent.Executors.newSingleThreadExecutor();
+    private int editorPasteEpoch;
+    private boolean editorPastePending;
+
     private void performPaste() {
-        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        if (clipboard == null || !clipboard.hasPrimaryClip()) {
-            Toast.makeText(this, "剪贴板为空", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        ClipData clip = clipboard.getPrimaryClip();
-        if (clip == null || clip.getItemCount() == 0) return;
-        CharSequence rawText = clip.getItemAt(0).coerceToText(this);
-        if (rawText == null) return;
-        if (rawText.length() > 2 * 1024 * 1024) {
-            Toast.makeText(this, "剪贴板代码过大 (超过 2MB 限制)", Toast.LENGTH_LONG).show();
-            return;
-        }
-        final String rawString = rawText.toString();
+        if (editorPastePending || isFinishing() || isDestroyed()) return;
+        editorPastePending = true;
+        final int epoch = ++editorPasteEpoch;
+        final long revision = editRevision;
+        final int selectionStart = editCode.getSelectionStart();
+        final int selectionEnd = editCode.getSelectionEnd();
+        final Context app = getApplicationContext();
+        pasteExecutor.execute(() -> {
+            com.nous.codecanvas.util.CanvasClipboard.Read read =
+                    com.nous.codecanvas.util.CanvasClipboard.read(app, false);
+            runOnUiThread(() -> {
+                if (epoch != editorPasteEpoch) return;
+                editorPastePending = false;
+                if (!hasWindowFocus() || isFinishing() || isDestroyed()
+                        || viewFlipper.getDisplayedChild() != 0) return;
+                if (revision != editRevision || selectionStart != editCode.getSelectionStart()
+                        || selectionEnd != editCode.getSelectionEnd()) {
+                    Toast.makeText(this, "光标或内容已变化，请重新粘贴。", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (read.status != com.nous.codecanvas.util.CanvasClipboard.Status.TEXT) {
+                    Toast.makeText(this, read.message(), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                offerEditorPaste(read.text);
+            });
+        });
+    }
+
+    private void offerEditorPaste(final String rawString) {
         List<com.nous.codecanvas.util.AiCodeExtractor.CodeBlock> blocks =
                 com.nous.codecanvas.util.AiCodeExtractor.extractFenced(rawString);
         if (blocks.size() > 1 || (blocks.size() == 1 && blocks.get(0).hasSurroundingText(rawString))) {
@@ -2852,6 +2873,8 @@ public class EditorActivity extends Activity {
 
     @Override
     protected void onPause() {
+        editorPasteEpoch++;
+        editorPastePending = false;
         super.onPause();
         saveCurrentDocument(false);
     }
@@ -2864,6 +2887,17 @@ public class EditorActivity extends Activity {
 
     public AlertDialog getActiveDialogForTest() {
         return activeDialog;
+    }
+
+    /** Wait for worker completion from an instrumentation thread. */
+    public void awaitPasteReadForTest() {
+        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        pasteExecutor.execute(latch::countDown);
+        try {
+            latch.await(3, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     public Dialog getActiveSheetForTest() {
@@ -2892,6 +2926,8 @@ public class EditorActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        editorPasteEpoch++;
+        pasteExecutor.shutdownNow();
         pdfRenderGeneration++;
         notebookGeneration++;
         if (notebookRender != null) notebookRender.cancel(true);
