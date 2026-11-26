@@ -14,7 +14,7 @@ if [ ! -d "$derived/Build/Products/Debug-iphonesimulator/DesignLab.app" ]; then
 fi
 echo "Booting simulator $SIM_ID"
 perl -e 'alarm 150; exec @ARGV or die $!' xcrun simctl bootstatus "$SIM_ID" -b
-xcrun simctl status_bar "$SIM_ID" override --time "9:41" --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState unplugged --batteryLevel 100
+xcrun simctl status_bar "$SIM_ID" override --time "9:41" --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState discharging --batteryLevel 100 || echo "Status-bar override unavailable; continuing with actual device status"
 xcrun simctl install "$SIM_ID" "$derived/Build/Products/Debug-iphonesimulator/DesignLab.app"
 
 capture() {

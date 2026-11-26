@@ -30,6 +30,7 @@ jobs:
           device="$(xcrun simctl list devices available -j | python3 -c 'import json,os,re,sys; devices=json.load(sys.stdin)["devices"]; matches=[(tuple(map(int, m[1].split("-"))), k) for k in devices if (m:=re.fullmatch(r"com\.apple\.CoreSimulator\.SimRuntime\.iOS-(27(?:-[0-9]+)*)", k))]; group=[k for _,k in sorted(matches, key=lambda pair: (pair[0] == (27,0), pair[0]), reverse=True)]; print(next(d["udid"] for k in group for d in devices[k] if d.get("isAvailable") and d["name"].startswith(os.environ["FORM_FACTOR"])))')"
           echo "SIM_ID=$device" >> "$GITHUB_ENV"
       - name: Build native SwiftUI app without booting a simulator
+        id: build
         timeout-minutes: 5
         run: |
           xcodebuild build -project apple-design-lab/DesignLab.xcodeproj -scheme DesignLab \
@@ -38,6 +39,7 @@ jobs:
         timeout-minutes: 9
         run: bash apple-design-lab/capture.sh
       - name: Test native interactions
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
         timeout-minutes: 10
         run: |
           xcodebuild test -project apple-design-lab/DesignLab.xcodeproj -scheme DesignLab \
