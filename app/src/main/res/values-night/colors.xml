@@ -18,6 +18,8 @@
     <color name="studio_paper">#18171D</color>
     <color name="studio_control">#28242D</color>
     <color name="studio_outline">#65555C</color>
+    <color name="studio_tonal">#492B30</color>
+    <color name="studio_on_tonal">#FFDAD2</color>
 
     <!-- Surfaces -->
     <color name="canvas_bg">#0D1420</color>

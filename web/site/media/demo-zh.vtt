@@ -1,0 +1,31 @@
+WEBVTT
+
+1
+00:00:00.120 --> 00:00:06.790
+这是代码画布的网页预览版。粘贴代码或导入本地文件，就能看到效果。
+This is Code Canvas for the web. Paste code or open a local file to see the result.
+
+2
+00:00:07.020 --> 00:00:13.990
+先打开内置示例。点一下暂停，再点一下，动画就会继续。
+Start with the built-in example. Pause the animation, then tap again to play it.
+
+3
+00:00:14.220 --> 00:00:22.990
+切到源码，改一下图上的文字，再应用。回到预览，就能看到变化。
+Switch to Code, edit the label, and apply it. The change appears in Preview.
+
+4
+00:00:23.220 --> 00:00:30.590
+你也可以导入本地文件。这里打开的是一幅独立的矢量图。
+You can also import a local file. Here I'm opening a standalone SVG illustration.
+
+5
+00:00:30.820 --> 00:00:39.190
+手机上也能打开、编辑和预览。不用登录，文件保存在当前浏览器里。
+Open, edit, and preview on your phone, too. No account; your files stay in this browser.
+
+6
+00:00:39.420 --> 00:00:48.190
+改完后把文件导出来。网页版和安卓版的功能不同，项目主页有各自的入口和说明。
+Export the file when you're done. The web and Android apps have different features. Find both on the project page.

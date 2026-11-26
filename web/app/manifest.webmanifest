@@ -1,0 +1,16 @@
+{
+  "id": "./",
+  "name": "Code Canvas · 代码画布",
+  "short_name": "Code Canvas",
+  "description": "Local-first workspace for HTML, SVG, and text.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8f2ee",
+  "theme_color": "#f8f2ee",
+  "lang": "zh-CN",
+  "icons": [
+    {"src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}

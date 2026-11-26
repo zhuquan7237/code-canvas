@@ -1,0 +1,44 @@
+name: Code Canvas web
+on:
+  push:
+    branches: [main]
+    paths: ['web/**', '.github/workflows/web-pages.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: code-canvas-github-pages
+  cancel-in-progress: true
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Assemble public site from the explicit web subtree
+        run: |
+          set -eu
+          mkdir -p _site/app
+          cp -a web/site/. _site/
+          cp -a web/app/. _site/app/
+          test -s _site/index.html
+          test -s _site/en/index.html
+          test -s _site/app/index.html
+          test -s _site/media/demo-zh.mp4
+          test -s _site/media/demo-en.mp4
+          touch _site/.nojekyll
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
