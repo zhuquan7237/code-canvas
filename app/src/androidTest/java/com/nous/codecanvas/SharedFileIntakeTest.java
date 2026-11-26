@@ -26,6 +26,7 @@ public class SharedFileIntakeTest extends InstrumentationTestCase {
     private DocumentRepository repository;
     private File source;
     private Uri uri;
+    private MainActivity latestHome;
 
     @Override protected void setUp() throws Exception {
         super.setUp();
@@ -39,6 +40,12 @@ public class SharedFileIntakeTest extends InstrumentationTestCase {
     }
 
     @Override protected void tearDown() throws Exception {
+        if (latestHome != null) {
+            getInstrumentation().runOnMainSync(() -> {
+                if (!latestHome.isDestroyed()) latestHome.finishAndRemoveTask();
+            });
+            getInstrumentation().waitForIdleSync();
+        }
         if (source != null) {
             for (CanvasDocument doc : copies()) repository.deleteDocument(doc.getId());
             source.delete();
@@ -105,6 +112,7 @@ public class SharedFileIntakeTest extends InstrumentationTestCase {
             MainActivity replaced = (MainActivity) getInstrumentation().waitForMonitorWithTimeout(monitor, 8000);
             assertNotNull(replaced);
             assertNotSame(activity, replaced);
+            latestHome = replaced;
             return replaced;
         } finally {
             getInstrumentation().removeMonitor(monitor);
@@ -115,6 +123,7 @@ public class SharedFileIntakeTest extends InstrumentationTestCase {
         bytes("first export");
         MainActivity main = (MainActivity) getInstrumentation().startActivitySync(
                 fileIntent(Intent.ACTION_VIEW).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK));
+        latestHome = main;
         CanvasDocument local = awaitCopies(1).get(0);
         assertEquals("first export", local.getContent());
         assertTrue(awaitText(source.getName(), 5000));
@@ -148,6 +157,7 @@ public class SharedFileIntakeTest extends InstrumentationTestCase {
     public void testRetrySameUriAfterProviderFileBecomesReadable() throws Exception {
         MainActivity main = (MainActivity) getInstrumentation().startActivitySync(
                 fileIntent(Intent.ACTION_VIEW).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK));
+        latestHome = main;
         String errorTitle = "\u672a\u80fd\u5bfc\u5165\u6587\u4ef6";
         assertTrue(awaitText(errorTitle, 8000));
         recreate(main);
@@ -167,6 +177,7 @@ public class SharedFileIntakeTest extends InstrumentationTestCase {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         MainActivity main = (MainActivity) getInstrumentation().startActivitySync(
                 new Intent(share).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK));
+        latestHome = main;
         String retain = "\u4fdd\u7559\u5b8c\u6574\u539f\u6587";
         assertTrue(awaitText(retain, 8000));
         getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
@@ -183,6 +194,7 @@ public class SharedFileIntakeTest extends InstrumentationTestCase {
         context.getContentResolver().call(uri, "reset", null, null);
         MainActivity main = (MainActivity) getInstrumentation().startActivitySync(
                 fileIntent(Intent.ACTION_VIEW).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+        latestHome = main;
         try {
             long end = SystemClock.uptimeMillis() + 5000;
             while (readingCount() == 0 && SystemClock.uptimeMillis() < end) SystemClock.sleep(75);
