@@ -107,6 +107,7 @@ public final class SourceWriter {
 
     /** MIME type to hand to the share sheet and the file picker. */
     public static String mimeFor(CanvasDocument doc) {
+        if (doc.kind() == com.nous.codecanvas.data.DocumentKind.NOTEBOOK) return "application/x-ipynb+json";
         String recorded = doc.getMimeType();
         if (recorded != null && !recorded.isEmpty() && !recorded.equals("application/octet-stream")) {
             return recorded;

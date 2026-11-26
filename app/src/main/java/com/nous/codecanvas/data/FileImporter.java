@@ -55,33 +55,30 @@ public final class FileImporter {
         String name = displayName(context, uri);
         String mime = mimeType(context, uri);
 
-        byte[] head = new byte[0];
+        DocumentKind kind;
         byte[] all;
         try (InputStream in = open(context, uri)) {
             if (in == null) throw new IOException("无法读取这个文件");
-            head = readAtMost(in, SNIFF_BYTES);
+            byte[] head = readAtMost(in, SNIFF_BYTES);
+            kind = FileKindDetector.detect(name, mime, head);
+            if (kind == DocumentKind.BINARY)
+                throw new IOException("这不是支持的文本、图片、PDF 或笔记本格式");
+            long limit = kind.editable() ? MAX_TEXT_BYTES
+                    : kind == DocumentKind.NOTEBOOK ? 16L * 1024L * 1024L : MAX_BLOB_BYTES;
             all = head;
             if (head.length == SNIFF_BYTES) {
-                // Only now read the rest: the sniff already told us whether this is binary.
-                ByteArrayOutputStream rest = new ByteArrayOutputStream();
+                ByteArrayOutputStream bytes = new ByteArrayOutputStream(SNIFF_BYTES);
+                bytes.write(head);
                 byte[] buffer = new byte[8192];
-                int n;
-                long total = head.length;
-                while ((n = in.read(buffer)) != -1) {
-                    total += n;
-                    if (total > MAX_BLOB_BYTES) throw new IOException("文件超过 64MB 上限，暂不支持");
-                    rest.write(buffer, 0, n);
+                for (int count; (count = in.read(buffer)) != -1;) {
+                    if ((long) bytes.size() + count > limit)
+                        throw new IOException(kind == DocumentKind.NOTEBOOK ? "Notebook 文件超过 16 MB，暂不能导入"
+                                : kind.editable() ? "文本超过 8MB，编辑器打开会很慢，暂不支持"
+                                : "文件超过 64MB 上限，暂不支持");
+                    bytes.write(buffer, 0, count);
                 }
-                byte[] tail = rest.toByteArray();
-                all = new byte[head.length + tail.length];
-                System.arraycopy(head, 0, all, 0, head.length);
-                System.arraycopy(tail, 0, all, head.length, tail.length);
+                all = bytes.toByteArray();
             }
-        }
-
-        DocumentKind kind = FileKindDetector.detect(name, mime, head);
-        if (kind == DocumentKind.BINARY) {
-            throw new IOException("这是二进制文件（不是文本、图片或 PDF），本阶段不打开");
         }
 
         CanvasDocument doc = new CanvasDocument(UUID.randomUUID().toString(), name, "", System.currentTimeMillis());
@@ -91,9 +88,6 @@ public final class FileImporter {
         doc.setByteSize(all.length);
 
         if (kind.editable()) {
-            if (all.length > MAX_TEXT_BYTES) {
-                throw new IOException("文本超过 8MB，编辑器打开会很慢，暂不支持");
-            }
             TextCodec.Decoded decoded = TextCodec.decode(all);
             doc.setContent(decoded.text);
             doc.setEncoding(decoded.encoding);

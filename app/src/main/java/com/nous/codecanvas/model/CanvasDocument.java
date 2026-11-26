@@ -155,6 +155,8 @@ public class CanvasDocument {
         com.nous.codecanvas.data.DocumentKind guessed =
                 com.nous.codecanvas.data.FileKindDetector.fromExtension(
                         com.nous.codecanvas.data.FileKindDetector.extensionOf(title));
+        if (guessed == com.nous.codecanvas.data.DocumentKind.NOTEBOOK && !blob)
+            return com.nous.codecanvas.data.DocumentKind.TEXT;
         if (guessed != null) return guessed;
         return com.nous.codecanvas.data.DocumentKind.UNKNOWN;
     }

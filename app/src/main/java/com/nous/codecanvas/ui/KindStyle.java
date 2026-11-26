@@ -34,6 +34,7 @@ final class KindStyle {
             case XML:
             case YAML:
             case CSV:
+            case NOTEBOOK:
                 return R.color.canvas_warning_surface;
             case PDF:
                 return R.color.canvas_danger_surface;
@@ -61,6 +62,7 @@ final class KindStyle {
             case XML:
             case YAML:
             case CSV:
+            case NOTEBOOK:
                 return R.color.canvas_warning;
             case PDF:
                 return R.color.canvas_danger;
@@ -82,6 +84,7 @@ final class KindStyle {
             case XML: return "XML";
             case YAML: return "YAML";
             case CSV: return "CSV";
+            case NOTEBOOK: return "NB";
             case CODE: return "代码";
             case TEXT: return "文本";
             case IMAGE: return "图片";

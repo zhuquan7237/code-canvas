@@ -1346,21 +1346,21 @@ public class MainActivity extends Activity {
     /** The ⋮ glyph's menu — the same bottom sheet as everywhere else. */
     private void showDocumentActions(final CanvasDocument doc) {
         if (doc == null) return;
-        CanvasBottomSheet.Action[] actions = new CanvasBottomSheet.Action[]{
-                new CanvasBottomSheet.Action(0, R.drawable.ic_open, "打开预览", null, false),
-                new CanvasBottomSheet.Action(1, R.drawable.ic_edit, "重命名", null, false),
-                new CanvasBottomSheet.Action(2, R.drawable.ic_copy, "复制全部代码", null, false),
-                new CanvasBottomSheet.Action(3, R.drawable.ic_export, "导出到文件", null, false),
-                new CanvasBottomSheet.Action(4, R.drawable.ic_share, "分享源码", null, false),
-                new CanvasBottomSheet.Action(5, R.drawable.ic_delete, "删除", "无法撤销", true),
-        };
+        List<CanvasBottomSheet.Action> actions = new ArrayList<>();
+        actions.add(new CanvasBottomSheet.Action(0, R.drawable.ic_open, "打开预览"));
+        actions.add(new CanvasBottomSheet.Action(1, R.drawable.ic_edit, "重命名"));
+        if (!doc.isBlob())
+            actions.add(new CanvasBottomSheet.Action(2, R.drawable.ic_copy, "复制全部代码"));
+        actions.add(new CanvasBottomSheet.Action(3, R.drawable.ic_export, "导出到文件"));
+        actions.add(new CanvasBottomSheet.Action(4, R.drawable.ic_share, doc.isBlob() ? "分享文件" : "分享源码"));
+        actions.add(new CanvasBottomSheet.Action(5, R.drawable.ic_delete, "删除", "无法撤销", true));
         DocumentPresentation presentation = presentations.get(doc.getId());
         String metadata = presentation == null ? null : ListMeta.rowDetail(presentation.sizeText,
                 System.currentTimeMillis(), doc.getUpdatedAt());
         activeSheet = CanvasBottomSheet.show(this,
                 doc.getTitle(),
                 metadata,
-                actions,
+                actions.toArray(new CanvasBottomSheet.Action[0]),
                 id -> {
                     switch (id) {
                         case 0: openEditor(doc.getId(), true); break;
