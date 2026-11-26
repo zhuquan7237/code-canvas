@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_selected_text"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/canvas_bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="4dp"
+        android:orientation="horizontal">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:accessibilityHeading="true"
+            android:text="@string/selection_title"
+            android:textColor="@color/canvas_ink_primary"
+            android:textSize="20sp"
+            android:fontFamily="sans-serif-medium" />
+        <Button
+            android:id="@+id/btn_close_selected_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingHorizontal="12dp"
+            android:background="@drawable/bg_button_subtle"
+            android:backgroundTint="@null"
+            android:textAllCaps="false"
+            android:text="@string/selection_close"
+            android:textColor="@color/canvas_ink_primary" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_studio_secondary"
+        android:fillViewport="true"
+        android:saveEnabled="false"
+        android:clipToPadding="false">
+        <TextView
+            android:id="@+id/selected_text_source"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="14dp"
+            android:saveEnabled="false"
+            android:freezesText="false"
+            android:fontFamily="monospace"
+            android:breakStrategy="simple"
+            android:hyphenationFrequency="none"
+            android:textDirection="ltr"
+            android:textColor="@color/canvas_ink_primary"
+            android:textSize="14sp" />
+    </ScrollView>
+
+    <TextView
+        android:id="@+id/selected_text_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="8dp"
+        android:accessibilityLiveRegion="polite"
+        android:textColor="@color/canvas_ink_secondary"
+        android:textSize="13sp" />
+
+    <Button
+        android:id="@+id/btn_save_selected_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="10dp"
+        android:minHeight="48dp"
+        android:paddingHorizontal="12dp"
+        android:background="@drawable/bg_button_primary"
+        android:backgroundTint="@null"
+        android:textAllCaps="false"
+        android:text="@string/selection_save"
+        android:textColor="@color/canvas_on_primary" />
+</LinearLayout>

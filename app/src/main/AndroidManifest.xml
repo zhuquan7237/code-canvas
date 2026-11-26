@@ -158,7 +158,6 @@
             android:name=".ui.SelectedTextActivity"
             android:label="@string/selection_action"
             android:exported="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.PROCESS_TEXT" />

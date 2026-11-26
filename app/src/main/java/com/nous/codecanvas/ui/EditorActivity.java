@@ -1595,7 +1595,7 @@ public class EditorActivity extends Activity {
      * (it is a WebView), so the honest behaviour is to show the preview and say the source is too
      * large to edit here — not to freeze.</p>
      */
-    private static final int MAX_EDITABLE_CHARS = 200_000;
+    static final int MAX_EDITABLE_CHARS = 200_000;
 
     private boolean sourceTooLarge;
 
