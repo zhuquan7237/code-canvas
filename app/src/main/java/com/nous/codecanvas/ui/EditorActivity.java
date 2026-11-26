@@ -1151,21 +1151,27 @@ public class EditorActivity extends Activity {
         btnSearchCase.setSelected(false);
     }
 
-    /** A preview link of the form codecanvas.invalid/jump?line=N opens that line in the editor. */
+    /** Built-in document preview links navigate to their source without leaving the app. */
     private boolean jumpToSourceLine(String url) {
-        String prefix = "https://" + com.nous.codecanvas.util.PreviewAssets.HOST + "/jump";
-        if (url == null || !url.startsWith(prefix) || !kind.hasSourceTab()) return false;
+        if (url == null || !kind.hasSourceTab()) return false;
+        android.net.Uri uri = android.net.Uri.parse(url);
+        if (!"https".equals(uri.getScheme()) || !PreviewAssets.HOST.equals(uri.getAuthority())
+                || !"/jump".equals(uri.getPath())) return false;
         int line = 1;
+        int exactOffset = -1;
         try {
-            String query = android.net.Uri.parse(url).getQueryParameter("line");
+            String query = uri.getQueryParameter("line");
             if (query != null) line = Integer.parseInt(query);
-        } catch (Exception ignored) {
-            line = 1;
+            String position = uri.getQueryParameter("offset");
+            if (kind == DocumentKind.JSON && position != null) exactOffset = Integer.parseInt(position);
+        } catch (NumberFormatException ignored) {
+            // Fall back to the available line number.
         }
         final int target = Math.max(1, line);
+        final int character = exactOffset;
         switchToTab(0);
         editCode.post(() -> {
-            int offset = com.nous.codecanvas.editor.EditorCommands.lineOffset(
+            int offset = character >= 0 ? character : com.nous.codecanvas.editor.EditorCommands.lineOffset(
                     editCode.getText().toString(), target);
             editCode.requestFocus();
             editCode.setSelection(Math.min(offset, editCode.length()));

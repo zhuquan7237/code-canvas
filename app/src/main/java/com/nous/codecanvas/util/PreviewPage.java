@@ -201,62 +201,87 @@ public final class PreviewPage {
     // ------------------------------------------------------------------ JSON
 
     private static String json(Request request) {
-        StructuredText.JsonResult result = StructuredText.formatJson(request.content);
+        JsonOutline.Result result = JsonOutline.inspect(request.content);
         String extra = "body{padding:12px 14px 32px}"
-                + ".cc-tree{font-family:ui-monospace,'Cascadia Mono',Menlo,Consolas,monospace;font-size:13px;"
-                + "line-height:1.55}"
-                + ".cc-node{margin:4px 0 4px 12px}"
-                + ".cc-row,.cc-br{white-space:pre;padding:2px 0}"
-                + ".cc-path{margin-left:8px;border:0;background:var(--code-bg);color:var(--ink-2);"
-                + "border-radius:999px;padding:1px 8px;font:inherit;font-size:11px}"
-                + "summary{cursor:pointer}"
-                + ".k{color:var(--accent)}.s{color:var(--ok)}.n{color:var(--warn)}.b{color:var(--bad)}"
-                + ".cc-badline{background:var(--bad);color:#fff;border-radius:6px;padding:2px 6px}";
+                + ".cc-tree{font-family:ui-monospace,'Cascadia Mono',Menlo,Consolas,monospace;"
+                + "font-size:.875rem;line-height:1.5;overflow-wrap:anywhere}"
+                + ".cc-node{margin:3px 0}.cc-node>summary{cursor:pointer;min-height:44px;"
+                + "align-content:center;padding-inline:4px}.cc-node[open]>summary>.cc-fold{display:none}"
+                + ".cc-children{padding-inline-start:min(8px,1.75vw);border-inline-start:1px solid var(--line)}"
+                + ".cc-row,.cc-br{padding:2px 0}.cc-row code,.cc-raw{white-space:pre-wrap}"
+                + ".cc-count,.cc-fold{color:var(--ink-2);font-size:.82em}"
+                + ".cc-path{max-inline-size:100%;min-height:44px;border:1px solid var(--line);"
+                + "background:var(--code-bg);color:var(--ink);border-radius:10px;padding:5px 9px;"
+                + "font:inherit;font-size:.88em;text-align:start;overflow-wrap:anywhere;vertical-align:middle}"
+                + ".cc-path:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}"
+                + ".cc-copy-msg{display:inline-block;padding:0 4px;color:var(--ink-2);font-size:.82em}"
+                + ".cc-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}"
+                + ".k{color:var(--accent)}"
+                + ".cc-badline{white-space:pre-wrap;color:var(--bad);border-inline-start:2px solid var(--bad);padding:2px 6px}";
         StringBuilder body = new StringBuilder();
-        String copy = copyPathScript();
-        if (result.valid) {
-            body.append("<div class=\"cc-note\">点路径可复制。对象和数组可以折叠。</div>");
-            body.append("<div class=\"cc-tree\">").append(JsonOutline.toHtml(result.formatted)).append("</div>");
+        String copy = null;
+        if (result.limited) {
+            body.append("<div class=\"cc-note\">文件较大或嵌套过深，预览仅显示源码开头。原文件不变，可另存查看全文。</div>")
+                    .append("<pre class=\"cc-tree cc-raw\">").append(escape(jsonSourceExcerpt(request.content)))
+                    .append("</pre>");
+        } else if (result.errorOffset >= 0) {
+            int[] position = JsonOutline.position(request.content, result.errorOffset);
+            body.append("<div class=\"cc-err\">JSON 格式错误：第 ").append(position[0])
+                    .append(" 行第 ").append(position[1])
+                    .append(" 列 <a href=\"https://codecanvas.invalid/jump?line=")
+                    .append(position[0]).append("&amp;offset=").append(result.errorOffset)
+                    .append("\">在代码中定位</a></div>");
+            body.append("<div class=\"cc-tree cc-raw\">")
+                    .append(jsonErrorExcerpt(request.content, result.errorOffset)).append("</div>");
         } else {
-            body.append("<div class=\"cc-err\">JSON 格式错误：")
-                    .append(escape(result.errorLabel()));
-            if (result.errorLine > 0) {
-                body.append(" <a href=\"https://codecanvas.invalid/jump?line=")
-                        .append(result.errorLine).append("\">在代码中定位</a>");
-            }
-            body.append("</div>");
-            body.append("<div class=\"cc-tree\">")
-                    .append(highlightJsonLine(request.content, result.errorLine))
-                    .append("</div>");
+            body.append("<div class=\"cc-note\">点路径复制，点分组展开或折叠。数组从 [0] 开始。</div>");
+            if (result.ambiguous) body.append("<div class=\"cc-note\">重复键及其子项没有唯一路径。</div>");
+            if (result.pathsOmitted) body.append("<div class=\"cc-note\">部分路径过长或无法安全表示，源码仍可查看。</div>");
+            body.append("<div id=\"cc-copied\" class=\"cc-sr\" role=\"status\" aria-live=\"polite\"></div>")
+                    .append("<div class=\"cc-tree\">").append(result.html).append("</div>");
+            copy = copyPathScript();
         }
         return shell(request.dark, extra, body.toString(), copy);
     }
 
-    /** Marks the error line so it can be seen without leaving the preview. */
-    static String highlightJsonLine(String json, int errorLine) {
-        if (json == null) return "";
-        String[] lines = json.split("\n", -1);
-        StringBuilder out = new StringBuilder();
-        for (int i = 0; i < lines.length; i++) {
-            String line = escape(lines[i]);
-            if (errorLine == i + 1) {
-                out.append("<div class=\"cc-badline\">").append(line).append("</div>");
-            } else {
-                out.append("<div class=\"cc-row\">").append(line).append("</div>");
-            }
-        }
-        return out.toString();
+    private static String jsonErrorExcerpt(String text, int offset) {
+        int start = Math.max(0, offset - 360);
+        int end = Math.min(text.length(), offset + 360);
+        if (start > 0 && Character.isLowSurrogate(text.charAt(start))) start--;
+        if (end < text.length() && end > start && Character.isHighSurrogate(text.charAt(end - 1))) end++;
+        String before = text.substring(start, offset);
+        int previousLine = Math.max(before.lastIndexOf('\n'), before.lastIndexOf('\r'));
+        return (start > 0 ? "…\n" : "")
+                + escape(before.substring(0, previousLine + 1))
+                + "<span class=\"cc-badline\">" + escape(before.substring(previousLine + 1))
+                + "<span aria-label=\"错误位置\">▏</span></span>"
+                + escape(text.substring(offset, end)) + (end < text.length() ? "\n…" : "");
+    }
+
+    private static String jsonSourceExcerpt(String text) {
+        int end = Math.min(text.length(), 32 * 1024);
+        if (end == text.length()) return text;
+        if (Character.isHighSurrogate(text.charAt(end - 1))) end--;
+        return text.substring(0, end) + "\n…";
     }
 
     private static String copyPathScript() {
-        return "(function(){var nodes=document.querySelectorAll('.cc-path');"
-                + "for(var i=0;i<nodes.length;i++){nodes[i].addEventListener('click',function(ev){"
-                + "ev.preventDefault();ev.stopPropagation();"
-                + "var t=this.getAttribute('data-path')||'';"
-                + "var box=document.createElement('textarea');box.value=t;"
-                + "document.body.appendChild(box);box.select();"
-                + "try{document.execCommand('copy');this.textContent='已复制';}catch(e){}"
-                + "box.remove();});}})();";
+        return "(function(){var timer,feedback,status=document.getElementById('cc-copied');"
+                + "document.querySelector('.cc-tree').addEventListener('click',function(ev){"
+                + "var btn=ev.target.closest('.cc-path');if(!btn)return;"
+                + "var box=document.createElement('textarea');box.value=btn.dataset.path;"
+                + "box.readOnly=true;box.setAttribute('aria-hidden','true');"
+                + "box.style.cssText='position:fixed;left:0;top:0;width:1px;height:1px;opacity:0';"
+                + "document.body.appendChild(box);box.select();box.setSelectionRange(0,box.value.length);"
+                + "var ok=false;try{ok=document.execCommand('copy')===true;}catch(ignore){}"
+                + "box.remove();btn.focus({preventScroll:true});"
+                + "clearTimeout(timer);if(feedback)feedback.remove();"
+                + "feedback=document.createElement('span');feedback.className='cc-copy-msg';"
+                + "feedback.setAttribute('aria-hidden','true');"
+                + "feedback.textContent=ok?'已复制':'未能复制';btn.after(feedback);"
+                + "status.textContent=feedback.textContent;"
+                + "timer=setTimeout(function(){feedback.remove();status.textContent='';},2400);"
+                + "});})();";
     }
 
     /** Colours JSON tokens without altering them. */
