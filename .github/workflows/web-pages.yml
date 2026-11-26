@@ -10,16 +10,9 @@ concurrency:
   group: code-canvas-github-pages
   cancel-in-progress: true
 jobs:
-  publish:
+  build:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -39,6 +32,35 @@ jobs:
       - uses: actions/upload-pages-artifact@v4
         with:
           path: _site
+  publish:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Wait for uploaded artifact to be indexed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          for attempt in $(seq 1 18); do
+            count="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '[.artifacts[] | select(.name == "github-pages" and .expired == false and .size_in_bytes > 0)] | length' || true)"
+            if [ "$count" = 1 ]; then
+              sleep 5
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'The Pages artifact did not become visible to the deployment job.' >&2
+          exit 1
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
