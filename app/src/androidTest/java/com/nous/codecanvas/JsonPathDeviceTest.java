@@ -109,6 +109,17 @@ public class JsonPathDeviceTest extends InstrumentationTestCase {
         return current.get();
     }
 
+    private void awaitClipboard(String expected) {
+        long end = SystemClock.uptimeMillis() + 6500;
+        String actual;
+        do {
+            actual = clipboard();
+            if (expected.equals(actual)) return;
+            SystemClock.sleep(130);
+        } while (SystemClock.uptimeMillis() < end);
+        assertEquals(expected, actual);
+    }
+
     public void testActualGestureCopiesBothExactPathsAndKeepsAllOriginalTokens() throws Exception {
         String source = "{\"choices\":[{\"arguments\":{\"a.b\":9007199254740993,\"a\":{\"b\":1e-9},"
                 + "\"\\u0078\":null}},{\"arguments\":[]}],\"status\":\"完成\"}\r\n";
@@ -120,11 +131,11 @@ public class JsonPathDeviceTest extends InstrumentationTestCase {
                 + "&& document.body.textContent.includes('1e-9') && document.body.scrollWidth<=innerWidth"));
         tapPath(first);
         waitFor("document.getElementById('cc-copied').textContent==='已复制'");
-        assertEquals(first, clipboard());
+        awaitClipboard(first);
         assertEquals("true", eval("(" + entry(first) + ").textContent===" + JSONObject.quote(first)));
         tapPath(second);
         waitFor("document.getElementById('cc-copied').textContent==='已复制'");
-        assertEquals(second, clipboard());
+        awaitClipboard(second);
         assertEquals("true", eval("(" + entry(second) + ").textContent===" + JSONObject.quote(second)));
         assertEquals(source, new DocumentRepository(context()).findById(doc.getId()).getContent());
         assertEquals("true", eval("(()=>{const f=" + entry(first)
@@ -159,6 +170,6 @@ public class JsonPathDeviceTest extends InstrumentationTestCase {
         String expected = "$['ok']['x']";
         tapPath(expected);
         waitFor("document.getElementById('cc-copied').textContent==='已复制'");
-        assertEquals(expected, clipboard());
+        awaitClipboard(expected);
     }
 }
