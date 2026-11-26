@@ -17,7 +17,9 @@ import org.junit.Test;
 public class SvgWrapperResponsiveTest {
 
     private String wrap(String svg) {
-        return SvgWrapper.wrapSvgInResponsiveHtml(svg, false);
+        String page = SvgWrapper.wrapSvgInResponsiveHtml(svg, false);
+        String raw = page.split("atob\\('", 2)[1].split("'", 2)[0];
+        return new String(java.util.Base64.getDecoder().decode(raw), java.nio.charset.StandardCharsets.UTF_8);
     }
 
     @Test
@@ -64,43 +66,27 @@ public class SvgWrapperResponsiveTest {
     }
 
     @Test
-    public void inlineViewportUnitsAreStripped() {
-        // width:100vw on the root forces the drawing to the viewport and crops the overflow.
-        String out = wrap("<svg style=\"width: 100vw; height: 100vh\"><rect/></svg>");
-        assertFalse("根元素上的 100vw 必须被移除", out.contains("100vw"));
-        assertFalse("根元素上的 100vh 必须被移除", out.contains("100vh"));
+    public void normalizesUtf16DeclarationForUtf8PreviewWithoutTouchingArtworkStyle() {
+        String out = wrap("<?xml version='1.0' encoding='UTF-16'?><svg style='height:100vh'><title>鹈鹕</title></svg>");
+        assertTrue(out.contains("encoding=\"UTF-8\""));
+        assertTrue(out.contains("height:100vh"));
+        assertTrue(out.contains("鹈鹕"));
     }
 
     @Test
-    public void inlineViewportUnitsAreStrippedCaseInsensitively() {
-        String out = wrap("<svg style=\"WIDTH:100VW;HEIGHT:100VH\"><rect/></svg>");
-        assertFalse(out.contains("100VW"));
-        assertFalse(out.contains("100VH"));
+    public void containmentComputesTheSmallerScaleAcrossBothAxes() {
+        String out = SvgWrapper.wrapSvgInResponsiveHtml("<svg><rect/></svg>", false);
+        assertTrue(out.contains("Math.min(availW/b.width,availH/b.height)"));
+        assertTrue(out.contains("attributeFilter:['viewBox']"));
     }
 
     @Test
-    public void containmentCssIsAlwaysPresent() {
-        String out = wrap("<svg><rect/></svg>");
-        assertTrue("必须锁定最大宽度，否则宽幅图会被裁切", out.contains("max-width: 100% !important"));
-        assertTrue("必须锁定最大高度", out.contains("max-height: 100% !important"));
-        assertTrue("必须保留宽高比，不可拉伸变形", out.contains("object-fit: contain !important"));
-    }
-
-    @Test
-    public void viewportMetaIsIncluded() {
-        // Without a viewport the WebView lays out at ~980px and scales, so the same drawing appears
-        // at a different size from one document to the next.
-        String out = wrap("<svg><rect/></svg>");
-        assertTrue(out.contains("name=\"viewport\""));
+    public void wrapperIsACompleteHtmlDocumentContainingAnSvgChild() {
+        String out = SvgWrapper.wrapSvgInResponsiveHtml("<svg><rect/></svg>", false);
         assertTrue(out.contains("width=device-width"));
-    }
-
-    @Test
-    public void wrapperIsACompleteHtmlDocument() {
-        String out = wrap("<svg><rect/></svg>");
-        assertTrue(out.startsWith("<!DOCTYPE html>"));
-        assertTrue(out.trim().endsWith("</html>"));
-        assertTrue("原始 SVG 必须原样保留在文档中", out.contains("<rect/>"));
+        assertTrue(out.startsWith("<!doctype html>"));
+        assertTrue(out.endsWith("</html>"));
+        assertTrue(wrap("<svg><rect/></svg>").contains("<rect/>"));
     }
 
     @Test
@@ -121,8 +107,8 @@ public class SvgWrapperResponsiveTest {
 
     @Test
     public void nullContentDoesNotThrow() {
-        String out = SvgWrapper.wrapSvgInResponsiveHtml(null, false);
-        assertTrue("null 输入必须安全降级为空文档", out.startsWith("<!DOCTYPE html>"));
+        String out = wrap(null);
+        assertTrue("null 输入必须安全降级为空文档", out.isEmpty());
     }
 
     @Test

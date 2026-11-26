@@ -153,10 +153,10 @@ public class MainActivity extends Activity {
         /** Lower-cased copy of the source, built on first search and reused afterwards. */
         private String searchIndex;
 
-        DocumentPresentation(CanvasDocument doc, boolean dark) {
+        DocumentPresentation(CanvasDocument doc, boolean dark, boolean scripts) {
             String content = doc.getContent();
-            previewKey = PreviewKey.forDocument(doc.getId(), content, dark);
             kind = doc.kind();
+            previewKey = PreviewKey.forThumbnail(doc.getId(), kind.name(), content, dark, scripts);
 
             int bytes = doc.isBlob() ? (int) Math.min(Integer.MAX_VALUE, doc.getByteSize())
                     : utf8Length(content);
@@ -216,7 +216,10 @@ public class MainActivity extends Activity {
 
     private java.util.Map<String, DocumentPresentation> preparePresentations(List<CanvasDocument> docs, boolean dark) {
         java.util.Map<String, DocumentPresentation> result = new java.util.HashMap<>();
-        for (CanvasDocument doc : docs) result.put(doc.getId(), new DocumentPresentation(doc, dark));
+        boolean scripts = CanvasPrefs.scriptsAllowed(this);
+        for (CanvasDocument doc : docs) {
+            result.put(doc.getId(), new DocumentPresentation(doc, dark, scripts));
+        }
         return result;
     }
 
@@ -467,6 +470,7 @@ public class MainActivity extends Activity {
         gridDocuments.setVisibility(grid ? View.VISIBLE : View.GONE);
         findViewById(R.id.btn_layout_list).setSelected(!grid);
         findViewById(R.id.btn_layout_grid).setSelected(grid);
+        (grid ? gridDocuments : listDocuments).post(this::loadVisibleThumbs);
     }
 
     private void setupListeners() {
@@ -546,6 +550,7 @@ public class MainActivity extends Activity {
                     selectedIds.retainAll(alive);
                     if (selectionMode && selectedIds.isEmpty()) exitSelectionMode();
                     filterDocuments(editSearch.getText().toString());
+                    backfiller.setPaused(listScrollState != android.widget.AbsListView.OnScrollListener.SCROLL_STATE_IDLE);
                     backfiller.enqueue(ThumbnailBackfiller.missingThumbnails(MainActivity.this, docs));
                 });
             } catch (Exception e) {
@@ -590,6 +595,7 @@ public class MainActivity extends Activity {
         adapter.notifyDataSetChanged();
         ((BaseAdapter) gridDocuments.getAdapter()).notifyDataSetChanged();
         if (drawerAdapter != null) drawerAdapter.notifyDataSetChanged();
+        listDocuments.post(this::loadVisibleThumbs);
         ((TextView) findViewById(R.id.txt_file_count)).setText(
                 (typeFilter == null ? "我的文件" : filterLabel(typeFilter)) + " · " + filteredDocuments.size());
         if (drawerSubtitle != null) {
@@ -1422,7 +1428,7 @@ public class MainActivity extends Activity {
             android.widget.ImageView checkBadge = row.check;
             DocumentPresentation presentation = presentations.get(doc.getId());
             if (presentation == null) {
-                presentation = new DocumentPresentation(doc, isDarkTheme());
+                presentation = new DocumentPresentation(doc, isDarkTheme(), CanvasPrefs.scriptsAllowed(MainActivity.this));
                 presentations.put(doc.getId(), presentation);
             }
             String key = presentation.previewKey;
@@ -1499,6 +1505,9 @@ public class MainActivity extends Activity {
 
     /** After a fling, fill the tiles that were left as placeholders. */
     private void loadVisibleThumbs() {
+        if (isFinishing() || isDestroyed() || backfiller == null
+                || listScrollState != android.widget.AbsListView.OnScrollListener.SCROLL_STATE_IDLE
+                || !CanvasPrefs.thumbnailsEnabled(this)) return;
         bindVisible(listDocuments, R.id.img_doc_preview);
         bindVisible(gridDocuments, R.id.img_doc_preview);
         bindVisible(drawerList, R.id.drawer_item_thumb);
@@ -1507,6 +1516,7 @@ public class MainActivity extends Activity {
     private void bindVisible(android.widget.AbsListView list, int imageId) {
         if (list == null || list.getVisibility() != View.VISIBLE) return;
         int first = list.getFirstVisiblePosition();
+        List<CanvasDocument> visible = new ArrayList<>();
         for (int i = 0; i < list.getChildCount(); i++) {
             int position = first + i;
             if (position < 0 || position >= filteredDocuments.size()) continue;
@@ -1516,7 +1526,10 @@ public class MainActivity extends Activity {
             DocumentPresentation presentation = presentations.get(doc.getId());
             if (presentation == null) continue;
             bindThumbnail(cover, presentation.previewKey, presentation.kind, doc);
+            visible.add(doc);
         }
+        // Older files outside the initial warm-up still get a frame when they come on screen.
+        backfiller.enqueue(visible);
     }
 
     /** Paint only the tiles that are on screen. Rebinding the whole list was a scroll hitch. */
@@ -1703,6 +1716,7 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onStop() {
+        listScrollState = android.widget.AbsListView.OnScrollListener.SCROLL_STATE_IDLE;
         if (backfiller != null) backfiller.stop();
         super.onStop();
     }

@@ -10,6 +10,95 @@ public final class PreviewHtml {
 
     private PreviewHtml() {}
 
+    // Consume entire start tags including quoted attributes (notably iframe srcdoc).
+    // Only outer metadata counts; markup in a quoted attribute or script is not a tag.
+    private static final String TAG_END = "(?:\"[^\"]*\"|'[^']*'|[^\"'>]+)*+>";
+    private static final java.util.regex.Pattern HEAD_TOKENS = java.util.regex.Pattern.compile(
+            "(?is)<!--.*?(?:-->|$)|<(script|style|title|textarea|template|noscript)(?=[\\s/>])"
+            + TAG_END + ".*?</\\1\\s*>|<([a-z][a-z0-9:_-]*)(?=[\\s/>])" + TAG_END);
+    private static final java.util.regex.Pattern ATTRIBUTE = java.util.regex.Pattern.compile(
+            "([^\\s=<>/\"']+)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))");
+
+    /** The original page stays intact; only preview viewport metadata and artwork sizing change. */
+    public static String forWebPage(String html) {
+        if (html == null) html = "";
+        String layout = "<style>body:has(>canvas:only-of-type):not(:has(>:not(canvas,script,style,template,noscript)))>canvas"
+                + "{width:auto!important;height:auto!important;max-width:100%!important;max-height:100vh!important;object-fit:contain}"
+                + "</style>";
+        if (RenderKindDetector.isSingleInlineSvgDocument(html)) {
+            SvgGeometry.Box box = SvgGeometry.measure(RenderKindDetector.extractInlineSvg(html));
+            if (box.isValid() && Double.isFinite(box.aspect())) {
+                double ratio = box.aspect();
+                // Fit the viewport of a single inline stage to its viewBox. Thus an author's
+                // "slice" still works as authored, but has no excess space to crop. We don't
+                // touch multi-element HTML, script order, the SVG tree, or the original file.
+                layout += "<style>body>svg{width:min(100%,100vw,calc(100vh * " + ratio
+                        + "))!important;height:auto!important;aspect-ratio:" + ratio
+                        + "!important;max-width:100%!important;max-height:none!important;"
+                        + "min-height:0!important;min-width:0!important;align-self:center!important;"
+                        + "justify-self:center!important;box-sizing:content-box!important}</style>";
+            }
+        }
+        java.util.regex.Matcher tokens = HEAD_TOKENS.matcher(html);
+        StringBuilder out = new StringBuilder(html.length() + layout.length() + 160);
+        int copied = 0, headEnd = -1, htmlEnd = -1;
+        boolean found = false;
+        while (tokens.find()) {
+            String kind = tokens.group(2);
+            if (kind == null) continue;
+            if ("head".equalsIgnoreCase(kind)) headEnd = tokens.end();
+            if ("html".equalsIgnoreCase(kind)) htmlEnd = tokens.end();
+            if (!"meta".equalsIgnoreCase(kind)) continue;
+            String name = attribute(tokens.group(), "name");
+            if (!"viewport".equalsIgnoreCase(name == null ? "" : name.trim())) continue;
+            out.append(html, copied, tokens.start());
+            if (!found) {
+                String content = attribute(tokens.group(), "content");
+                out.append(viewportTag(content)).append(layout);
+            }
+            copied = tokens.end();
+            found = true;
+        }
+        if (found) return out.append(html, copied, html.length()).toString();
+        String injected = viewportTag(null) + layout;
+        if (headEnd >= 0) return html.substring(0, headEnd) + injected + html.substring(headEnd);
+        if (htmlEnd >= 0) return html.substring(0, htmlEnd) + "<head>" + injected
+                + "</head>" + html.substring(htmlEnd);
+        // Place metadata after a real doctype so the page keeps its original rendering mode.
+        java.util.regex.Matcher doctype = java.util.regex.Pattern.compile(
+                "(?is)^\\s*(?:<!--.*?-->\\s*)*<!doctype[^>]*>").matcher(html);
+        int offset = doctype.find() ? doctype.end() : 0;
+        return html.substring(0, offset) + injected + html.substring(offset);
+    }
+
+    private static String attribute(String tag, String name) {
+        java.util.regex.Matcher matcher = ATTRIBUTE.matcher(tag);
+        while (matcher.find()) {
+            if (!name.equalsIgnoreCase(matcher.group(1))) continue;
+            for (int i = 2; i <= 4; i++) if (matcher.group(i) != null) return matcher.group(i);
+        }
+        return null;
+    }
+
+    private static String viewportTag(String content) {
+        StringBuilder value = new StringBuilder();
+        boolean width = false;
+        if (content != null) {
+            for (String entry : content.split("[,;]")) {
+                int equals = entry.indexOf('=');
+                if (equals < 0) continue;
+                String key = entry.substring(0, equals).trim().toLowerCase(java.util.Locale.ROOT);
+                if ("user-scalable".equals(key) || "maximum-scale".equals(key)
+                        || "minimum-scale".equals(key)) continue;
+                width |= "width".equals(key);
+                value.append(entry.trim()).append(", ");
+            }
+        }
+        if (!width) value.append("width=device-width, ");
+        return "<meta name=\"viewport\" content=\"" + PreviewPage.escape(value.toString())
+                + "minimum-scale=0.1, maximum-scale=8, user-scalable=yes\">";
+    }
+
     /**
      * A page without a viewport meta tag is laid out on WebView's ~980px virtual canvas and then
      * zoomed out to fit, so the very same code can render large or tiny depending on whether the
@@ -56,14 +145,10 @@ public final class PreviewHtml {
             content = "";
         }
         if (kind == RenderKind.SVG) {
-            // A .html file whose body is one inline <svg> is previewed as a drawing, so the wrapper
-            // must receive the drawing element only. Wrapping the whole document would nest a page
-            // inside the SVG stage.
-            String svg = RenderKindDetector.extractInlineSvgArtwork(content);
-            return SvgWrapper.wrapSvgInResponsiveHtml(svg != null ? svg : content, dark);
+            return SvgWrapper.wrapSvgInResponsiveHtml(content, dark);
         }
         if (kind == RenderKind.HTML) {
-            return ensureViewport(content);
+            return forWebPage(content);
         }
         String escaped = content.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
         return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"

@@ -85,7 +85,7 @@ public class SvgCenteringProbeTest extends InstrumentationTestCase {
         final String[] json = new String[1];
         final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
         getInstrumentation().runOnMainSync(() -> web.evaluateJavascript(
-                "(function(){var s=document.querySelector('#cc-fit svg');"
+                "(function(){var s=window.CCViewport&&CCViewport.svg();"
                         + "if(!s)return 'no-svg';var r=s.getBoundingClientRect();"
                         + "return JSON.stringify({ih:window.innerHeight,iw:window.innerWidth,"
                         + "top:r.top,bottom:r.bottom,left:r.left,right:r.right,w:r.width,h:r.height});})()",

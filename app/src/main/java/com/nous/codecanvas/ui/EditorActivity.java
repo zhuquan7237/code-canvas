@@ -358,13 +358,13 @@ public class EditorActivity extends Activity {
         }
         View actions = findViewById(R.id.preview_action_row);
         if (actions != null) actions.setVisibility(!land && preview ? View.VISIBLE : View.GONE);
-        boolean zoomable = kind == DocumentKind.SVG || kind == DocumentKind.MERMAID
-                || isImageKind() || kind == DocumentKind.PDF;
+        boolean zoomable = isWebZoomKind() || isVectorKind() || isImageKind() || kind == DocumentKind.PDF;
         if (viewportToolbar != null) {
             viewportToolbar.setVisibility(!land && preview && zoomable ? View.VISIBLE : View.GONE);
         }
         if (switchAllowJs != null) {
-            switchAllowJs.setVisibility(!land && !compact && preview && html ? View.VISIBLE : View.GONE);
+            switchAllowJs.setVisibility(!land && !compact && preview
+                    && (html || isVectorKind()) ? View.VISIBLE : View.GONE);
         }
         View network = findViewById(R.id.btn_preview_network);
         if (network != null) {
@@ -432,8 +432,8 @@ public class EditorActivity extends Activity {
         txtPdfPage = findViewById(R.id.txt_pdf_page);
         View pdfPrev = findViewById(R.id.btn_pdf_prev);
         View pdfNext = findViewById(R.id.btn_pdf_next);
-        if (pdfPrev != null) pdfPrev.setOnClickListener(v -> showPdfPage(pdfPageIndex - 1));
-        if (pdfNext != null) pdfNext.setOnClickListener(v -> showPdfPage(pdfPageIndex + 1));
+        if (pdfPrev != null) pdfPrev.setOnClickListener(v -> showPdfPage(pdfRequestedIndex - 1));
+        if (pdfNext != null) pdfNext.setOnClickListener(v -> showPdfPage(pdfRequestedIndex + 1));
         if (txtPdfPage != null) txtPdfPage.setOnClickListener(v -> askPdfPage());
 
         searchBar = findViewById(R.id.search_bar);
@@ -503,7 +503,7 @@ public class EditorActivity extends Activity {
         // Pinch-zoom on an HTML page belongs to the WebView. Tell the parent not to take the
         // second finger, or the page and the viewport fight and the zoom drifts.
         webPreview.setOnTouchListener((v, event) -> {
-            if (kind == DocumentKind.HTML && event.getPointerCount() > 1 && v.getParent() != null) {
+            if (isWebZoomKind() && event.getPointerCount() > 1 && v.getParent() != null) {
                 v.getParent().requestDisallowInterceptTouchEvent(true);
             }
             return false;
@@ -531,24 +531,33 @@ public class EditorActivity extends Activity {
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
             if (request == null || request.getUrl() == null) return true;
+            if (kind == DocumentKind.SVG && !request.isForMainFrame()) {
+                // The child only loads our blob; artwork must not replace it with another page.
+                return !"blob".equals(request.getUrl().getScheme());
+            }
             // Subresources stay inside the sandbox interceptor. Only a main-frame navigation
             // can leave this screen, and only for a real http(s) link.
             if (!request.isForMainFrame()) return false;
-            return leavePreviewFor(request.getUrl().toString());
+            return leavePreviewFor(request.getUrl().toString(), request.hasGesture());
         }
 
         @Override
         public boolean shouldOverrideUrlLoading(WebView v, String url) {
-            return leavePreviewFor(url);
+            return kind == DocumentKind.SVG && url != null && url.startsWith("blob:")
+                    ? false : leavePreviewFor(url, false);
         }
 
-        private boolean leavePreviewFor(String url) {
+        private boolean leavePreviewFor(String url, boolean userGesture) {
             if (jumpToSourceLine(url)) return true;
             // A local document must never navigate the preview away. http(s) links open in the
             // system browser; javascript: and file: are dropped so they cannot leave the sandbox.
-            if (url != null && !url.startsWith("https://" + PreviewAssets.HOST)) {
-                String lower = url.toLowerCase(java.util.Locale.ROOT);
-                if (lower.startsWith("https://") || lower.startsWith("http://")) {
+            if (userGesture && url != null) {
+                android.net.Uri uri = android.net.Uri.parse(url);
+                String host = uri.getHost();
+                String scheme = uri.getScheme();
+                if (host != null && !host.equals(PreviewAssets.HOST)
+                        && !host.endsWith("." + PreviewAssets.HOST)
+                        && ("https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme))) {
                     openExternally(url);
                 }
             }
@@ -572,26 +581,21 @@ public class EditorActivity extends Activity {
                 public void onComplete(long id) {
                     if (isDestroyed() || isFinishing() || !previewState.ready(ticket)) return;
                     if (previewLoadingView != null) previewLoadingView.setVisibility(View.GONE);
-                    boolean dark = isDark();
-                    String key = PreviewKey.forDocument(currentDocument.getId(),
-                            editorTextOrStored(), dark);
-                    if (viewFlipper.getDisplayedChild() == 1 && supportsThumbnail()) {
-                        Bitmap image = PreviewThumbnailCache.capture(view);
-                        if (image != null) {
-                            Bitmap framed = kind == DocumentKind.SVG
-                                    ? PreviewThumbnailCache.letterbox(image)
-                                    : PreviewThumbnailCache.topSlice(image);
-                            if (framed != null && framed != image) image.recycle();
-                            image = framed;
-                        }
-                        if (image != null && !saveExecutor.isShutdown()) {
-                            Bitmap toStore = image;
-                            saveExecutor.execute(() -> PreviewThumbnailCache.store(
-                                    getApplicationContext(), key, toStore));
-                        }
+                    if (isWebZoomKind() && webFitScale <= 0) {
+                        // getScale is only a fallback when WebView didn't issue an initial callback.
+                        webFitScale = webScale = view.getScale();
+                        updateWebZoomLabel();
                     }
                 }
             });
+        }
+
+        @Override
+        public void onScaleChanged(WebView view, float oldScale, float newScale) {
+            if (!isWebZoomKind() || newScale <= 0) return;
+            if (webFitScale <= 0) webFitScale = newScale;
+            webScale = newScale;
+            updateWebZoomLabel();
         }
 
         @Override
@@ -682,12 +686,20 @@ public class EditorActivity extends Activity {
         if (webPreview == null) return;
         ensureWebViewReady();
         final long ticket = previewState.generation;
-        final String base = "https://" + PreviewAssets.HOST + "/preview/" + ticket;
+        // Imported markup gets a distinct origin per document; localStorage (HTML only)
+        // never shares game state across imported files. The origin is not a real website.
+        String host = (kind == DocumentKind.HTML || isVectorKind())
+                ? "preview-" + PreviewKey.forDocument(currentDocument.getId(), "", false).substring(0, 32)
+                    + "." + PreviewAssets.HOST
+                : PreviewAssets.HOST;
+        final String base = "https://" + host + "/preview/" + ticket;
         previewBaseUrl = base;
         previewTicket = ticket;
         previewLoadingView = findViewById(R.id.preview_loading);
         if (previewLoadingView != null) previewLoadingView.setVisibility(View.VISIBLE);
         previewLoadCount++;
+        webScale = webFitScale = 0;
+        updateWebZoomLabel();
         handler.removeCallbacks(previewTimeoutRunnable);
         handler.postDelayed(previewTimeoutRunnable, 15000);
         webPreview.loadDataWithBaseURL(base, html, "text/html", "UTF-8", null);
@@ -750,7 +762,7 @@ public class EditorActivity extends Activity {
             if (webPreview != null) {
                 webPreview.getSettings().setJavaScriptEnabled(previewJavaScriptEnabled());
             }
-            if (applyingScriptPref || kind != DocumentKind.HTML) {
+            if (applyingScriptPref || !(kind == DocumentKind.HTML || isVectorKind())) {
                 return;
             }
             Toast.makeText(this, isAllowJs
@@ -864,6 +876,7 @@ public class EditorActivity extends Activity {
         previewViewport.setOnViewportListener(new SvgViewport.OnViewportListener() {
             @Override
             public void onZoomChanged(float factor) {
+                if (isWebZoomKind()) return;
                 if (txtViewportZoom != null) {
                     txtViewportZoom.setText(Math.round(factor * 100) + "%");
                 }
@@ -875,10 +888,30 @@ public class EditorActivity extends Activity {
             }
         });
 
-        btnViewportFit.setOnClickListener(v -> previewViewport.animateFit());
+        btnViewportFit.setOnClickListener(v -> {
+            if (isWebZoomKind()) {
+                if (webPreview != null && webScale > 0 && webFitScale > 0) {
+                    float ratio = webFitScale / webScale;
+                    // zoomBy is asynchronous; preserve the live page, not a reload/reset.
+                    if (Math.abs(ratio - 1) > .01f) webPreview.zoomBy(ratio);
+                    webPreview.scrollTo(0, 0);
+                }
+            } else if (isVectorKind() && svgViewBoxOverride != null) {
+                svgViewBoxOverride = null;
+                renderPreview(true);
+            } else previewViewport.animateFit();
+        });
         btnViewportFitContent.setOnClickListener(v -> fitToContent());
-        btnViewportZoomIn.setOnClickListener(v -> previewViewport.animateZoomIn());
-        btnViewportZoomOut.setOnClickListener(v -> previewViewport.animateZoomOut());
+        btnViewportZoomIn.setOnClickListener(v -> {
+            if (isWebZoomKind()) {
+                if (webPreview != null) webPreview.zoomIn();
+            } else previewViewport.animateZoomIn();
+        });
+        btnViewportZoomOut.setOnClickListener(v -> {
+            if (isWebZoomKind()) {
+                if (webPreview != null) webPreview.zoomOut();
+            } else previewViewport.animateZoomOut();
+        });
         // Gestures change the transform without going through a button, so the page has to be told
         // about it as well; otherwise a pinch would scale the view and leave the SVG at 1x.
         previewViewport.setTransformSink((scale, dx, dy) -> {
@@ -913,7 +946,9 @@ public class EditorActivity extends Activity {
         if (webPreview == null || previewRendererDead) return;
         // No early return for the identity transform: "fit to window" *is* the identity, and
         // skipping it left the page stuck at whatever zoom the user had reached.
-        final String js = "if(window.CCViewport){window.CCViewport.set(" + scale + "," + dx + "," + dy + ");}";
+        float cssScale = Math.max(.01f, webPreview.getScale());
+        final String js = "if(window.CCViewport){window.CCViewport.set("
+                + scale + "," + dx / cssScale + "," + dy / cssScale + ");}";
         handler.removeCallbacks(transformPushRunnable);
         transformPushRunnable = () -> {
             if (webPreview != null && !previewRendererDead) {
@@ -925,22 +960,12 @@ public class EditorActivity extends Activity {
 
     private Runnable transformPushRunnable;
 
-    /**
-     * Replay a tap into the preview page at the point the user actually touched.
-     *
-     * <p>The viewport's transform is applied to the page's stage, so the page coordinates of a
-     * touch are the viewport coordinates run backwards through scale and translation. Dispatching a
-     * synthetic {@code click} on the element under that point is what lets a drawing's own buttons
-     * work while pan and pinch stay with the viewport.</p>
-     */
+    /** Hit-testing inside the transformed iframe expects outer CSS viewport coordinates. */
     private void forwardTapToPreview(float x, float y) {
-        if (webPreview == null || previewRendererDead) return;
-        if (!isVectorKind() && !isImageKind()) return;
-        float scale = previewViewport.getZoomFactor();
-        if (scale <= 0f) scale = 1f;
-        android.graphics.RectF bounds = previewViewport.contentBoundsForTest();
-        final float pageX = (x - bounds.left) / scale;
-        final float pageY = (y - bounds.top) / scale;
+        if (webPreview == null || previewRendererDead || !isVectorKind()) return;
+        float cssScale = Math.max(.01f, webPreview.getScale());
+        final float pageX = x / cssScale;
+        final float pageY = y / cssScale;
         final String js = "if(window.CCTap){window.CCTap(" + pageX + "," + pageY + ");}";
         handler.removeCallbacks(tapPushRunnable);
         tapPushRunnable = () -> {
@@ -967,7 +992,22 @@ public class EditorActivity extends Activity {
     };
 
     private boolean isVectorKind() {
-        return kind == DocumentKind.SVG || kind == DocumentKind.MERMAID;
+        return kind == DocumentKind.SVG;
+    }
+
+    private boolean isWebZoomKind() {
+        return kind == DocumentKind.HTML || kind == DocumentKind.MERMAID
+                || kind == DocumentKind.MARKDOWN || kind == DocumentKind.CSV;
+    }
+
+    private float webScale, webFitScale;
+
+    private void updateWebZoomLabel() {
+        if (isWebZoomKind() && txtViewportZoom != null) {
+            int percent = webFitScale > 0 ? Math.round(100 * webScale / webFitScale) : 100;
+            txtViewportZoom.setText(percent + "%");
+            btnViewportFit.setSelected(Math.abs(percent - 100) <= 1);
+        }
     }
 
     private boolean isImageKind() {
@@ -1800,7 +1840,7 @@ public class EditorActivity extends Activity {
         // SVG scripts and SMIL timers have to run or the drawing is a still. HTML follows the
         // user's script switch, which defaults to on.
         return kind == DocumentKind.SVG
-                || isAllowJs
+                || (kind == DocumentKind.HTML && isAllowJs)
                 || kind == DocumentKind.MARKDOWN || kind == DocumentKind.MERMAID
                 || kind == DocumentKind.JSON || kind == DocumentKind.JSONL
                 || kind == DocumentKind.CSV;
@@ -1820,13 +1860,16 @@ public class EditorActivity extends Activity {
             menu.getMenu().add(0, 6, 0, "全屏");
             if (kind == DocumentKind.HTML) {
                 menu.getMenu().add(0, 5, 0, isAllowNetwork ? "切回离线" : "联网加载");
+            }
+            if (kind == DocumentKind.HTML || isVectorKind()) {
                 menu.getMenu().add(0, 8, 0, "允许页面脚本").setCheckable(true).setChecked(isAllowJs);
             }
             if (viewportToolbar != null && viewportToolbar.getVisibility() != View.VISIBLE
-                    && (kind == DocumentKind.SVG || kind == DocumentKind.MERMAID
-                    || isImageKind() || kind == DocumentKind.PDF)) {
+                    && (isWebZoomKind() || isVectorKind() || isImageKind() || kind == DocumentKind.PDF)) {
                 menu.getMenu().add(0, 9, 0, "适应窗口");
-                menu.getMenu().add(0, 10, 0, "适应内容");
+                if (isVectorKind()) menu.getMenu().add(0, 10, 0, "适应内容");
+                menu.getMenu().add(0, 11, 0, "放大");
+                menu.getMenu().add(0, 12, 0, "缩小");
             }
         }
         menu.setOnMenuItemClickListener(item -> {
@@ -1840,6 +1883,8 @@ public class EditorActivity extends Activity {
             else if (item.getItemId() == 8) switchAllowJs.setChecked(!switchAllowJs.isChecked());
             else if (item.getItemId() == 9) btnViewportFit.performClick();
             else if (item.getItemId() == 10) btnViewportFitContent.performClick();
+            else if (item.getItemId() == 11) btnViewportZoomIn.performClick();
+            else if (item.getItemId() == 12) btnViewportZoomOut.performClick();
             return true;
         });
         menu.show();
@@ -1910,8 +1955,7 @@ public class EditorActivity extends Activity {
         }
         // "Fit to content" is an SVG-only idea.
         btnViewportFitContent.setVisibility(kind == DocumentKind.SVG ? View.VISIBLE : View.GONE);
-        boolean zoomable = kind == DocumentKind.SVG || kind == DocumentKind.MERMAID
-                || isImageKind() || kind == DocumentKind.PDF;
+        boolean zoomable = isWebZoomKind() || isVectorKind() || isImageKind() || kind == DocumentKind.PDF;
         viewportToolbar.setVisibility(zoomable ? View.VISIBLE : View.GONE);
         if (previewViewport != null) {
             if (isImageKind() || kind == DocumentKind.PDF) {
@@ -1923,10 +1967,19 @@ public class EditorActivity extends Activity {
         }
         // Only content that must not scroll hands its touches to the viewport. A Markdown page or
         // a CSV table has to keep scrolling normally, so the viewport stays passive there.
-        previewViewport.setInteractive(zoomable);
+        previewViewport.setInteractive(isVectorKind() || isImageKind() || kind == DocumentKind.PDF);
         // The script switch is meaningless for a raster image or a PDF.
-        switchAllowJs.setVisibility(kind == DocumentKind.HTML ? View.VISIBLE : View.GONE);
-        if (pdfPager != null) pdfPager.setVisibility(kind == DocumentKind.PDF ? View.VISIBLE : View.GONE);
+        switchAllowJs.setVisibility(kind == DocumentKind.HTML || isVectorKind() ? View.VISIBLE : View.GONE);
+        if (pdfPager != null) {
+            boolean pdf = kind == DocumentKind.PDF;
+            pdfPager.setVisibility(pdf ? View.VISIBLE : View.GONE);
+            android.widget.FrameLayout.LayoutParams lp = (android.widget.FrameLayout.LayoutParams) previewViewport.getLayoutParams();
+            int top = pdf ? getResources().getDimensionPixelSize(R.dimen.touch_min) : 0;
+            if (lp.topMargin != top) {
+                lp.topMargin = top; // The pager must never cover the top of a fitted page.
+                previewViewport.setLayoutParams(lp);
+            }
+        }
         applyEditorChrome();
     }
 
@@ -1937,6 +1990,7 @@ public class EditorActivity extends Activity {
         // changes the title directly) must change how the content is rendered, not just its label.
         DocumentKind current = currentDocument.kind();
         if (current != kind) {
+            isAllowNetwork = false;
             kind = current;
             applyKindToChrome();
         }
@@ -1971,7 +2025,10 @@ public class EditorActivity extends Activity {
         if (webPreview != null) {
             // HTML uses the WebView's own pinch zoom. Scaling the view on top of that is what
             // made a page drift away from the fingers.
-            boolean nativeZoom = kind == DocumentKind.HTML;
+            boolean nativeZoom = isWebZoomKind();
+            webPreview.getSettings().setLoadWithOverviewMode(kind == DocumentKind.HTML);
+            webPreview.getSettings().setBlockNetworkLoads(kind != DocumentKind.HTML || !isAllowNetwork);
+            webPreview.getSettings().setDomStorageEnabled(kind == DocumentKind.HTML && isAllowJs);
             webPreview.getSettings().setSupportZoom(nativeZoom);
             webPreview.getSettings().setBuiltInZoomControls(nativeZoom);
             webPreview.getSettings().setDisplayZoomControls(false);
@@ -1984,6 +2041,12 @@ public class EditorActivity extends Activity {
                 || kind == DocumentKind.MARKDOWN))
                 ? com.nous.codecanvas.util.RenderingAdvisor.inspect(content)
                 : java.util.Collections.emptyList();
+        if (!isAllowJs && (kind == DocumentKind.HTML || isVectorKind())
+                && content.toLowerCase(java.util.Locale.ROOT).contains("<script")) {
+            java.util.List<String> notes = new java.util.ArrayList<>(warnings);
+            notes.add("页面脚本已关闭；动画和按钮需要开启「允许页面脚本」。仅运行可信文件。");
+            warnings = notes;
+        }
         if (!warnings.isEmpty()) {
             StringBuilder sb = new StringBuilder();
             for (String w : warnings) sb.append("• ").append(w).append("\n");
@@ -2001,6 +2064,8 @@ public class EditorActivity extends Activity {
         request.allowScripts = isAllowJs;
         request.allowNetwork = isAllowNetwork;
         request.svgViewBoxOverride = svgViewBoxOverride;
+        previewViewport.setArtworkGestures(isVectorKind() && isAllowJs
+                && content.toLowerCase(java.util.Locale.ROOT).contains("<script"));
         loadPreview(PreviewPage.build(request), fingerprint);
 
         // A fresh render starts fitted: a new drawing must not land outside an old viewport.
@@ -2026,7 +2091,8 @@ public class EditorActivity extends Activity {
             Toast.makeText(this, "原始图片不在本地缓存里了，可以重新导入或用其他应用打开", Toast.LENGTH_LONG).show();
             return;
         }
-        if (kind == DocumentKind.GIF && showAnimatedGif(blob)) {
+        if ((kind == DocumentKind.GIF || isAnimatedWebp(blob)) && showAnimatedImage(blob)) {
+            txtRenderModeBadge.setText("动图预览");
             previewViewport.fitToWindow();
             return;
         }
@@ -2039,6 +2105,7 @@ public class EditorActivity extends Activity {
         options.inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight);
         Bitmap bitmap = BitmapFactory.decodeFile(blob.getAbsolutePath(), options);
         if (bitmap == null) {
+            previewImage.setImageDrawable(null);
             Toast.makeText(this, "图片无法解码，文件可能已损坏。原始字节仍然保留。", Toast.LENGTH_LONG).show();
             return;
         }
@@ -2046,18 +2113,38 @@ public class EditorActivity extends Activity {
         previewViewport.fitToWindow();
     }
 
-    /** Keep a GIF playing. A still bitmap would freeze on the first frame. */
-    private boolean showAnimatedGif(File blob) {
+    static boolean isAnimatedWebp(File blob) {
+        try (java.io.InputStream in = new java.io.FileInputStream(blob)) {
+            byte[] header = new byte[21];
+            int n = 0;
+            while (n < header.length) {
+                int count = in.read(header, n, header.length - n);
+                if (count < 0) return false;
+                n += count;
+            }
+            return new String(header, 0, 4, java.nio.charset.StandardCharsets.US_ASCII).equals("RIFF")
+                    && new String(header, 8, 8, java.nio.charset.StandardCharsets.US_ASCII).equals("WEBPVP8X")
+                    && (header[20] & 2) != 0;
+        } catch (java.io.IOException e) {
+            return false;
+        }
+    }
+
+    /** Keep GIFs and extended WebP playing without decoding unbounded frames. */
+    private boolean showAnimatedImage(File blob) {
         try {
             if (Build.VERSION.SDK_INT >= 28) {
                 ImageDecoder.Source source = ImageDecoder.createSource(blob);
-                Drawable drawable = ImageDecoder.decodeDrawable(source);
+                Drawable drawable = ImageDecoder.decodeDrawable(source, (decoder, info, input) ->
+                        decoder.setTargetSampleSize(sampleSizeFor(
+                                info.getSize().getWidth(), info.getSize().getHeight())));
                 previewImage.setImageDrawable(drawable);
                 if (drawable instanceof AnimatedImageDrawable) {
                     ((AnimatedImageDrawable) drawable).start();
                 }
                 return true;
             }
+            if (kind != DocumentKind.GIF) return false;
             Movie movie = Movie.decodeFile(blob.getAbsolutePath());
             if (movie == null) return false;
             previewImage.setImageDrawable(new LoopingGifDrawable(movie));
@@ -2095,17 +2182,29 @@ public class EditorActivity extends Activity {
         showPdfPage(pdfPageIndex);
     }
 
+    private volatile long pdfRenderGeneration;
+    private int pdfRequestedIndex;
+    private final java.util.concurrent.ExecutorService pdfExecutor =
+            java.util.concurrent.Executors.newSingleThreadExecutor();
+
     private void showPdfPage(int index) {
         if (currentDocument == null) return;
         File blob = FileImporter.blobFile(this, currentDocument.getId());
         int target = Math.max(480, getResources().getDisplayMetrics().widthPixels);
-        final int requested = index;
-        new Thread(() -> {
+        final int requested = Math.max(0, pdfPageCount > 0 ? Math.min(index, pdfPageCount - 1) : index);
+        pdfRequestedIndex = requested;
+        final long generation = ++pdfRenderGeneration;
+        pdfExecutor.execute(() -> {
+            if (generation != pdfRenderGeneration) return;
             try {
                 PdfPageRenderer.Page page = PdfPageRenderer.render(blob, requested, target);
                 runOnUiThread(() -> {
-                    if (isFinishing() || isDestroyed() || kind != DocumentKind.PDF) return;
-                    pdfPageIndex = page.index;
+                    if (isFinishing() || isDestroyed() || kind != DocumentKind.PDF
+                            || generation != pdfRenderGeneration) {
+                        page.bitmap.recycle();
+                        return;
+                    }
+                    pdfPageIndex = pdfRequestedIndex = page.index;
                     pdfPageCount = page.count;
                     previewImage.setImageBitmap(page.bitmap);
                     if (txtPdfPage != null) {
@@ -2115,7 +2214,9 @@ public class EditorActivity extends Activity {
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
-                    if (isFinishing() || isDestroyed()) return;
+                    if (isFinishing() || isDestroyed() || kind != DocumentKind.PDF
+                            || generation != pdfRenderGeneration) return;
+                    previewImage.setImageDrawable(null);
                     TextView note = findViewById(R.id.txt_preview_advice);
                     if (note != null) {
                         note.setText("这份 PDF 打不开：" + describe(e)
@@ -2124,7 +2225,7 @@ public class EditorActivity extends Activity {
                     }
                 });
             }
-        }, "canvas-pdf").start();
+        });
     }
 
     private static String badgeFor(DocumentKind kind) {
@@ -2141,11 +2242,6 @@ public class EditorActivity extends Activity {
             case CODE: return "代码预览";
             default: return "纯文本视图";
         }
-    }
-
-    private boolean supportsThumbnail() {
-        return kind == DocumentKind.HTML || kind == DocumentKind.SVG
-                || kind == DocumentKind.MARKDOWN || kind == DocumentKind.MERMAID;
     }
 
     private void setNetworkAllowed(boolean allowed) {
@@ -2680,6 +2776,8 @@ public class EditorActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        pdfRenderGeneration++;
+        pdfExecutor.shutdownNow();
         if (activeDialog != null && activeDialog.isShowing()) activeDialog.dismiss();
         if (activeSheet != null && activeSheet.isShowing()) activeSheet.dismiss();
         handler.removeCallbacks(autoSaveRunnable);

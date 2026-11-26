@@ -42,15 +42,8 @@ public final class PreviewPage {
         String kind = request.kind == null ? "TEXT" : request.kind.toUpperCase(Locale.ROOT);
         switch (kind) {
             case "HTML": return html(request);
-            case "SVG": {
-                // A .html file whose body is one inline <svg> is previewed as a drawing, so the
-                // wrapper must receive the drawing element only. Wrapping the whole document would
-                // nest a page — title, stylesheet and all — inside the SVG stage.
-                String svg = RenderKindDetector.extractInlineSvgArtwork(request.content);
-                return SvgWrapper.wrapSvgInResponsiveHtml(
-                        svg != null ? svg : request.content,
-                        request.dark, request.svgViewBoxOverride);
-            }
+            case "SVG": return SvgWrapper.wrapSvgInResponsiveHtml(request.content,
+                    request.dark, request.svgViewBoxOverride, request.allowScripts);
             case "MARKDOWN": return markdown(request);
             case "MERMAID": return mermaid(request);
             case "JSON": return json(request);
@@ -152,7 +145,7 @@ public final class PreviewPage {
         String content = request.content == null ? "" : request.content;
         // A page without a viewport is laid out at ~980px and then zoomed, so the same code renders
         // at wildly different sizes. Supply one when the author did not.
-        return PreviewHtml.ensureViewport(content);
+        return PreviewHtml.forWebPage(content);
     }
 
     // ------------------------------------------------------------------ Markdown
@@ -193,9 +186,9 @@ public final class PreviewPage {
     // ------------------------------------------------------------------ Mermaid
 
     private static String mermaid(Request request) {
-        String extra = "body{padding:10px;display:flex;align-items:center;justify-content:center;min-height:100%}"
+        String extra = "body{padding:10px;display:flex;align-items:center;justify-content:center;min-height:100vh}"
                 + "#cc-mermaid{width:100%;text-align:center}"
-                + "#cc-mermaid svg{max-width:100%;height:auto}";
+                + "#cc-mermaid svg{display:block;margin:auto;max-width:100%;max-height:calc(100vh - 20px);height:auto;width:auto}";
         String body = sourceHolder(request.content)
                 + "<div id=\"cc-mermaid\" class=\"mermaid\"></div>"
                 + "<div id=\"cc-mermaid-err\" class=\"cc-err\" style=\"display:none\"></div>";

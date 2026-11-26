@@ -308,7 +308,7 @@ public class CodeCanvasActivityE2ETest extends android.test.InstrumentationTestC
         final AtomicReference<String> svgDomResult = new AtomicReference<>();
         final CountDownLatch latch3 = new CountDownLatch(1);
         runTestOnUiThread(() -> {
-            webView.evaluateJavascript("document.getElementById('my-circle') ? 'FOUND' : 'NOT_FOUND'", value -> {
+            webView.evaluateJavascript("window.CCViewport?.svg()?.querySelector('#my-circle') ? 'FOUND' : 'NOT_FOUND'", value -> {
                 svgDomResult.set(value);
                 latch3.countDown();
             });

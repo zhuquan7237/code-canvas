@@ -22,19 +22,27 @@ public final class PreviewThumbnailCache {
  public static Bitmap capture(View view){
   int w=view.getWidth(),h=view.getHeight();
   if(w<=0||h<=0) return null;
-  int outW=480;
-  int outH=Math.max(1,Math.round(outW*(float)h/w));
-  // A very tall page would otherwise produce an enormous bitmap for a 44dp tile. Clamping the
-  // height keeps the memory cost bounded; the aspect ratio is still whatever the page had, so the
-  // tile shows the whole page rather than a crop of it.
-  if(outH>outW*3){ outH=outW*3; }
+  float scale=Math.min(480f/w,960f/h);
+  int outW=Math.max(1,Math.round(w*scale));
+  int outH=Math.max(1,Math.round(h*scale));
   Bitmap b=Bitmap.createBitmap(outW,outH,Bitmap.Config.ARGB_8888);
   Canvas canvas=new Canvas(b); canvas.drawColor(Color.WHITE);
-  float scale=(float)outW/w; canvas.scale(scale,scale); view.draw(canvas);
+  canvas.scale(scale,scale); view.draw(canvas);
   return b;
  }
+ /** Translate CSS viewport coordinates to the screenshot without distorting either axis. */
+ static Bitmap cropViewportRect(Bitmap shot, float[] bounds) {
+  if (shot == null || bounds == null || bounds.length != 6
+          || bounds[4] <= 0 || bounds[5] <= 0) return shot;
+  float sx = shot.getWidth() / bounds[4], sy = shot.getHeight() / bounds[5];
+  int l = Math.max(0, (int)Math.floor(bounds[0]*sx));
+  int t = Math.max(0, (int)Math.floor(bounds[1]*sy));
+  int r = Math.min(shot.getWidth(), (int)Math.ceil((bounds[0]+bounds[2])*sx));
+  int b = Math.min(shot.getHeight(), (int)Math.ceil((bounds[1]+bounds[3])*sy));
+  return r-l < 2 || b-t < 2 ? shot : Bitmap.createBitmap(shot,l,t,r-l,b-t);
+ }
  public static void store(Context c,String key,Bitmap bitmap){
-  if(lacksContent(bitmap)) return;   // nothing readable was painted; keep the type tile
+  if(lacksContent(bitmap)) { if(bitmap!=null) bitmap.recycle(); return; }   // nothing readable was painted; keep the type tile
   File f=file(c,key); File dir=f.getParentFile();
   try {
    if(!dir.exists()&&!dir.mkdirs()) return;
@@ -156,7 +164,8 @@ public final class PreviewThumbnailCache {
   float dh = source.getHeight() * scale;
   float left = (CARD_W - dw) / 2f;
   float top = (CARD_H - dh) / 2f;
-  canvas.drawBitmap(source, null, new android.graphics.RectF(left, top, left + dw, top + dh), null);
+  canvas.drawBitmap(source, null, new android.graphics.RectF(left, top, left + dw, top + dh),
+          new android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG));
   return out;
  }
 
