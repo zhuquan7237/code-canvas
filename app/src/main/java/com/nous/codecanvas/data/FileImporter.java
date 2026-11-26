@@ -51,6 +51,11 @@ public final class FileImporter {
         }
     }
 
+    /** A readable file that cannot be imported as-is. Picking it again will not help. */
+    public static final class UnsupportedImportException extends IOException {
+        UnsupportedImportException(String message) { super(message); }
+    }
+
     public static Imported importFrom(Context context, Uri uri) throws IOException {
         String name = displayName(context, uri);
         String mime = mimeType(context, uri);
@@ -62,7 +67,7 @@ public final class FileImporter {
             byte[] head = readAtMost(in, SNIFF_BYTES);
             kind = FileKindDetector.detect(name, mime, head);
             if (kind == DocumentKind.BINARY)
-                throw new IOException("这不是支持的文本、图片、PDF 或笔记本格式");
+                throw new UnsupportedImportException("这不是支持的文本、图片、PDF 或笔记本格式");
             long limit = kind.editable() ? MAX_TEXT_BYTES
                     : kind == DocumentKind.NOTEBOOK ? 16L * 1024L * 1024L : MAX_BLOB_BYTES;
             all = head;
@@ -72,7 +77,7 @@ public final class FileImporter {
                 byte[] buffer = new byte[8192];
                 for (int count; (count = in.read(buffer)) != -1;) {
                     if ((long) bytes.size() + count > limit)
-                        throw new IOException(kind == DocumentKind.NOTEBOOK ? "Notebook 文件超过 16 MB，暂不能导入"
+                        throw new UnsupportedImportException(kind == DocumentKind.NOTEBOOK ? "Notebook 文件超过 16 MB，暂不能导入"
                                 : kind.editable() ? "文本超过 8MB，编辑器打开会很慢，暂不支持"
                                 : "文件超过 64MB 上限，暂不支持");
                     bytes.write(buffer, 0, count);

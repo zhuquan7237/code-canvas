@@ -31,6 +31,7 @@ import android.widget.Toast;
 
 import com.nous.codecanvas.R;
 import com.nous.codecanvas.data.DocumentRepository;
+import com.nous.codecanvas.data.FileImporter;
 import com.nous.codecanvas.model.CanvasDocument;
 import com.nous.codecanvas.util.AiCodeExtractor;
 import com.nous.codecanvas.util.CanvasPrefs;
@@ -79,8 +80,11 @@ public class MainActivity extends Activity {
     private Dialog activeSheet;
     private ListView listDocuments;
     private android.widget.GridView gridDocuments;
-    /** URI of an external open already handled, so a recreation does not import twice. */
-    private String handledIncomingUri;
+    private ImportSession imports;
+    private boolean importUiReady;
+    private boolean importInterrupted;
+    private AlertDialog importError;
+    private boolean importUiDestroying;
     /** Text shared into the app, consumed the next time the user asks to paste. */
     private String pendingSharedText;
     private View viewEmpty;
@@ -251,9 +255,12 @@ public class MainActivity extends Activity {
 
         repository = new DocumentRepository(this);
         appearanceAtCreate = com.nous.codecanvas.util.AppearanceManager.getMode(this);
+        Object retained = getLastNonConfigurationInstance();
+        imports = retained instanceof ImportSession
+                ? (ImportSession) retained : new ImportSession(getApplicationContext());
         if (savedInstanceState != null) {
-            handledIncomingUri = savedInstanceState.getString("handled_incoming");
             typeFilter = savedInstanceState.getString("type_filter");
+            importInterrupted = retained == null && savedInstanceState.getBoolean("import_pending");
         }
         try {
             repository.seedDefaultTemplatesIfEmpty();
@@ -263,13 +270,14 @@ public class MainActivity extends Activity {
 
         initViews();
         setupListeners();
-        handleIncomingIntent(getIntent());
+        // Recreation restores the delivered Intent, not a new external user action.
+        if (savedInstanceState == null) handleIncomingIntent(getIntent());
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        if (handledIncomingUri != null) outState.putString("handled_incoming", handledIncomingUri);
+        outState.putBoolean("import_pending", imports != null && imports.hasPending());
         if (typeFilter != null) outState.putString("type_filter", typeFilter);
     }
 
@@ -280,35 +288,45 @@ public class MainActivity extends Activity {
         handleIncomingIntent(intent);
     }
 
-    /**
-     * Consume an external open/share. The manifest has always advertised ACTION_VIEW, but nothing
-     * read the intent, so picking "代码画布" in a file manager just landed on the home screen.
-     */
+    @Override
+    public Object onRetainNonConfigurationInstance() {
+        return imports;
+    }
+
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+        if (appearanceAtCreate != com.nous.codecanvas.util.AppearanceManager.getMode(this)) return;
+        importUiReady = true;
+        imports.listener = this::presentImportOutcome;
+        if (importInterrupted) {
+            importInterrupted = false;
+            showImportError(new ImportOutcome(null, "上次导入流程被中断。请先检查作品库，没有副本再重新选择文件。", true), false);
+        }
+        presentImportOutcome();
+    }
+
+    @Override
+    protected void onPause() {
+        importUiReady = false;
+        if (imports != null) imports.listener = null;
+        super.onPause();
+    }
+
+    /** Every freshly delivered open/share is independent, even if its location is unchanged. */
     private void handleIncomingIntent(Intent intent) {
         if (intent == null) return;
         String action = intent.getAction();
         Uri data = intent.getData();
         if (Intent.ACTION_VIEW.equals(action) && data != null) {
-            try {
-                getContentResolver().takePersistableUriPermission(data, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            } catch (Exception ignored) {
-            }
-            String key = data.toString();
-            if (key.equals(handledIncomingUri)) return;
-            handledIncomingUri = key;
+            retainReadGrant(intent, data);
             importFromUri(data);
         } else if (Intent.ACTION_SEND.equals(action)) {
-            Uri stream = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-            if (stream != null) {
-                try {
-                    getContentResolver().takePersistableUriPermission(stream, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                } catch (Exception ignored) {
-                }
-                String key = stream.toString();
-                if (!key.equals(handledIncomingUri)) {
-                    handledIncomingUri = key;
-                    importFromUri(stream);
-                }
+            Object attachment = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+            if (attachment instanceof Uri) {
+                Uri stream = (Uri) attachment;
+                retainReadGrant(intent, stream);
+                importFromUri(stream);
                 return;
             }
             CharSequence sharedText = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
@@ -319,6 +337,16 @@ public class MainActivity extends Activity {
                 // reduced to the first one.
                 offerIncomingText(shared);
             }
+        }
+    }
+
+    private void retainReadGrant(Intent intent, Uri uri) {
+        int needed = Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION;
+        if ((intent.getFlags() & needed) != needed) return;
+        try {
+            getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (SecurityException | IllegalArgumentException ignored) {
+            // A one-time grant is enough to create the local copy.
         }
     }
 
@@ -1382,7 +1410,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void startSafImport() {
+    private boolean startSafImport() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
@@ -1390,8 +1418,10 @@ public class MainActivity extends Activity {
         intent.setType("*/*");
         try {
             startActivityForResult(intent, REQ_IMPORT_SAF);
+            return true;
         } catch (Exception e) {
             Toast.makeText(this, "无法启动文件选择器: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            return false;
         }
     }
 
@@ -1434,49 +1464,112 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    /**
-     * Import a file handed over by another app or picked in the system picker.
-     *
-     * <p>This used to decode every payload as UTF-8 and cap it at 2MB, which meant an image arrived
-     * as mojibake and a 3MB PDF was refused outright. {@link FileImporter} now reads the bytes
-     * first, decides what the file is, and only then decodes text — binary payloads are kept as
-     * bytes in app storage so an unmodified export stays byte-identical.</p>
-     */
+    /** A source URI is a location. Each successful open saves a separate local copy. */
     private void importFromUri(Uri uri) {
-        new Thread(() -> {
+        if (!imports.enqueue(uri)) {
+            Toast.makeText(this, "正在导入多个文件，稍后可以重新打开这个文件。", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void presentImportOutcome() {
+        if (!importUiReady || isFinishing() || isDestroyed() || importError != null) return;
+        ImportOutcome result = imports.completed.peek();
+        if (result == null) return;
+        if (result.document != null) {
+            imports.completed.remove();
+            importUiReady = false; // Only one editor opens per visit to the foreground.
+            Toast.makeText(this, "已导入副本 · " + result.document.getTitle(), Toast.LENGTH_SHORT).show();
+            openEditor(result.document.getId(), true);
+        } else {
+            showImportError(result, true);
+        }
+    }
+
+    private void showImportError(ImportOutcome failed, boolean queued) {
+        importError = CanvasConfirmDialog.show(this, "未能导入文件", failed.message,
+                failed.offerPicker ? "重新选择" : "知道了", "关闭", false,
+                failed.offerPicker ? this::retryImportInPicker : null, null);
+        if (!failed.offerPicker) CanvasConfirmDialog.cancelButton(importError).setVisibility(View.GONE);
+        importError.setOnDismissListener(dialog -> {
+            importError = null;
+            // Dismissing an old Activity's window is not a user's response.
+            if (importUiDestroying) return;
+            if (queued && imports.completed.peek() == failed) imports.completed.remove();
+            searchHandler.post(this::presentImportOutcome);
+        });
+    }
+
+    private void retryImportInPicker() {
+        importUiReady = false;
+        if (!startSafImport()) importUiReady = true;
+    }
+
+    private static final class ImportOutcome {
+        final CanvasDocument document;
+        final String message;
+        final boolean offerPicker;
+
+        ImportOutcome(CanvasDocument document, String message, boolean offerPicker) {
+            this.document = document;
+            this.message = message;
+            this.offerPicker = offerPicker;
+        }
+    }
+
+    /** Serial file I/O, retained during recreation, with no reference to an inactive Activity. */
+    private static final class ImportSession {
+        private final Context context;
+        private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
+        private final java.util.ArrayDeque<Uri> queue = new java.util.ArrayDeque<>();
+        final java.util.ArrayDeque<ImportOutcome> completed = new java.util.ArrayDeque<>();
+        boolean running;
+        Runnable listener;
+
+        ImportSession(Context context) { this.context = context; }
+
+        boolean hasPending() { return running || !queue.isEmpty() || !completed.isEmpty(); }
+
+        boolean enqueue(Uri uri) {
+            if (queue.size() + completed.size() + (running ? 1 : 0) >= 8) return false;
+            queue.add(uri);
+            startNext();
+            return true;
+        }
+
+        private void startNext() {
+            if (running || queue.isEmpty()) return;
+            Uri uri = queue.remove();
+            running = true;
+            new Thread(() -> {
+                ImportOutcome outcome = load(uri);
+                main.post(() -> {
+                    running = false;
+                    completed.add(outcome);
+                    if (listener != null) listener.run();
+                    startNext();
+                });
+            }, "CanvasImport").start();
+        }
+
+        private ImportOutcome load(Uri uri) {
+            FileImporter.Imported imported;
             try {
-                com.nous.codecanvas.data.FileImporter.Imported imported =
-                        com.nous.codecanvas.data.FileImporter.importFrom(this, uri);
-                CanvasDocument doc = imported.document;
-                if (doc.isBlob()) {
-                    com.nous.codecanvas.data.FileImporter.writeBlob(this, doc.getId(), imported.bytes);
-                }
-                repository.saveDocument(doc);
-
-                final String kindLabel = imported.kind.label();
-                runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this,
-                            "已导入 " + kindLabel + " · " + doc.getTitle(), Toast.LENGTH_SHORT).show();
-                    openEditor(doc.getId(), true);
-                });
-
+                imported = FileImporter.importFrom(context, uri);
+            } catch (FileImporter.UnsupportedImportException e) {
+                return new ImportOutcome(null, e.getMessage(), false);
             } catch (Exception e) {
-                android.util.Log.e("CodeCanvasImport", "import failed: " + uri, e);
-                final String message = e.getMessage() == null ? e.toString() : e.getMessage();
-                // Say it in a dialog, not a toast: a toast here was covered by the screen settling,
-                // so a failed import looked like nothing happened at all — which is how "打不开"
-                // reached the user as silence.
-                runOnUiThread(() -> {
-                    if (isFinishing() || isDestroyed()) return;
-                    CanvasConfirmDialog.show(MainActivity.this,
-                            "打不开这个文件",
-                            message + "\n\n系统不允许应用按路径读取这个位置。"
-                                    + "点「重新选择」用系统文件选择器打开同一个文件即可。",
-                            "重新选择", "取消", false,
-                            this::startSafImport, null);
-                });
+                return new ImportOutcome(null,
+                        "没有读到文件。它可能已被移动，或来源应用没有授予访问权限。可用系统文件选择器再选一次。", true);
             }
-        }).start();
+            CanvasDocument doc = imported.document;
+            try {
+                if (doc.isBlob()) FileImporter.writeBlob(context, doc.getId(), imported.bytes);
+                new DocumentRepository(context).saveDocument(doc);
+                return new ImportOutcome(doc, null, false);
+            } catch (Exception e) {
+                return new ImportOutcome(null, "文件已读取，但未能保存副本。请检查设备剩余空间后再试。", false);
+            }
+        }
     }
 
     // --- list adapter --------------------------------------------------------------------------------
@@ -1852,6 +1945,9 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        importUiReady = false;
+        importUiDestroying = true;
+        if (importError != null) importError.dismiss();
         if (backfiller != null) backfiller.stop();
         if (activeDialog != null && activeDialog.isShowing()) activeDialog.dismiss();
         if (activeSheet != null && activeSheet.isShowing()) activeSheet.dismiss();

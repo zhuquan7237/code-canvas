@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <provider android:name="com.nous.codecanvas.DelayedIntakeFixtureProvider"
+            android:authorities="com.nous.codecanvas.debug.test.intake.fixture"
+            android:exported="true" />
+    </application>
+</manifest>
+
