@@ -539,7 +539,7 @@ public class EditorActivity extends Activity {
         settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
         settings.setJavaScriptEnabled(previewJavaScriptEnabled());
-        settings.setBlockNetworkLoads(!isAllowNetwork);
+        settings.setBlockNetworkLoads(kind != DocumentKind.HTML || !isAllowNetwork);
         settings.setDomStorageEnabled(false);
         settings.setDatabaseEnabled(false);
         settings.setGeolocationEnabled(false);
@@ -1064,7 +1064,7 @@ public class EditorActivity extends Activity {
 
     private boolean isWebZoomKind() {
         return kind == DocumentKind.HTML || kind == DocumentKind.MERMAID
-                || kind == DocumentKind.MARKDOWN || kind == DocumentKind.CSV;
+                || kind == DocumentKind.MARKDOWN || kind == DocumentKind.CSV || kind == DocumentKind.NOTEBOOK;
     }
 
     private float webScale, webFitScale;
@@ -2084,6 +2084,9 @@ public class EditorActivity extends Activity {
 
     // ------------------------------------------------------------------ preview
 
+    private java.util.concurrent.Future<?> notebookRender;
+    private long notebookGeneration;
+
     private void renderPreview(boolean force) {
         // The document's title is the source of truth for its type: a rename (or a caller that
         // changes the title directly) must change how the content is rendered, not just its label.
@@ -2156,6 +2159,10 @@ public class EditorActivity extends Activity {
         }
 
         txtRenderModeBadge.setText(badgeFor(kind));
+        if (kind == DocumentKind.NOTEBOOK) {
+            renderNotebook(fingerprint);
+            return;
+        }
         PreviewPage.Request request = new PreviewPage.Request();
         request.kind = kind.name();
         request.content = content;
@@ -2170,6 +2177,28 @@ public class EditorActivity extends Activity {
 
         // A fresh render starts fitted: a new drawing must not land outside an old viewport.
         if (isVectorKind()) previewViewport.fitToWindow();
+    }
+
+    private void renderNotebook(String fingerprint) {
+        if (notebookRender != null) notebookRender.cancel(true);
+        final long generation = ++notebookGeneration;
+        final boolean dark = isDark();
+        final File blob = FileImporter.blobFile(this, currentDocument.getId());
+        final String legacyText = currentDocument.isBlob() ? null : currentDocument.getContent();
+        final View pending = findViewById(R.id.preview_loading);
+        if (pending != null) pending.setVisibility(View.VISIBLE);
+        notebookRender = pdfExecutor.submit(() -> {
+            String html = legacyText == null
+                    ? com.nous.codecanvas.util.NotebookPreview.fromFile(blob, dark)
+                    : com.nous.codecanvas.util.NotebookPreview.render(legacyText, dark);
+            if (Thread.currentThread().isInterrupted()) return;
+            runOnUiThread(() -> {
+                if (isDestroyed() || isFinishing() || kind != DocumentKind.NOTEBOOK
+                        || notebookGeneration != generation) return;
+                if (pending != null) pending.setVisibility(View.GONE);
+                loadPreview(html, fingerprint);
+            });
+        });
     }
 
     /** Images are decoded from the original bytes, so nothing is re-encoded on the way in. */
@@ -2336,6 +2365,7 @@ public class EditorActivity extends Activity {
             case MERMAID: return "Mermaid 图表";
             case JSON: return "JSON 结构";
             case JSONL: return "JSONL 逐行";
+            case NOTEBOOK: return "Notebook · 只读";
             case CSV: return "CSV 表格";
             case YAML: return "YAML 结构";
             case XML: return "XML 结构";
@@ -2880,6 +2910,8 @@ public class EditorActivity extends Activity {
     @Override
     protected void onDestroy() {
         pdfRenderGeneration++;
+        notebookGeneration++;
+        if (notebookRender != null) notebookRender.cancel(true);
         pdfExecutor.shutdownNow();
         if (activeDialog != null && activeDialog.isShowing()) activeDialog.dismiss();
         if (activeSheet != null && activeSheet.isShowing()) activeSheet.dismiss();

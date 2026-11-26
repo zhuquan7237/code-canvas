@@ -137,6 +137,7 @@ public final class ShareExporter {
 
     public static String mimeTypeFor(String fileName) {
         String ext = FileUtils.getExtension(fileName);
+        if ("ipynb".equalsIgnoreCase(ext)) return "application/x-ipynb+json";
         if (!ext.isEmpty()) {
             String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.toLowerCase(Locale.ROOT));
             if (mime != null) return mime;

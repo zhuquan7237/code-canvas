@@ -24,6 +24,7 @@ public enum DocumentKind {
     IMAGE(DefaultView.IMAGE, false),
     GIF(DefaultView.IMAGE, false),
     PDF(DefaultView.PDF, false),
+    NOTEBOOK(DefaultView.PREVIEW, false),
     BINARY(DefaultView.NONE, false),
     UNKNOWN(DefaultView.CODE, true);
 
@@ -68,6 +69,7 @@ public enum DocumentKind {
             case IMAGE: return "图片";
             case GIF: return "动图";
             case PDF: return "PDF";
+            case NOTEBOOK: return "Notebook";
             case BINARY: return "二进制";
             default: return "文件";
         }

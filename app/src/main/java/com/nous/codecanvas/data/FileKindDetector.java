@@ -102,6 +102,7 @@ public final class FileKindDetector {
             case "txt": case "text": case "log": case "rst": return DocumentKind.TEXT;
             case "gif": return DocumentKind.GIF;
             case "pdf": return DocumentKind.PDF;
+            case "ipynb": return DocumentKind.NOTEBOOK;
             case "png": case "jpg": case "jpeg": case "webp": case "bmp":
             case "heic": case "heif": case "avif": case "ico": return DocumentKind.IMAGE;
             default:
@@ -114,6 +115,8 @@ public final class FileKindDetector {
         String m = mime.toLowerCase(Locale.ROOT).trim();
         if (m.isEmpty() || m.equals("*/*") || m.equals("application/octet-stream")) return null;
         if (m.equals("application/pdf")) return DocumentKind.PDF;
+        if (m.equals("application/x-ipynb+json") || m.equals("application/x-ipynb"))
+            return DocumentKind.NOTEBOOK;
         if (m.equals("image/gif")) return DocumentKind.GIF;
         if (m.equals("image/svg+xml")) return DocumentKind.SVG;
         if (m.startsWith("image/")) return DocumentKind.IMAGE;
@@ -159,7 +162,8 @@ public final class FileKindDetector {
         int n = Math.min(content.length(), 4096);
         byte[] head = content.substring(0, n).getBytes(StandardCharsets.UTF_8);
         DocumentKind detected = detect(doc.getTitle(), doc.getMimeType(), head);
-        if (detected != null) {
+        // A filename change must not turn an editable draft into a read-only blob.
+        if (detected != null && detected != DocumentKind.NOTEBOOK) {
             doc.setKindName(detected.name());
         }
     }
