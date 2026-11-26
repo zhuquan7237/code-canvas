@@ -143,6 +143,7 @@
                 <data android:mimeType="application/yaml" />
                 <data android:mimeType="application/x-yaml" />
                 <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/octet-stream" />
             </intent-filter>
             <!-- Chat apps frequently share an unnamed blob. Accepting */* here is what makes the
                  app appear in their share sheet at all; the importer sniffs the real type. -->

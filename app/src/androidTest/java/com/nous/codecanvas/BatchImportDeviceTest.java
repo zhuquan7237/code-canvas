@@ -76,6 +76,7 @@ public class BatchImportDeviceTest extends InstrumentationTestCase {
     public void testImplicitResolverOffersMixedAndImageButNotVideoOrZip() {
         assertTrue(isOffered("*/*"));
         assertTrue(isOffered("image/*"));
+        assertTrue(isOffered("application/octet-stream"));
         assertTrue(isOffered("application/x-ipynb+json"));
         assertFalse(isOffered("video/mp4"));
         assertFalse(isOffered("application/zip"));
