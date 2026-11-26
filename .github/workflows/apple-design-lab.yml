@@ -1,0 +1,46 @@
+name: Apple design lab
+on:
+  push:
+    branches: ['design/apple-ui-lab']
+    paths: ['apple-design-lab/**', '.github/workflows/apple-design-lab.yml']
+permissions:
+  contents: read
+concurrency:
+  group: apple-design-lab-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  simulator:
+    runs-on: xcode-27
+    timeout-minutes: 28
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPhone, iPad]
+    env:
+      FORM_FACTOR: ${{ matrix.device }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Select an iOS 27 simulator
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun simctl list devices available
+          device="$(xcrun simctl list devices available -j | python3 -c 'import json,os,sys; devices=json.load(sys.stdin)["devices"]; group=sorted((k for k in devices if ".iOS-27" in k), key=lambda k: tuple(map(int,k.split("iOS-")[1].split("-"))),reverse=True); print(next(d["udid"] for k in group for d in devices[k] if d.get("isAvailable") and d["name"].startswith(os.environ["FORM_FACTOR"])))')"
+          echo "SIM_ID=$device" >> "$GITHUB_ENV"
+      - name: Build and capture native layouts
+        run: bash apple-design-lab/capture.sh
+      - name: Test native interactions
+        run: |
+          xcodebuild test -project apple-design-lab/DesignLab.xcodeproj -scheme DesignLab \
+            -destination "platform=iOS Simulator,id=$SIM_ID" -derivedDataPath "$RUNNER_TEMP/lab-build" \
+            -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/lab-ui.xcresult"
+      - name: Upload simulator evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: apple-design-lab-${{ matrix.device }}
+          path: ${{ runner.temp }}/lab-evidence
+          if-no-files-found: warn
+          retention-days: 14
