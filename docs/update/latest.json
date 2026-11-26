@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "versionName": "0.6.4",
-  "versionCode": 64,
+  "versionName": "0.6.5",
+  "versionCode": 65,
   "channel": "stable",
-  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.6.4.apk?v=304fe701ac7f",
-  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.6.4/code-canvas-0.6.4.apk",
-  "sha256": "304fe701ac7f2376376b8bb6441c8c3e3b3862854262c85b60fcc0772346f4cd",
-  "size": 1287398,
-  "notes": "# 代码画布 Android 0.6.4\n\nversionCode 64 · minSdk 26\n\n- 自动保存、另存为和分享不再覆盖导入的原文件。只有按「保存」才会尝试写回；编码不确定或无法容纳新字符时保留应用内修改，不改原文件。\n- 保留新导入 UTF-8、UTF-16 文件的 BOM；无扩展名的 UTF-16 文本或系统标为 SVG 的矢量文件也能正确识别。\n- 多选分享时，每份作品各自保留文件名和内容，不再把源码拼成一个文本文件。\n- 未修改正文也能保存重命名；改扩展名后，预览随格式刷新。选择「保存并离开」要等应用内保存成功；放弃尚未保存的修改不会在退出时触发自动保存。",
+  "apkUrl": "https://relay.zhuquan.xyz/dl/code-canvas-0.6.5.apk?v=3cd0567569f2",
+  "fallbackApkUrl": "https://github.com/zhuquan7237/code-canvas/releases/download/v0.6.5/code-canvas-0.6.5.apk",
+  "sha256": "3cd0567569f26619715d0c1ca1f2bad21606843931ade23da8f4da74c4be6c24",
+  "size": 1292002,
+  "notes": "# 代码画布 Android 0.6.5\r\n\r\nversionCode 65 · minSdk 26\r\n\r\n- SVG 按真实比例适配，首页缩略图从作品本身生成，不再被详情页的缩放或裁切覆盖。旧缩略图会重新生成。\r\n- 独立 SVG 保留原生文档和脚本；HTML 保留网页和互动逻辑，单幅 SVG / Canvas 舞台按窗口适配。HTML 可双指或用按钮缩放；可在预览里控制页面脚本和联网。\r\n- Mermaid 全图适配，可滚动、缩放。Android 9 及以上支持播放动态 WebP；PDF 过长页面限制渲染尺寸，快速翻页不会被上一页的异步结果覆盖。\r\n- 预览适配不会修改原文件。HTML 里的外部资源仍需单页联网；与原文件同目录的资源不会在导入单文件时自动带入。",
   "minSdk": 26
 }
