@@ -188,8 +188,20 @@ public class DesignSystemRegressionTest extends InstrumentationTestCase {
     // --- multi-select ------------------------------------------------------------------------------
 
     public void testLongPressEntersSelectionModeAndSelectAllToggles() throws Throwable {
-        seed("select_" + System.nanoTime() + ".html", "<h1>s</h1>");
+        seed("select_first_" + System.nanoTime() + ".html", "<h1>s</h1>");
+        seed("select_second_" + System.nanoTime() + ".html", "<h1>t</h1>");
         ui(() -> ((EditText) main.findViewById(R.id.edit_search)).setText(""));
+        // The clear operation restores the list after the search debounce. Wait for
+        // that visible state before invoking a synthetic row long-press.
+        int[] documentCount = {0};
+        long deadline = android.os.SystemClock.uptimeMillis() + 2500;
+        do {
+            ui(() -> documentCount[0] = ((ListView) main.findViewById(R.id.list_documents))
+                    .getAdapter().getCount());
+            if (documentCount[0] >= 2) break;
+            android.os.SystemClock.sleep(35);
+        } while (android.os.SystemClock.uptimeMillis() < deadline);
+        assertTrue("Clearing search restores at least two test documents", documentCount[0] >= 2);
 
         View[] row = new View[1];
         ui(() -> row[0] = ((ListView) main.findViewById(R.id.list_documents)).getChildAt(0));
