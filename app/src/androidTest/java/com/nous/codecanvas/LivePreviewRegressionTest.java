@@ -84,6 +84,7 @@ public class LivePreviewRegressionTest extends InstrumentationTestCase {
                     const root=document.documentElement;
                     root.setAttribute('viewBox','0 0 200 200');
                     root.addEventListener('click',()=>root.setAttribute('data-clicked','yes'));
+                    root.addEventListener('mousedown',()=>root.setAttribute('data-mousedown','yes'));
                   ]]></script>
                 </svg>
                 """;
@@ -91,12 +92,27 @@ public class LivePreviewRegressionTest extends InstrumentationTestCase {
         waitFor("!!window.CCViewport?.svg() && CCViewport.svg().getAttribute('viewBox')==='0 0 200 200'"
                 + " && Math.abs(CCViewport.bounds().w-CCViewport.bounds().h)<1");
         assertEquals("true", eval("(()=>{const b=CCViewport.bounds();CCTap(b.x+b.w/2,b.y+b.h/2);"
-                + "return CCViewport.svg().getAttribute('data-clicked')==='yes'})()"));
+                + "return CCViewport.svg().getAttribute('data-clicked')==='yes'"
+                + "&&CCViewport.svg().getAttribute('data-mousedown')==='yes'})()"));
         getInstrumentation().runOnMainSync(() -> ((android.widget.Switch) editor.findViewById(R.id.switch_allow_js))
                 .setChecked(false));
         waitFor("!!window.CCViewport?.svg() && CCViewport.svg().getAttribute('viewBox')==='0 0 200 100'"
                 + " && Math.abs(CCViewport.bounds().w/CCViewport.bounds().h-2)<.03");
         assertEquals(original, new DocumentRepository(context()).findById(doc.getId()).getContent());
+    }
+
+    public void testInlineArtworkFitsInsideBodyMargins() throws Exception {
+        open("padded-inline.html", """
+                <!doctype html><html><head><style>body{margin:18px;padding:12px}
+                svg{width:100vw;height:100vh}</style></head><body>
+                <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+                  <rect width="1600" height="900" fill="green"/>
+                </svg></body></html>
+                """, null);
+        waitFor("!!document.querySelector('svg')");
+        assertEquals("true", eval("(()=>{const e=document.querySelector('svg'),r=e.getBoundingClientRect(),m=e.getScreenCTM();"
+                + "return Math.abs(r.width/r.height-16/9)<.02&&r.left>=29&&r.right<=innerWidth-29"
+                + "&&Math.abs(m.e-r.left)<1&&Math.abs(m.e+1600*m.a-r.right)<1})()"));
     }
 
     public void testCanvasGameKeepsRunningAndAcceptsPointerInput() throws Exception {

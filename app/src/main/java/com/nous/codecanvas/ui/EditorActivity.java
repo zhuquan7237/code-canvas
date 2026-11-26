@@ -1990,6 +1990,7 @@ public class EditorActivity extends Activity {
         // changes the title directly) must change how the content is rendered, not just its label.
         DocumentKind current = currentDocument.kind();
         if (current != kind) {
+            isAllowNetwork = false;
             kind = current;
             applyKindToChrome();
         }
@@ -2026,6 +2027,7 @@ public class EditorActivity extends Activity {
             // made a page drift away from the fingers.
             boolean nativeZoom = isWebZoomKind();
             webPreview.getSettings().setLoadWithOverviewMode(kind == DocumentKind.HTML);
+            webPreview.getSettings().setBlockNetworkLoads(kind != DocumentKind.HTML || !isAllowNetwork);
             webPreview.getSettings().setDomStorageEnabled(kind == DocumentKind.HTML && isAllowJs);
             webPreview.getSettings().setSupportZoom(nativeZoom);
             webPreview.getSettings().setBuiltInZoomControls(nativeZoom);

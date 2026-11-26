@@ -46,7 +46,7 @@ public class ThumbnailBackfillTest extends InstrumentationTestCase {
                   <rect width="20" height="100" fill="#ff0000"/>
                   <rect x="180" width="20" height="100" fill="#0000ff"/>
                 </svg>
-                """, System.currentTimeMillis());
+                """ + "<!--" + "x".repeat(220_000) + "-->", System.currentTimeMillis());
         repo.saveDocument(doc);
         boolean dark = (c.getResources().getConfiguration().uiMode
                 & android.content.res.Configuration.UI_MODE_NIGHT_MASK)

@@ -83,10 +83,19 @@ public class PreviewHtmlViewportTest {
         String svg = "<svg viewBox='0 0 1200 600' preserveAspectRatio='xMidYMid slice'><rect /></svg>";
         String js = "<script>document.documentElement.lang='zh'</script>";
         String preview = PreviewHtml.forWebPage("<!doctype html><body>" + svg + js + "</body>");
-        assertTrue(preview.contains("body>svg{width:min(100vw,calc(100vh * 2.0))"));
+        assertTrue(preview.contains("body>svg{width:min(100%,100vw,calc(100vh * 2.0))"));
         assertTrue(preview.contains(svg + js));
         String article = PreviewHtml.forWebPage("<html><body><h1>Chart</h1>" + svg + "</body></html>");
         assertFalse(article.contains("body>svg{width:min"));
+    }
+
+    @Test
+    public void quotedSrcdocIsNotMistakenForOuterViewport() {
+        String child = "<iframe srcdoc=\"<meta name='viewport' content='width=100'><p>child</p>\"></iframe>";
+        String preview = PreviewHtml.forWebPage("<!doctype html><body>" + child);
+        assertTrue(preview.contains(child));
+        assertTrue(preview.contains("width=device-width, minimum-scale=0.1"));
+        assertFalse(preview.contains("width=100, minimum-scale"));
     }
 
     @Test

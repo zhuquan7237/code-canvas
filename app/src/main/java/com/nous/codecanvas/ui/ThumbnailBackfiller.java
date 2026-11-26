@@ -440,7 +440,9 @@ final class ThumbnailBackfiller {
     private static boolean canThumbnail(CanvasDocument doc) {
         if (doc == null || doc.isBlob()) return false;
         String content = doc.getContent();
-        if (content == null || content.length() > 200_000) return false;
+        int limit = doc.kind() == DocumentKind.SVG || doc.kind() == DocumentKind.HTML
+                ? 1_000_000 : 200_000;
+        if (content == null || content.length() > limit) return false;
         switch (doc.kind()) {
             case HTML:
             case SVG:

@@ -135,7 +135,9 @@ public final class SvgWrapper {
                           pointerType:'touch',isPrimary:true};
               const win=doc.defaultView;
               el.dispatchEvent(new win.PointerEvent('pointerdown',opts));
+              el.dispatchEvent(new win.MouseEvent('mousedown',opts));
               el.dispatchEvent(new win.PointerEvent('pointerup',opts));
+              el.dispatchEvent(new win.MouseEvent('mouseup',opts));
               el.dispatchEvent(new win.MouseEvent('click',opts));
             };
             """;

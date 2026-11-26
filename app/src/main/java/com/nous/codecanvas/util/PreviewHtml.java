@@ -10,10 +10,12 @@ public final class PreviewHtml {
 
     private PreviewHtml() {}
 
-    // Skip raw-text elements and comments; a literal "<meta …>" in a script is not page metadata.
+    // Consume entire start tags including quoted attributes (notably iframe srcdoc).
+    // Only outer metadata counts; markup in a quoted attribute or script is not a tag.
+    private static final String TAG_END = "(?:\"[^\"]*\"|'[^']*'|[^\"'>]+)*+>";
     private static final java.util.regex.Pattern HEAD_TOKENS = java.util.regex.Pattern.compile(
-            "(?is)<!--.*?(?:-->|$)|<(script|style|title|textarea)\\b[^>]*>.*?</\\1\\s*>"
-            + "|<(meta|head|html)(?=[\\s/>])(?:\"[^\"]*\"|'[^']*'|[^\"'>]+)*+>");
+            "(?is)<!--.*?(?:-->|$)|<(script|style|title|textarea|template|noscript)(?=[\\s/>])"
+            + TAG_END + ".*?</\\1\\s*>|<([a-z][a-z0-9:_-]*)(?=[\\s/>])" + TAG_END);
     private static final java.util.regex.Pattern ATTRIBUTE = java.util.regex.Pattern.compile(
             "([^\\s=<>/\"']+)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))");
 
@@ -30,9 +32,10 @@ public final class PreviewHtml {
                 // Fit the viewport of a single inline stage to its viewBox. Thus an author's
                 // "slice" still works as authored, but has no excess space to crop. We don't
                 // touch multi-element HTML, script order, the SVG tree, or the original file.
-                layout += "<style>body>svg{width:min(100vw,calc(100vh * " + ratio
-                        + "))!important;height:min(100vh,calc(100vw / " + ratio
-                        + "))!important;max-width:100%!important;max-height:100vh!important;}</style>";
+                layout += "<style>body>svg{width:min(100%,100vw,calc(100vh * " + ratio
+                        + "))!important;height:auto!important;aspect-ratio:" + ratio
+                        + "!important;max-width:100%!important;max-height:none!important;"
+                        + "min-height:0!important;min-width:0!important;box-sizing:content-box!important}</style>";
             }
         }
         java.util.regex.Matcher tokens = HEAD_TOKENS.matcher(html);
