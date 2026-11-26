@@ -90,6 +90,33 @@ public class PreviewHtmlViewportTest {
     }
 
     @Test
+    public void repairsOnlyAPastedSlashAheadOfAnHtmlDoctype() {
+        String svg = "<svg viewBox='0 0 1200 675' preserveAspectRatio='xMidYMid slice'><rect /></svg>";
+        String js = "<script>document.body.dataset.ready='yes'</script>";
+        String ordinary = "<!DOCTYPE html><html><head><title>art</title></head><body>"
+                + svg + js + "</body></html>";
+        String preview = PreviewHtml.forWebPage("/" + ordinary);
+        assertEquals(PreviewHtml.forWebPage(ordinary), preview);
+        assertTrue(preview.startsWith("<!DOCTYPE html>"));
+        assertTrue("The existing contain rule must actually be selected", preview.contains("body>svg{width:min"));
+        assertTrue("SVG and executable script stay intact", preview.contains(svg + js));
+        assertEquals(PreviewHtml.forWebPage("<!--prologue-->\n " + ordinary),
+                PreviewHtml.forWebPage("\uFEFF<!--prologue-->\n /" + ordinary));
+    }
+
+    @Test
+    public void doesNotEraseAuthoredSlashOrSpecializeMultipieceHtml() {
+        String svg = "<svg viewBox='0 0 100 100'></svg>";
+        String visible = "<!doctype html><html><body>/ " + svg + "</body></html>";
+        String page = PreviewHtml.forWebPage(visible);
+        assertTrue(page.contains("<body>/ " + svg));
+        assertFalse(page.contains("body>svg{width:min"));
+        assertTrue(PreviewHtml.forWebPage("/<main>not a doctype</main>").contains("/<main>"));
+        assertTrue(PreviewHtml.forWebPage("/<!doctype htmltest><body>text").contains("/<!doctype htmltest>"));
+    }
+
+
+    @Test
     public void quotedSrcdocIsNotMistakenForOuterViewport() {
         String child = "<iframe srcdoc=\"<meta name='viewport' content='width=100'><p>child</p>\"></iframe>";
         String preview = PreviewHtml.forWebPage("<!doctype html><body>" + child);

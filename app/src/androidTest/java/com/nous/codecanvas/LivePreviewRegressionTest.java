@@ -101,6 +101,34 @@ public class LivePreviewRegressionTest extends InstrumentationTestCase {
         assertEquals(original, new DocumentRepository(context()).findById(doc.getId()).getContent());
     }
 
+    public void testPastedSlashBeforeDoctypeKeepsTheWholeInteractiveArtworkVisible() throws Exception {
+        // The reported shape is the existing pelican fixture with a stray leading slash.
+        // Keep the original published fixture unchanged; only simulate the paste error.
+        String fixture;
+        try (java.io.InputStream in = getInstrumentation().getContext().getAssets()
+                .open("fixtures/gemini-carbon.html");
+             java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream()) {
+            byte[] bytes = new byte[8192];
+            for (int count; (count = in.read(bytes)) != -1; ) buffer.write(bytes, 0, count);
+            fixture = buffer.toString("UTF-8");
+        }
+        String original = "/" + fixture;
+        open("pasted-svg-artwork.html", original, null);
+        waitFor("(()=>{const s=document.querySelector('#diary-stage');"
+                + "if(!s || document.compatMode!=='CSS1Compat')return false;"
+                + "const m=s.getScreenCTM(), v=s.viewBox.baseVal;"
+                + "const a=new DOMPoint(v.x,v.y).matrixTransform(m),"
+                + "b=new DOMPoint(v.x+v.width,v.y+v.height).matrixTransform(m);"
+                + "return a.x>=-1&&a.y>=-1&&b.x<=innerWidth+1&&b.y<=innerHeight+1"
+                + "&&['btn-boost','btn-audio'].every(id=>{const r=document.getElementById(id).getBoundingClientRect();"
+                + "return r.left>=-1&&r.right<=innerWidth+1&&r.top>=-1&&r.bottom<=innerHeight+1})})()");
+        assertEquals("true", eval("(()=>{document.querySelector('#btn-pause').dispatchEvent("
+                + "new MouseEvent('click',{bubbles:true}));"
+                + "return document.querySelector('#paused-badge').getAttribute('opacity')==='1'})()"));
+        assertEquals(original, new DocumentRepository(context()).findById(doc.getId()).getContent());
+    }
+
+
     public void testInlineArtworkFitsInsideBodyMargins() throws Exception {
         open("padded-inline.html", """
                 <!doctype html><html><head><style>body{margin:18px;padding:12px;display:flex;height:100vh}

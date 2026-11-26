@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="editor_action_close">关闭更多操作</string>
+    <string name="editor_action_save">保存当前文件</string>
+    <string name="editor_action_more">更多操作</string>
+    <string name="editor_action_code_context">代码工具与文件操作</string>
+    <string name="editor_action_preview_context">预览工具与文件操作</string>
+    <string name="editor_action_find">查找代码</string>
+    <string name="editor_action_replace">查找与替换</string>
+    <string name="editor_action_export">另存为</string>
+    <string name="editor_action_export_note">选择保存副本的位置</string>
+    <string name="editor_action_share">分享文件</string>
+    <string name="editor_action_refresh">刷新预览</string>
+    <string name="editor_action_fullscreen">全屏预览</string>
+    <string name="editor_action_online">允许本页联网</string>
+    <string name="editor_action_offline">切回离线</string>
+    <string name="editor_action_scripts_off">关闭页面脚本</string>
+    <string name="editor_action_scripts_on">允许页面脚本</string>
+    <string name="editor_action_fit_window">适应窗口</string>
+    <string name="editor_action_fit_artwork">适应内容</string>
+    <string name="editor_action_zoom_in">放大</string>
+    <string name="editor_action_zoom_out">缩小</string>
+    <string name="editor_action_network_on">当前已允许加载外部资源</string>
+    <string name="editor_action_network_off">当前仅使用本地内容</string>
+    <string name="editor_action_script_enabled">当前可运行动画和互动代码</string>
+    <string name="editor_action_script_disabled">当前仅静态预览</string>
+</resources>

@@ -382,7 +382,9 @@ public class EditorActivity extends Activity {
         if (actions != null) actions.setVisibility(!land && preview ? View.VISIBLE : View.GONE);
         boolean zoomable = isWebZoomKind() || isVectorKind() || isImageKind() || kind == DocumentKind.PDF;
         if (viewportToolbar != null) {
-            boolean showViewportDock = !land && preview && zoomable && !isFullscreen && !documentLoadFailed;
+            boolean keepsZoomControls = isImageKind() || kind == DocumentKind.HTML;
+            boolean showViewportDock = preview && zoomable && !documentLoadFailed
+                    && (keepsZoomControls || (!land && !isFullscreen));
             viewportToolbar.setVisibility(showViewportDock ? View.VISIBLE : View.GONE);
             View previewDock = findViewById(R.id.preview_dock);
             if (previewDock != null) previewDock.setVisibility(showViewportDock ? View.VISIBLE : View.GONE);
@@ -419,6 +421,7 @@ public class EditorActivity extends Activity {
         if (containerPreviewCanvas != null) {
             int pad = isFullscreen ? 0 : land ? dp(4) : dp(8);
             containerPreviewCanvas.setPadding(pad, pad, pad, pad);
+            containerPreviewCanvas.findViewById(R.id.preview_canvas_card).setClipToOutline(!isFullscreen);
         }
     }
 
@@ -773,7 +776,7 @@ public class EditorActivity extends Activity {
         if (tabCodeLand != null) tabCodeLand.setOnClickListener(v -> switchToTab(0));
         if (tabPreviewLand != null) tabPreviewLand.setOnClickListener(v -> switchToTab(1));
         View overflow = findViewById(R.id.btn_editor_overflow);
-        if (overflow != null) overflow.setOnClickListener(v -> showEditorOverflow(v));
+        if (overflow != null) overflow.setOnClickListener(v -> showEditorOverflow());
         findViewById(R.id.btn_preview_refresh).setOnClickListener(v -> {
             if (previewRendererDead || webPreview == null) rebuildPreviewRenderer();
             previewState.invalidate();
@@ -1921,48 +1924,68 @@ public class EditorActivity extends Activity {
                 || kind == DocumentKind.CSV;
     }
 
-    private void showEditorOverflow(View anchor) {
-        android.widget.PopupMenu menu = new android.widget.PopupMenu(this, anchor);
+    private void showEditorOverflow() {
+        if (activeSheet != null && activeSheet.isShowing()) return;
         boolean preview = viewFlipper != null && viewFlipper.getDisplayedChild() == 1;
-        if (kind != null && kind.hasSourceTab()) {
-            menu.getMenu().add(0, 1, 0, "查找");
-            menu.getMenu().add(0, 7, 0, "查找与替换");
-        }
-        menu.getMenu().add(0, 2, 0, "另存为");
-        menu.getMenu().add(0, 3, 0, "分享");
+        java.util.ArrayList<CanvasBottomSheet.Action> actions = new java.util.ArrayList<>();
         if (preview) {
-            menu.getMenu().add(0, 4, 0, "刷新");
-            menu.getMenu().add(0, 6, 0, "全屏");
+            actions.add(editorTool(4, R.drawable.ic_refresh, R.string.editor_action_refresh));
+            actions.add(editorTool(6, R.drawable.ic_open, R.string.editor_action_fullscreen));
             if (kind == DocumentKind.HTML) {
-                menu.getMenu().add(0, 5, 0, isAllowNetwork ? "切回离线" : "联网加载");
+                actions.add(new CanvasBottomSheet.Action(5, R.drawable.ic_network,
+                        getString(isAllowNetwork ? R.string.editor_action_offline : R.string.editor_action_online),
+                        getString(isAllowNetwork ? R.string.editor_action_network_on : R.string.editor_action_network_off),
+                        false));
             }
             if (kind == DocumentKind.HTML || isVectorKind()) {
-                menu.getMenu().add(0, 8, 0, "允许页面脚本").setCheckable(true).setChecked(isAllowJs);
+                actions.add(new CanvasBottomSheet.Action(8, R.drawable.ic_edit,
+                        getString(isAllowJs ? R.string.editor_action_scripts_off : R.string.editor_action_scripts_on),
+                        getString(isAllowJs ? R.string.editor_action_script_enabled : R.string.editor_action_script_disabled),
+                        false));
             }
             if (viewportToolbar != null && viewportToolbar.getVisibility() != View.VISIBLE
                     && (isWebZoomKind() || isVectorKind() || isImageKind() || kind == DocumentKind.PDF)) {
-                menu.getMenu().add(0, 9, 0, "适应窗口");
-                if (isVectorKind()) menu.getMenu().add(0, 10, 0, "适应内容");
-                menu.getMenu().add(0, 11, 0, "放大");
-                menu.getMenu().add(0, 12, 0, "缩小");
+                actions.add(editorTool(9, R.drawable.ic_open, R.string.editor_action_fit_window));
+                if (isVectorKind()) {
+                    actions.add(editorTool(10, R.drawable.ic_view_grid, R.string.editor_action_fit_artwork));
+                }
+                actions.add(editorTool(11, R.drawable.ic_add, R.string.editor_action_zoom_in));
+                actions.add(editorTool(12, R.drawable.ic_editor_minus, R.string.editor_action_zoom_out));
             }
         }
-        menu.setOnMenuItemClickListener(item -> {
-            if (item.getItemId() == 1) toggleSearch();
-            else if (item.getItemId() == 7) showFindReplace();
-            else if (item.getItemId() == 2) startSafExport();
-            else if (item.getItemId() == 3) shareFile();
-            else if (item.getItemId() == 4) findViewById(R.id.btn_preview_refresh).performClick();
-            else if (item.getItemId() == 5) findViewById(R.id.btn_preview_network).performClick();
-            else if (item.getItemId() == 6) findViewById(R.id.btn_preview_fullscreen).performClick();
-            else if (item.getItemId() == 8) switchAllowJs.setChecked(!switchAllowJs.isChecked());
-            else if (item.getItemId() == 9) btnViewportFit.performClick();
-            else if (item.getItemId() == 10) btnViewportFitContent.performClick();
-            else if (item.getItemId() == 11) btnViewportZoomIn.performClick();
-            else if (item.getItemId() == 12) btnViewportZoomOut.performClick();
-            return true;
-        });
-        menu.show();
+        if (kind != null && kind.hasSourceTab()) {
+            actions.add(editorTool(1, R.drawable.ic_find, R.string.editor_action_find));
+            actions.add(editorTool(7, R.drawable.ic_edit, R.string.editor_action_replace));
+        }
+        actions.add(new CanvasBottomSheet.Action(2, R.drawable.ic_export,
+                getString(R.string.editor_action_export), getString(R.string.editor_action_export_note), false));
+        actions.add(editorTool(3, R.drawable.ic_share, R.string.editor_action_share));
+
+        activeSheet = CanvasBottomSheet.showCreation(this, getString(R.string.editor_action_more),
+                getString(preview ? R.string.editor_action_preview_context : R.string.editor_action_code_context),
+                actions.toArray(new CanvasBottomSheet.Action[0]), id -> {
+                    switch (id) {
+                        case 1: toggleSearch(); break;
+                        case 7: showFindReplace(); break;
+                        case 2: startSafExport(); break;
+                        case 3: shareFile(); break;
+                        case 4: findViewById(R.id.btn_preview_refresh).performClick(); break;
+                        case 5: findViewById(R.id.btn_preview_network).performClick(); break;
+                        case 6: findViewById(R.id.btn_preview_fullscreen).performClick(); break;
+                        case 8: switchAllowJs.setChecked(!switchAllowJs.isChecked()); break;
+                        case 9: btnViewportFit.performClick(); break;
+                        case 10: btnViewportFitContent.performClick(); break;
+                        case 11: btnViewportZoomIn.performClick(); break;
+                        case 12: btnViewportZoomOut.performClick(); break;
+                        default: break;
+                    }
+                });
+        activeSheet.findViewById(R.id.sheet_handle)
+                .setContentDescription(getString(R.string.editor_action_close));
+    }
+
+    private CanvasBottomSheet.Action editorTool(int id, int icon, int label) {
+        return new CanvasBottomSheet.Action(id, icon, getString(label));
     }
 
     /** Code, data and config files get keyword colour. That is not an interpreter. */
@@ -2336,7 +2359,11 @@ public class EditorActivity extends Activity {
         isFullscreen = fullscreen;
         if (fullscreen) {
             orientationBeforeFullscreen = getRequestedOrientation();
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            // Photos and responsive HTML should expand in their current orientation.
+            // Forcing a tall image into landscape makes it smaller rather than easier to view.
+            if (!isImageKind() && kind != DocumentKind.HTML) {
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            }
         } else {
             setRequestedOrientation(orientationBeforeFullscreen);
         }

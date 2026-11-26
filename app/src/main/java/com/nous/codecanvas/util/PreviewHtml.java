@@ -19,9 +19,23 @@ public final class PreviewHtml {
     private static final java.util.regex.Pattern ATTRIBUTE = java.util.regex.Pattern.compile(
             "([^\\s=<>/\"']+)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))");
 
+    // A copied source can carry a lone "/" before the HTML doctype. Besides being visible text,
+    // it puts the browser in quirks mode and prevents detection of a single inline artwork.
+    // Limit recovery to the document prologue and a complete HTML5 doctype, never body text.
+    private static final java.util.regex.Pattern STRAY_DOCTYPE_SLASH = java.util.regex.Pattern.compile(
+            "(?is)\\A[\\t\\r\\n\\f ]*(?:<!--.*?-->[\\t\\r\\n\\f ]*)*+(/)"
+            + "(?=[\\t\\r\\n\\f ]*<!doctype[\\t\\r\\n\\f ]+html[\\t\\r\\n\\f ]*>)");
+
+    private static String recoverHtmlPrologue(String source) {
+        if (source == null || source.isEmpty()) return "";
+        String html = source.charAt(0) == '\uFEFF' ? source.substring(1) : source;
+        java.util.regex.Matcher slash = STRAY_DOCTYPE_SLASH.matcher(html);
+        return slash.find() ? html.substring(0, slash.start(1)) + html.substring(slash.end(1)) : html;
+    }
+
     /** The original page stays intact; only preview viewport metadata and artwork sizing change. */
     public static String forWebPage(String html) {
-        if (html == null) html = "";
+        html = recoverHtmlPrologue(html);
         String layout = "<style>body:has(>canvas:only-of-type):not(:has(>:not(canvas,script,style,template,noscript)))>canvas"
                 + "{width:auto!important;height:auto!important;max-width:100%!important;max-height:100vh!important;object-fit:contain}"
                 + "</style>";
