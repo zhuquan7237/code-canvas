@@ -3,7 +3,11 @@
     android:id="@+id/root_main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/studio_paper">
+    android:background="@color/studio_paper"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:importantForAccessibility="no"
+    android:descendantFocusability="beforeDescendants">
 
     <!-- The browsing column. The drawer is a sibling that overlays it, so the
          panel can cover the top bar instead of pushing the page sideways. -->
@@ -15,6 +19,7 @@
     <!-- Top bar: one title, ghost icons. Import and new stay in the tree so
          existing listeners and tests can reach them; the visible entry is ＋. -->
     <LinearLayout
+        android:id="@+id/library_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:minHeight="64dp"
@@ -33,25 +38,34 @@
             android:src="@drawable/ic_menu"
             android:contentDescription="打开目录" />
 
-        <TextView
-            android:id="@+id/txt_brand"
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="4dp"
-            android:text="代码画布"
-            android:textSize="25sp"
-            android:maxLines="2"
-            android:accessibilityHeading="true"
-            android:textStyle="bold"
-            android:textColor="@color/canvas_ink_primary" />
+            android:layout_marginStart="@dimen/space_4"
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/txt_brand_sub"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:visibility="gone"
-            android:text="粘贴即可预览" />
+            <TextView
+                android:id="@+id/txt_brand"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textSize="24sp"
+                android:maxLines="2"
+                android:accessibilityHeading="true"
+                android:textStyle="bold"
+                android:textColor="@color/canvas_ink_primary" />
+
+            <TextView
+                android:id="@+id/txt_brand_sub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/library_local_workspace"
+                android:textSize="11sp"
+                android:textColor="@color/canvas_ink_secondary"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
 
         <ImageButton
             android:id="@+id/btn_add_menu"
@@ -141,7 +155,7 @@
             android:contentDescription="清空搜索" />
     </LinearLayout>
 
-    <!-- Section header: count on the left, update + view-mode on the right. -->
+    <!-- Section header: result count, format selector, and a contained view switch. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -162,15 +176,28 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:letterSpacing="0.02"
-            android:textColor="@color/canvas_ink_tertiary" />
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textColor="@color/canvas_ink_primary" />
+
+        <ImageButton
+            android:id="@+id/btn_library_filter"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
+            android:layout_marginStart="@dimen/space_4"
+            android:layout_marginEnd="@dimen/space_4"
+            android:padding="@dimen/space_12"
+            android:background="@drawable/bg_icon_toggle"
+            android:tint="@color/icon_toggle_tint"
+            android:src="@drawable/ic_filter"
+            android:contentDescription="@string/library_filter_all_description" />
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:padding="0dp"
-            android:background="@android:color/transparent">
+            android:background="@drawable/bg_library_mode_group">
 
             <ImageButton
                 android:id="@+id/btn_layout_list"
@@ -292,12 +319,27 @@
                     android:textSize="13sp"
                     android:textColor="@color/canvas_primary" />
 
+                <Button
+                    android:id="@+id/btn_empty_reset"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_min"
+                    android:layout_marginTop="@dimen/space_16"
+                    android:paddingHorizontal="@dimen/space_16"
+                    android:background="@drawable/bg_studio_secondary"
+                    android:text="@string/library_reset_filters"
+                    android:textAllCaps="false"
+                    android:textSize="14sp"
+                    android:textColor="@color/studio_on_tonal"
+                    android:visibility="gone" />
+
                 <TextView
+                    android:id="@+id/txt_empty_local_note"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="@dimen/space_12"
                     android:gravity="center"
-                    android:text="代码只保存在本机，不会上传。"
+                    android:text="@string/library_local_note"
                     android:textSize="12sp"
                     android:textColor="@color/canvas_ink_tertiary" />
             </LinearLayout>
@@ -317,7 +359,7 @@
         android:background="@drawable/bg_fab"
         android:elevation="6dp"
         android:stateListAnimator="@null"
-        android:text="粘贴"
+        android:text="@string/library_paste"
         android:textSize="15sp"
         android:textStyle="bold"
         android:textColor="@color/studio_on_brand"
@@ -331,7 +373,7 @@
     <LinearLayout
         android:id="@+id/selection_bar"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
+        android:layout_height="64dp"
         android:layout_gravity="top"
         android:orientation="horizontal"
         android:gravity="center_vertical"
@@ -343,8 +385,8 @@
 
         <ImageButton
             android:id="@+id/btn_selection_close"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
             android:padding="11dp"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_close"
@@ -363,8 +405,8 @@
 
         <ImageButton
             android:id="@+id/btn_selection_all"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
             android:padding="11dp"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_select_all"
@@ -372,8 +414,8 @@
 
         <ImageButton
             android:id="@+id/btn_selection_share"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
             android:padding="11dp"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_share"
@@ -381,8 +423,8 @@
 
         <ImageButton
             android:id="@+id/btn_selection_delete"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
             android:padding="11dp"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_delete"

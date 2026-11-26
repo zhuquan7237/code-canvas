@@ -350,6 +350,11 @@ public class MainActivity extends Activity {
         if (btnQuickPaste == null) return;
         boolean showPaste = !selectionMode && !allDocuments.isEmpty();
         btnQuickPaste.setVisibility(showPaste ? View.VISIBLE : View.GONE);
+        // Keep the selection scope stable until the user exits multi-select.
+        findViewById(R.id.library_header).setVisibility(selectionMode ? View.INVISIBLE : View.VISIBLE);
+        findViewById(R.id.btn_library_filter).setEnabled(!selectionMode);
+        findViewById(R.id.btn_search_clear).setEnabled(!selectionMode);
+        editSearch.setEnabled(!selectionMode);
         int bottom = dp(showPaste ? 88 : 12);
         setGalleryBottomPadding(listDocuments, bottom);
         setGalleryBottomPadding(gridDocuments, bottom);
@@ -385,6 +390,12 @@ public class MainActivity extends Activity {
             closeDrawer();
             return true;
         }
+        if (editSearch != null && (editSearch.hasFocus() || editSearch.length() > 0)) {
+            editSearch.setText("");
+            finishLibrarySearch();
+            applyFilters();
+            return true;
+        }
         return false;
     }
 
@@ -395,7 +406,10 @@ public class MainActivity extends Activity {
     private void initViews() {
         listDocuments = findViewById(R.id.list_documents);
         gridDocuments = findViewById(R.id.grid_documents);
-        if (largeLibraryText()) gridDocuments.setNumColumns(1);
+        if (largeLibraryText()) {
+            gridDocuments.setNumColumns(1);
+            findViewById(R.id.txt_brand_sub).setVisibility(View.GONE);
+        }
         viewEmpty = findViewById(R.id.view_empty);
         editSearch = findViewById(R.id.edit_search);
         btnQuickPaste = findViewById(R.id.btn_quick_paste_preview);
@@ -403,6 +417,8 @@ public class MainActivity extends Activity {
         if (emptyPaste != null) emptyPaste.setOnClickListener(v -> performQuickPasteAndPreview());
         View emptyImport = findViewById(R.id.btn_empty_import);
         if (emptyImport != null) emptyImport.setOnClickListener(v -> startSafImport());
+        findViewById(R.id.btn_empty_reset).setOnClickListener(v -> resetLibrarySearch());
+        findViewById(R.id.btn_library_filter).setOnClickListener(this::showLibraryFormatMenu);
         btnNew = findViewById(R.id.btn_new);
         btnImport = findViewById(R.id.btn_import);
 
@@ -507,12 +523,16 @@ public class MainActivity extends Activity {
 
         View clear = findViewById(R.id.btn_search_clear);
         if (clear != null) {
-            clear.setOnClickListener(v -> editSearch.setText(""));
+            clear.setOnClickListener(v -> {
+                editSearch.setText("");
+                applyFilters();
+                editSearch.requestFocus();
+            });
         }
         editSearch.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-                if (imm != null) imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+                finishLibrarySearch();
+                applyFilters();
                 return true;
             }
             return false;
@@ -531,6 +551,44 @@ public class MainActivity extends Activity {
             }
             @Override public void afterTextChanged(Editable s) {}
         });
+    }
+
+    private void finishLibrarySearch() {
+        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (imm != null) imm.hideSoftInputFromWindow(editSearch.getWindowToken(), 0);
+        findViewById(R.id.root_main).requestFocus();
+    }
+
+    private void resetLibrarySearch() {
+        finishLibrarySearch();
+        editSearch.setText("");
+        setTypeFilter(null);
+    }
+
+    /** Android's anchored format menu adds no permanent row on a narrow screen. */
+    private void showLibraryFormatMenu(View anchor) {
+        if (selectionMode) return;
+        finishLibrarySearch();
+        android.widget.PopupMenu popup = new android.widget.PopupMenu(this, anchor);
+        for (int i = 0; i < LIBRARY_FILTERS.length; i++) {
+            String[] option = LIBRARY_FILTERS[i];
+            popup.getMenu().add(1, i + 1, i, option[0])
+                    .setCheckable(true)
+                    .setChecked(java.util.Objects.equals(typeFilter, option[1]));
+        }
+        popup.getMenu().setGroupCheckable(1, true, true);
+        popup.setOnMenuItemClickListener(item -> {
+            setTypeFilter(LIBRARY_FILTERS[item.getItemId() - 1][1]);
+            return true;
+        });
+        popup.show();
+    }
+
+    private void setTypeFilter(String filter) {
+        if (selectionMode) return;
+        typeFilter = filter;
+        buildFilterChips();
+        applyFilters();
     }
 
     private boolean isDarkTheme() {
@@ -616,7 +674,16 @@ public class MainActivity extends Activity {
         View emptyPaste = findViewById(R.id.btn_empty_paste);
         View emptyImport = findViewById(R.id.btn_empty_import);
         View emptyIcon = findViewById(R.id.img_empty);
+        View emptyReset = findViewById(R.id.btn_empty_reset);
+        View localNote = findViewById(R.id.txt_empty_local_note);
+        View format = findViewById(R.id.btn_library_filter);
         boolean libraryEmpty = allDocuments.isEmpty();
+        format.setSelected(typeFilter != null);
+        format.setContentDescription(typeFilter == null
+                ? getString(R.string.library_filter_all_description)
+                : getString(R.string.library_filter_active_description, filterLabel(typeFilter)));
+        localNote.setVisibility(libraryEmpty ? View.VISIBLE : View.GONE);
+        emptyReset.setVisibility(noMatch && !libraryEmpty && !selectionMode ? View.VISIBLE : View.GONE);
         if (emptyIcon != null) emptyIcon.setVisibility(libraryEmpty ? View.VISIBLE : View.GONE);
         if (emptyTitle != null) {
             emptyTitle.setText(libraryEmpty ? "把第一段代码变成作品" : "没有符合的作品");
@@ -624,7 +691,7 @@ public class MainActivity extends Activity {
         if (emptyHint != null) {
             emptyHint.setText(libraryEmpty
                     ? "在 AI 聊天里复制 HTML、SVG 或 XML 代码，粘进来就能看到效果，不用装浏览器。"
-                    : "换个关键词，或在目录里改回「全部」。已有的作品还在。");
+                    : getString(R.string.library_no_matches_hint));
         }
         if (emptyPaste != null) emptyPaste.setVisibility(libraryEmpty ? View.VISIBLE : View.GONE);
         if (emptyImport != null) emptyImport.setVisibility(libraryEmpty ? View.VISIBLE : View.GONE);
@@ -633,6 +700,14 @@ public class MainActivity extends Activity {
 
     /** "其它" is everything that is not HTML, SVG or XML. There is no DocumentKind named RAW. */
     private static final String FILTER_OTHER = "OTHER";
+    /** Shared labels and keys for the drawer and the fast format picker. */
+    private static final String[][] LIBRARY_FILTERS = {
+            {"全部", null},
+            {"HTML", RenderKind.HTML.name()},
+            {"SVG", RenderKind.SVG.name()},
+            {"XML", RenderKind.XML.name()},
+            {"其它", FILTER_OTHER},
+    };
 
     private boolean matchesTypeFilter(com.nous.codecanvas.data.DocumentKind kind) {
         if (typeFilter == null) return true;
@@ -706,31 +781,20 @@ public class MainActivity extends Activity {
     /** 全部 / HTML / SVG / XML / 其它. Chips wrap so the last one is not clipped on a narrow phone. */
     private void buildFilterChips() {
         drawerFilters.removeAllViews();
-        String[][] options = {
-                {"全部", null},
-                {"HTML", RenderKind.HTML.name()},
-                {"SVG", RenderKind.SVG.name()},
-                {"XML", RenderKind.XML.name()},
-                {"其它", FILTER_OTHER},
-        };
         int max = drawerPanel.getWidth() - dp(24);
         if (max < dp(160)) max = dp(240);
         LayoutInflater inflater = LayoutInflater.from(this);
         LinearLayout row = newFilterRow();
         drawerFilters.addView(row);
         int used = 0;
-        for (String[] option : options) {
+        for (String[] option : LIBRARY_FILTERS) {
             View chip = inflater.inflate(R.layout.item_drawer_filter, row, false);
             boolean active = option[1] == null ? typeFilter == null : option[1].equals(typeFilter);
             chip.setSelected(active);
             TextView label = chip.findViewById(R.id.filter_label);
             label.setText(option[0]);
             label.setSelected(active);
-            chip.setOnClickListener(v -> {
-                typeFilter = option[1];
-                buildFilterChips();
-                applyFilters();
-            });
+            chip.setOnClickListener(v -> setTypeFilter(option[1]));
             chip.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
             int width = chip.getMeasuredWidth() + dp(8);
             if (used > 0 && used + width > max) {
@@ -858,6 +922,7 @@ public class MainActivity extends Activity {
     }
 
     private void enterSelectionMode(String firstId) {
+        finishLibrarySearch();
         selectionMode = true;
         selectedIds.clear();
         selectedIds.add(firstId);
@@ -1448,7 +1513,15 @@ public class MainActivity extends Activity {
 
             if (txtTitle != null) txtTitle.setText(doc.getTitle());
             if (txtTag != null) {
-                txtTag.setText(coverKind.label());
+                boolean compactCard = parent == gridDocuments && !largeLibraryText();
+                String label = coverKind.label();
+                if (compactCard && coverKind == com.nous.codecanvas.data.DocumentKind.MARKDOWN) {
+                    txtTag.setText("MD");
+                    txtTag.setContentDescription(label);
+                } else {
+                    txtTag.setText(label);
+                    txtTag.setContentDescription(null);
+                }
                 KindStyle.applyChip(txtTag, coverKind);
             }
             if (txtSize != null) {
@@ -1468,7 +1541,10 @@ public class MainActivity extends Activity {
                     : (parent == gridDocuments ? R.drawable.bg_card : R.drawable.bg_list_row));
             convertView.setLongClickable(true);
             if (btnMore != null) {
-                btnMore.setVisibility(selectionMode ? View.GONE : View.VISIBLE);
+                // Keep the same text width and row geometry when the selection badge replaces More.
+                btnMore.setVisibility(selectionMode
+                        ? (parent == gridDocuments && !largeLibraryText() ? View.INVISIBLE : View.GONE)
+                        : View.VISIBLE);
             }
 
             return convertView;
@@ -1733,6 +1809,7 @@ public class MainActivity extends Activity {
         if (activeDialog != null && activeDialog.isShowing()) activeDialog.dismiss();
         if (activeSheet != null && activeSheet.isShowing()) activeSheet.dismiss();
         super.onDestroy();
+        searchHandler.removeCallbacksAndMessages(null);
         thumbnailExecutor.shutdown();
         clipboardReadExecutor.shutdown();
     }

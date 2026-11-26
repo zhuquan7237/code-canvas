@@ -1,24 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- View-mode toggle: a filled primary pill when chosen, plain when not.
-     Replaces the old jade "bg_tag" highlight that had no relation to the
-     brand colour. -->
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_selected="true">
-        <shape android:shape="rectangle">
-            <solid android:color="@color/canvas_primary" />
-            <corners android:radius="999dp" />
+<!-- Native press feedback in a 48dp target; the inset only affects the painted pill. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/canvas_selection">
+    <item android:left="@dimen/space_4" android:top="@dimen/space_4"
+        android:right="@dimen/space_4" android:bottom="@dimen/space_4">
+        <selector>
+            <item android:state_selected="true">
+                <shape>
+                    <solid android:color="@color/studio_tonal" />
+                    <corners android:radius="@dimen/radius_pill" />
+                </shape>
+            </item>
+            <item android:state_focused="true">
+                <shape>
+                    <solid android:color="@color/studio_control" />
+                    <stroke android:width="2dp" android:color="@color/studio_brand" />
+                    <corners android:radius="@dimen/radius_pill" />
+                </shape>
+            </item>
+            <item android:drawable="@android:color/transparent" />
+        </selector>
+    </item>
+    <item android:id="@android:id/mask">
+        <shape>
+            <solid android:color="@android:color/white" />
+            <corners android:radius="@dimen/radius_pill" />
         </shape>
     </item>
-    <item android:state_activated="true">
-        <shape android:shape="rectangle">
-            <solid android:color="@color/canvas_primary" />
-            <corners android:radius="999dp" />
-        </shape>
-    </item>
-    <item>
-        <shape android:shape="rectangle">
-            <solid android:color="@android:color/transparent" />
-            <corners android:radius="999dp" />
-        </shape>
-    </item>
-</selector>
+</ripple>
