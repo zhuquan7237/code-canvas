@@ -12,4 +12,5 @@
     <string name="selection_saving">Saving to the library…</string>
     <string name="selection_reopen">Temporary text was cleared. Open the selection again from the other app.</string>
     <string name="selection_saved_large">Saved to the library. The editor was not opened because the text is too long.</string>
+    <string name="selection_temporary_excerpt">Only the start of this long selection is shown. Save keeps all of it; closing without saving leaves no copy.</string>
 </resources>

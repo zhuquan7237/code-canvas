@@ -12,4 +12,5 @@
     <string name="selection_saving">正在保存到作品库…</string>
     <string name="selection_reopen">临时文本已清空，请回到原应用重新选中打开</string>
     <string name="selection_saved_large">已保存到作品库。文本较长，未自动打开编辑器。</string>
+    <string name="selection_temporary_excerpt">选区较长，只显示开头。保存会保留全文，直接关闭不会留下副本。</string>
 </resources>

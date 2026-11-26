@@ -30,6 +30,9 @@ import java.util.UUID;
 public final class SelectedTextActivity extends Activity {
     static final int MAX_BYTES = 256 * 1024;
 
+    // Bound native text layout: a single very long line can exhaust device memory.
+    private static final int MAX_DISPLAY_CHARS = 8192;
+
     private Scratch scratch;
     private Button save;
     private TextView status;
@@ -65,7 +68,12 @@ public final class SelectedTextActivity extends Activity {
             return insets;
         });
         TextView source = findViewById(R.id.selected_text_source);
-        source.setText(scratch.source);
+        int end = Math.min(MAX_DISPLAY_CHARS, scratch.source.length());
+        if (end < scratch.source.length() && Character.isHighSurrogate(scratch.source.charAt(end - 1))
+                && Character.isLowSurrogate(scratch.source.charAt(end))) {
+            end--;
+        }
+        source.setText(scratch.source.substring(0, end));
         status = findViewById(R.id.selected_text_status);
         save = findViewById(R.id.btn_save_selected_text);
         findViewById(R.id.btn_close_selected_text).setOnClickListener(v -> finish());
@@ -138,7 +146,9 @@ public final class SelectedTextActivity extends Activity {
         if (isFinishing()) return;
         save.setEnabled(!scratch.saving && !scratch.saved);
         status.setText(scratch.saving ? R.string.selection_saving
-                : scratch.failed ? R.string.selection_save_failed : R.string.selection_temporary);
+                : scratch.failed ? R.string.selection_save_failed
+                : scratch.source.length() > MAX_DISPLAY_CHARS
+                    ? R.string.selection_temporary_excerpt : R.string.selection_temporary);
         if (!scratch.saved || scratch.owner != this) return;
 
         if (scratch.source.length() <= EditorActivity.MAX_EDITABLE_CHARS) {

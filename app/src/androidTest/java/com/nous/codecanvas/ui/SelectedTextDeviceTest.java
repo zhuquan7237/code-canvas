@@ -102,7 +102,15 @@ public final class SelectedTextDeviceTest extends InstrumentationTestCase {
         Instrumentation.ActivityMonitor editorMonitor = monitor(EditorActivity.class);
         try {
             Activity scratch = start(fixture, "text/plain");
-            ui(() -> scratch.findViewById(R.id.btn_save_selected_text).performClick());
+            ui(() -> {
+                TextView excerpt = scratch.findViewById(R.id.selected_text_source);
+                String visible = excerpt.getText().toString();
+                assertTrue(visible.length() <= 8192);
+                assertTrue(fixture.startsWith(visible));
+                TextView status = scratch.findViewById(R.id.selected_text_status);
+                assertEquals(context.getText(R.string.selection_temporary_excerpt), status.getText());
+                scratch.findViewById(R.id.btn_save_selected_text).performClick();
+            });
             assertTrue(waitFinishing(scratch));
             assertEquals(0, editorMonitor.getHits());
             assertEquals(1, copies().size());
