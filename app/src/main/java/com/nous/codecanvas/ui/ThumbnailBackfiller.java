@@ -2,7 +2,6 @@ package com.nous.codecanvas.ui;
 
 import android.app.Activity;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
 import android.graphics.Color;
 import android.os.Build;
 import android.view.View;
@@ -13,6 +12,7 @@ import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
 import com.nous.codecanvas.model.CanvasDocument;
+import com.nous.codecanvas.data.DocumentKind;
 import com.nous.codecanvas.util.CanvasPrefs;
 import com.nous.codecanvas.util.PreviewKey;
 import com.nous.codecanvas.util.PreviewPage;
@@ -116,7 +116,9 @@ final class ThumbnailBackfiller {
         int taken = 0;
         for (CanvasDocument doc : documents) {
             if (taken >= MAX_PER_VISIT) break;
-            if (!canThumbnail(doc) || hasThumbnail(doc)) continue;
+            if (!canThumbnail(doc) || hasThumbnail(doc)
+                    || (inflight != null && doc.getId().equals(inflight.getId()))
+                    || queue.stream().anyMatch(queued -> doc.getId().equals(queued.getId()))) continue;
             queue.addLast(doc);
             addAnything = true;
             taken++;
@@ -150,8 +152,9 @@ final class ThumbnailBackfiller {
     }
 
     private boolean hasThumbnail(CanvasDocument doc) {
-        java.io.File f = PreviewThumbnailCache.file(
-                activity.getApplicationContext(), darkKeyFor(doc));
+        String key = darkKeyFor(doc);
+        if (memoryGet(key) != null) return true;
+        java.io.File f = PreviewThumbnailCache.file(activity.getApplicationContext(), key);
         // Decoding the PNG here used to happen on the UI thread for every row.
         return f.isFile() && f.length() > 32;
     }
@@ -162,7 +165,7 @@ final class ThumbnailBackfiller {
      * writing two different files for the same document.
      */
     private String darkKeyFor(CanvasDocument doc) {
-        return PreviewKey.forDocument(doc.getId(), doc.getContent(), isDark());
+        return PreviewKey.forThumbnail(doc.getId(), doc.kind().name(), doc.getContent(), isDark(), CanvasPrefs.scriptsAllowed(activity));
     }
 
     private boolean isDark() {
@@ -217,7 +220,7 @@ final class ThumbnailBackfiller {
             running = false;
             return;
         }
-        sizeWebView(doc);
+        sizeWebView();
         PreviewPage.Request request = new PreviewPage.Request();
         request.kind = doc.kind().name();
         request.content = doc.getContent();
@@ -225,10 +228,15 @@ final class ThumbnailBackfiller {
         request.dark = dark;
         request.allowScripts = CanvasPrefs.scriptsAllowed(activity);
         final String page = PreviewPage.build(request);
-
-        boolean bundledEngine = doc.kind() == com.nous.codecanvas.data.DocumentKind.MARKDOWN
-                || doc.kind() == com.nous.codecanvas.data.DocumentKind.MERMAID;
-        web.getSettings().setJavaScriptEnabled(bundledEngine || CanvasPrefs.scriptsAllowed(activity));
+        final long ticket = nextRequestId();
+        final DocumentKind kind = doc.kind();
+        final boolean bundledEngine = kind == DocumentKind.MARKDOWN || kind == DocumentKind.MERMAID
+                || kind == DocumentKind.SVG;
+        final boolean scripts = bundledEngine || (kind == DocumentKind.HTML && request.allowScripts);
+        web.getSettings().setJavaScriptEnabled(scripts);
+        web.getSettings().setDomStorageEnabled(kind == DocumentKind.HTML && scripts);
+        web.getSettings().setLoadWithOverviewMode(kind == DocumentKind.HTML);
+        final String origin = "https://gallery-" + key.substring(0, 32) + ".codecanvas.invalid/" + ticket;
         web.setWebViewClient(new WebViewClient() {
             @Override
             public android.webkit.WebResourceResponse shouldInterceptRequest(
@@ -239,71 +247,134 @@ final class ThumbnailBackfiller {
             }
 
             @Override
+            public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
+                // Art can render but a background thumbnail never follows navigation.
+                return request.isForMainFrame() || !"blob".equals(request.getUrl().getScheme());
+            }
+
+            @Override
+            public boolean onRenderProcessGone(WebView view, android.webkit.RenderProcessGoneDetail detail) {
+                if (view == web && ticket == requestId) {
+                    releaseWeb();
+                    finish(ticket);
+                }
+                return true;
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
-                // Markdown and Mermaid fill in after deferred scripts. The first paint is
-                // an empty page; wait until there is ink, then give up and keep the tile.
-                captureWhenReady(view, key, doc.kind(), 0);
+                if (!origin.equals(url)) return;
+                captureWhenReady(view, key, kind, scripts, ticket, 0);
             }
         });
-        web.loadDataWithBaseURL("https://codecanvas.invalid/gallery/" + Math.abs(key.hashCode()) + "/",
-                page, "text/html", "UTF-8", null);
+        WebView view = web;
+        view.loadDataWithBaseURL(origin, page, "text/html", "UTF-8", null);
+        // Bound failed/slow pages too: one broken thumbnail must not block the whole list.
+        view.postDelayed(() -> {
+            if (!current(view, ticket)) return;
+            releaseWeb();
+            finish(ticket);
+        }, 6500);
     }
 
-    private void captureWhenReady(WebView view, String key,
-                                  com.nous.codecanvas.data.DocumentKind kind, int attempt) {
+    private boolean current(WebView view, long ticket) {
+        return view == web && !paused && ticket == requestId;
+    }
+
+    private void finish(long ticket) {
+        if (ticket != requestId) return;
+        nextRequestId(); // callbacks for this capture are no longer eligible
+        inflight = null;
+        startNext();
+    }
+
+    private static final String BOUNDS = """
+            (()=>{
+              let node=document.querySelector('#cc-mermaid svg');
+              if(!node && document.body){
+                const children=[...document.body.children].filter(e=>!['SCRIPT','STYLE','TEMPLATE','NOSCRIPT'].includes(e.tagName));
+                const only=children.length===1&&children[0];
+                if(only&&((only.localName==='svg'&&only.hasAttribute('viewBox'))||only.localName==='canvas'))node=only;
+              }
+              let r=window.CCViewport ? window.CCViewport.bounds() :
+                    node ? node.getBoundingClientRect() : null;
+              if(!r)return null;
+              return [r.x,r.y,r.w??r.width,r.h??r.height,
+                      visualViewport.width,visualViewport.height];
+            })()
+            """;
+
+    private void captureWhenReady(WebView view, String key, DocumentKind kind,
+                                  boolean scripts, long ticket, int attempt) {
         view.postDelayed(() -> {
-            if (view != web || paused) return;
-            Bitmap shot = PreviewThumbnailCache.capture(view);
-            Bitmap framed = kind == com.nous.codecanvas.data.DocumentKind.SVG
-                    ? PreviewThumbnailCache.letterbox(shot)
-                    : PreviewThumbnailCache.topSlice(shot);
-            if (framed != null && framed != shot && shot != null) shot.recycle();
-            boolean ready = framed != null && !PreviewThumbnailCache.lacksContent(framed);
-            boolean last = attempt >= 8;
-            if (ready) {
-                Bitmap copy = framed.copy(Bitmap.Config.ARGB_8888, false);
-                memoryPutContent(key, copy);
-                PreviewThumbnailCache.store(activity.getApplicationContext(), key, framed);
-                inflight = null;
-                if (onThumbnailStored != null) onThumbnailStored.run();
-                startNext();
+            if (!current(view, ticket)) return;
+            if (!scripts) {
+                captureFrame(view, key, kind, null, false, ticket, attempt);
                 return;
             }
-            if (framed != null) framed.recycle();
-            if (last) {
-                inflight = null;
-                startNext();
-            } else {
-                captureWhenReady(view, key, kind, attempt + 1);
+            view.evaluateJavascript(BOUNDS, value -> {
+                if (!current(view, ticket)) return;
+                view.postVisualStateCallback(ticket, new WebView.VisualStateCallback() {
+                    @Override public void onComplete(long id) {
+                        if (current(view, ticket)) {
+                            captureFrame(view, key, kind, value, true, ticket, attempt);
+                        }
+                    }
+                });
+            });
+        }, attempt == 0 ? 350 : 450);
+    }
+
+    private void captureFrame(WebView view, String key, DocumentKind kind, String value,
+                              boolean scripts, long ticket, int attempt) {
+        boolean drawing = kind == DocumentKind.SVG || kind == DocumentKind.MERMAID;
+        Bitmap shot = null, cropped = null, framed = null;
+        float[] rect = null;
+        if (value != null && !"null".equals(value)) {
+            try {
+                org.json.JSONArray arr = new org.json.JSONArray(value);
+                rect = new float[6];
+                for (int i = 0; i < 6; i++) rect[i] = (float) arr.getDouble(i);
+            } catch (Exception ignored) {
+                rect = null;
             }
-        }, attempt == 0 ? 350 : 500);
+        }
+        if (!drawing || rect != null) {
+            shot = PreviewThumbnailCache.capture(view);
+            cropped = PreviewThumbnailCache.cropViewportRect(shot, rect);
+            framed = drawing || rect != null
+                    ? PreviewThumbnailCache.letterbox(cropped)
+                    : PreviewThumbnailCache.topSlice(cropped);
+        }
+        if (cropped != null && cropped != shot && cropped != framed) cropped.recycle();
+        if (shot != null && shot != framed) shot.recycle();
+        if (framed != null && !PreviewThumbnailCache.lacksContent(framed)) {
+            Bitmap copy = framed.copy(Bitmap.Config.ARGB_8888, false);
+            memoryPutContent(key, copy);
+            // PNG compression must not delay a home screen frame.
+            Bitmap result = framed;
+            tiles.execute(() -> PreviewThumbnailCache.store(activity.getApplicationContext(), key, result));
+            if (onThumbnailStored != null) onThumbnailStored.run();
+            finish(ticket);
+            return;
+        }
+        if (framed != null) framed.recycle();
+        if (attempt >= 8) {
+            finish(ticket);
+        } else {
+            captureWhenReady(view, key, kind, scripts, ticket, attempt + 1);
+        }
     }
 
     /**
-     * SVG is captured at its own viewBox aspect, so a wide drawing fills the bitmap.
-     * HTML is captured as the first phone screen, then cropped.
+     * Use a phone viewport in CSS units for all web thumbnails. A square/landscape screenshot
+     * feeds different media queries from the editor and can show a different artwork altogether.
      */
-    /**
-     * HTML is one phone screen, 390×844 CSS pixels, so the top crop matches the preview.
-     * SVG is the whole viewBox, so a later letterbox does not cut the drawing.
-     */
-    private void sizeWebView(CanvasDocument doc) {
+    private void sizeWebView() {
         if (web == null) return;
-        int w = 390;
-        int h = 844;
-        if (doc.kind() == com.nous.codecanvas.data.DocumentKind.SVG) {
-            w = 480;
-            h = 320;
-            com.nous.codecanvas.util.SvgGeometry.Box box =
-                    com.nous.codecanvas.util.SvgGeometry.measure(doc.getContent());
-            if (box != null && box.isValid() && box.aspect() > 0) {
-                h = Math.max(48, Math.round(w / (float) box.aspect()));
-                if (h > 480) {
-                    h = 480;
-                    w = Math.max(48, Math.round(h * (float) box.aspect()));
-                }
-            }
-        }
+        android.util.DisplayMetrics display = activity.getResources().getDisplayMetrics();
+        int w = Math.max(1, display.widthPixels - Math.round(24 * display.density));
+        int h = Math.max(1, display.heightPixels - Math.round(210 * display.density));
         web.setLayoutParams(new FrameLayout.LayoutParams(w, h));
         int ws = View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY);
         int hs = View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY);
@@ -394,7 +465,7 @@ final class ThumbnailBackfiller {
             boolean dark = (activity.getResources().getConfiguration().uiMode
                     & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                     == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-            String key = PreviewKey.forDocument(doc.getId(), doc.getContent(), dark);
+            String key = PreviewKey.forThumbnail(doc.getId(), doc.kind().name(), doc.getContent(), dark, CanvasPrefs.scriptsAllowed(activity));
             java.io.File file = PreviewThumbnailCache.file(activity.getApplicationContext(), key);
             if (!file.isFile() || file.length() <= 32) missing.add(doc);
         }

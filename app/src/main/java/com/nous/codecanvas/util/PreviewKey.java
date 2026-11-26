@@ -1,6 +1,9 @@
 package com.nous.codecanvas.util;
 public final class PreviewKey {
  private PreviewKey(){}
+ public static String forThumbnail(String id,String kind,String content,boolean dark,boolean scripts){
+  return forDocument(id+"\u0000"+kind+"\u0000"+scripts+"\u0000thumbnail-v8",content,dark);
+ }
  public static String forDocument(String id,String content,boolean dark){
   try {
    byte[] bytes=java.security.MessageDigest.getInstance("SHA-256").digest((id+"\u0000"+dark+"\u0000v7\u0000"+content).getBytes(java.nio.charset.StandardCharsets.UTF_8));

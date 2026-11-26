@@ -441,9 +441,53 @@ public class SvgViewport extends FrameLayout {
 
     // --- gestures ------------------------------------------------------------------------------
 
+    private boolean artworkGestures;
+    private boolean takingPinch;
+    private boolean artworkStream;
+    private float initialX, initialY;
+
+    public void setArtworkGestures(boolean enabled) {
+        artworkGestures = enabled;
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            takingPinch = false;
+            artworkStream = interactive && artworkGestures && !userAdjusted;
+            initialX = event.getX();
+            initialY = event.getY();
+        }
+        if (artworkStream && action == MotionEvent.ACTION_POINTER_DOWN) {
+            // Cancel the real one-finger stream inside the artwork before the second finger
+            // becomes canvas zoom. Feed our detectors an anchor; the child got the real DOWN.
+            MotionEvent cancel = MotionEvent.obtain(event);
+            cancel.setAction(MotionEvent.ACTION_CANCEL);
+            super.dispatchTouchEvent(cancel);
+            cancel.recycle();
+            artworkStream = false;
+            takingPinch = true;
+            MotionEvent anchor = MotionEvent.obtain(event.getDownTime(), event.getEventTime(),
+                    MotionEvent.ACTION_DOWN, initialX, initialY, event.getMetaState());
+            onTouchEvent(anchor);
+            anchor.recycle();
+        }
+        if (takingPinch) {
+            onTouchEvent(event);
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                takingPinch = false;
+            }
+            return true;
+        }
+        boolean handled = super.dispatchTouchEvent(event);
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) artworkStream = false;
+        return handled;
+    }
+
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
-        if (!interactive) return false;
+        if (!interactive || artworkStream) return false;
         // Every event, including DOWN: a pinch needs its anchor, and a pan must not become a page
         // scroll. For content that scrolls itself this viewport is simply not in the chain.
         return true;

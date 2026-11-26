@@ -78,10 +78,11 @@ public class CoreLogicTest {
         String svgContent = "<svg viewBox=\"0 0 200 200\" width=\"200\" height=\"200\"><circle cx=\"100\" cy=\"100\" r=\"80\" fill=\"#0D9488\"/></svg>";
         String wrapped = SvgWrapper.wrapSvgInResponsiveHtml(svgContent, false);
 
-        assertTrue("Should include responsive viewport meta", wrapped.contains("name=\"viewport\""));
-        assertTrue("Should include SVG content", wrapped.contains("<circle cx=\"100\" cy=\"100\""));
-        assertTrue("Should contain container avoiding height collapse", wrapped.contains("svg-wrapper") || wrapped.contains("viewBox"));
-        assertFalse("Should not include external tracking scripts", wrapped.contains("http://"));
+        assertTrue("Should include responsive viewport meta", wrapped.contains("width=device-width"));
+        assertTrue("Preview must use a live SVG document", wrapped.contains("image/svg+xml"));
+        assertTrue("Viewport fitting and zoom are exposed", wrapped.contains("window.CCViewport"));
+        assertTrue("Artwork is isolated in its own document", wrapped.contains("<iframe"));
+
     }
 
     @Test

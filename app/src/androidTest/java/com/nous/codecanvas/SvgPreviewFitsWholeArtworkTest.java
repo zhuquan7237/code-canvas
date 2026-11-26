@@ -107,9 +107,9 @@ public class SvgPreviewFitsWholeArtworkTest extends InstrumentationTestCase {
 
     /** Maps the viewBox corners through getScreenCTM, which includes the preserveAspectRatio fit. */
     private static final String GEOMETRY_JS =
-            "(function(){var s=document.querySelector('svg');if(!s||!s.getScreenCTM)return 'NO_SVG';"
+            "(function(){var s=window.CCViewport&&CCViewport.svg();if(!s||!s.getScreenCTM)return 'NO_SVG';"
             + "var m=s.getScreenCTM(),p=s.createSVGPoint(),vb=s.viewBox.baseVal;"
-            + "function t(x,y){p.x=x;p.y=y;var r=p.matrixTransform(m);return [r.x,r.y];}"
+            + "var f=document.getElementById('cc-fit'),r=f.getBoundingClientRect(),k=r.width/f.clientWidth;function t(x,y){p.x=x;p.y=y;var q=p.matrixTransform(m);return [r.left+q.x*k,r.top+q.y*k];}"
             + "var a=t(vb.x,vb.y),b=t(vb.x+vb.width,vb.y+vb.height);"
             + "return JSON.stringify({w:window.innerWidth,h:window.innerHeight,"
             + "x0:a[0],y0:a[1],x1:b[0],y1:b[1]});})()";

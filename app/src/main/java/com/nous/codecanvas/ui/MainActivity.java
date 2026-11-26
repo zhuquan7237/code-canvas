@@ -153,10 +153,10 @@ public class MainActivity extends Activity {
         /** Lower-cased copy of the source, built on first search and reused afterwards. */
         private String searchIndex;
 
-        DocumentPresentation(CanvasDocument doc, boolean dark) {
+        DocumentPresentation(CanvasDocument doc, boolean dark, boolean scripts) {
             String content = doc.getContent();
-            previewKey = PreviewKey.forDocument(doc.getId(), content, dark);
             kind = doc.kind();
+            previewKey = PreviewKey.forThumbnail(doc.getId(), kind.name(), content, dark, scripts);
 
             int bytes = doc.isBlob() ? (int) Math.min(Integer.MAX_VALUE, doc.getByteSize())
                     : utf8Length(content);
@@ -216,7 +216,10 @@ public class MainActivity extends Activity {
 
     private java.util.Map<String, DocumentPresentation> preparePresentations(List<CanvasDocument> docs, boolean dark) {
         java.util.Map<String, DocumentPresentation> result = new java.util.HashMap<>();
-        for (CanvasDocument doc : docs) result.put(doc.getId(), new DocumentPresentation(doc, dark));
+        boolean scripts = CanvasPrefs.scriptsAllowed(this);
+        for (CanvasDocument doc : docs) {
+            result.put(doc.getId(), new DocumentPresentation(doc, dark, scripts));
+        }
         return result;
     }
 
@@ -1422,7 +1425,7 @@ public class MainActivity extends Activity {
             android.widget.ImageView checkBadge = row.check;
             DocumentPresentation presentation = presentations.get(doc.getId());
             if (presentation == null) {
-                presentation = new DocumentPresentation(doc, isDarkTheme());
+                presentation = new DocumentPresentation(doc, isDarkTheme(), CanvasPrefs.scriptsAllowed(MainActivity.this));
                 presentations.put(doc.getId(), presentation);
             }
             String key = presentation.previewKey;

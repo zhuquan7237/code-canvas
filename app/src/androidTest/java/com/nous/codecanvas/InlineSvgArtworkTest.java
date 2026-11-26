@@ -22,10 +22,8 @@ import java.io.InputStream;
  * {@code width:100vw;height:100vh}, driven by a 24KB script (parallax layers, spinning wheels, a
  * pedalling crank).</p>
  *
- * <p>Two reports came in against it: "无法缩放，显示不全" and then "只能加载出静态的". The first fix moved it
- * onto the vector viewport but extracted only the {@code <svg>} element, which dropped the script —
- * so the artwork rendered frozen. Both the viewport and the animation are asserted here against the
- * real file.</p>
+ * <p>The original HTML document must keep styles and scripts. A narrow phone must still show
+ * the entire stage and accept normal WebView touch input and zoom.</p>
  */
 public class InlineSvgArtworkTest extends InstrumentationTestCase {
 
@@ -90,7 +88,7 @@ public class InlineSvgArtworkTest extends InstrumentationTestCase {
     }
 
     /** The vector viewport must be offered: that is the only way this artwork can be zoomed. */
-    public void testTheArtworkGetsTheVectorViewport() throws Throwable {
+    public void testTheArtworkGetsRealWebZoom() throws Throwable {
         runTestOnUiThread(() -> {
             View toolbar = editor.findViewById(R.id.viewport_toolbar);
             assertNotNull("视口工具栏必须存在", toolbar);
@@ -102,34 +100,12 @@ public class InlineSvgArtworkTest extends InstrumentationTestCase {
         });
     }
 
-    /** The preview page must hold the drawing and its script — and no page shell. */
-    public void testThePreviewPageContainsTheDrawingAndItsScript() throws Throwable {
-        final WebView web = editor.findViewById(R.id.web_preview);
-        assertNotNull(web);
-
-        String svgCount = evalToken(web,
-                "(function(){return 'SVG_' + document.querySelectorAll('svg').length;})()");
-        android.util.Log.i("CCINLINE", "svgCount=" + svgCount);
-        assertEquals("页面里应当只有一张图，实际 " + svgCount, "SVG_1", svgCount);
-
-        String viewBox = evalToken(web,
-                "(function(){var s=document.querySelector('svg');"
-                        + "return 'VB_' + (s?s.getAttribute('viewBox'):'none');})()");
-        android.util.Log.i("CCINLINE", "viewBox=" + viewBox);
-        assertEquals("必须保留原 viewBox", "VB_0 0 1200 675", viewBox);
-
-        String stage = evalToken(web,
-                "(function(){return 'STAGE_' + (document.getElementById('cc-stage')?1:0);})()");
-        assertEquals("必须有视口变换层", "STAGE_1", stage);
-
-        String shell = evalToken(web,
-                "(function(){var b=document.body.innerHTML;"
-                        + "var bad=(b.match(/<body/gi)||[]).length"
-                        + " + (b.match(/<html/gi)||[]).length"
-                        + " + (b.indexOf('<title>')>-1?1:0);"
-                        + "return 'SHELL_' + bad;})()");
-        android.util.Log.i("CCINLINE", "shellLeak=" + shell);
-        assertEquals("包装页里不能残留原 HTML 的页面外壳，实际 " + shell, "SHELL_0", shell);
+    public void testThePreviewPreservesThePageAndViewBox() throws Exception {
+        WebView web = editor.findViewById(R.id.web_preview);
+        assertEquals("HTML_0 0 1200 675", evalToken(web,
+                "document.documentElement.tagName+'_'+document.querySelector('svg').getAttribute('viewBox')"));
+        assertEquals("true", evalToken(web, "!!document.querySelector('meta[name=viewport]')"
+                + " && document.querySelector('meta[name=viewport]').content.includes('user-scalable=yes')"));
     }
 
     /** The animation script must be present in the preview page. */
@@ -200,7 +176,7 @@ public class InlineSvgArtworkTest extends InstrumentationTestCase {
     public void testTheWholeDrawingIsVisible() throws Throwable {
         final WebView web = editor.findViewById(R.id.web_preview);
         String geom = evalToken(web,
-                "(function(){var s=document.querySelector('#cc-fit svg');if(!s)return 'none';"
+                "(function(){var s=document.getElementById('diary-stage');if(!s)return 'none';"
                         + "var r=s.getBoundingClientRect();"
                         + "return r.width+'x'+r.height+' in '+window.innerWidth+'x'+window.innerHeight;})()");
         android.util.Log.i("CCINLINE", "geometry=" + geom);
@@ -219,77 +195,34 @@ public class InlineSvgArtworkTest extends InstrumentationTestCase {
         double ratio = w / h;
         assertTrue("必须保持原始宽高比 16:9，实际 " + ratio, Math.abs(ratio - (1200.0 / 675.0)) < 0.08);
 
-        String par = evalToken(web,
-                "(function(){var s=document.querySelector('svg');"
-                        + "return 'PAR_' + (s?s.getAttribute('preserveAspectRatio'):'none');})()");
-        android.util.Log.i("CCINLINE", "preserveAspectRatio=" + par);
-        assertFalse("slice 必须被改写成 meet，实际 " + par,
-                par.toLowerCase(java.util.Locale.ROOT).contains("slice"));
+        assertEquals("true", evalToken(web,
+                "[...document.querySelectorAll('.btn-group')].every(b=>{const r=b.getBoundingClientRect();"
+                + "return r.width>0&&r.left>=-1&&r.right<=innerWidth+1&&r.top>=-1&&r.bottom<=innerHeight+1})"));
     }
 
-    /**
-     * A tap on the artwork's own control must reach it.
-     *
-     * <p>The viewport intercepts every touch to own pan and pinch, which also meant the drawing's
-     * play/pause/speed buttons could never be pressed — the second half of "动态的加载不出来".
-     * This taps the pause button through the viewport and requires the animation to stop.</p>
-     */
-    public void testTappingTheArtworkControlPausesIt() throws Throwable {
+    public void testTappingTheArtworkControlPausesIt() throws Exception {
         final WebView web = editor.findViewById(R.id.web_preview);
-        Thread.sleep(1200);
-
-        // Find the pause button's position in page coordinates.
         String box = evalToken(web,
-                "(function(){var b=document.getElementById('btn-pause');"
-                        + "if(!b)return 'none';var r=b.getBoundingClientRect();"
-                        + "return (r.left+r.width/2)+','+(r.top+r.height/2);})()");
-        android.util.Log.i("CCINLINE", "pauseButtonAt=" + box);
-        assertFalse("作品里必须有暂停按钮", "none".equals(box) || box.isEmpty());
-
+                "(()=>{const r=document.getElementById('btn-pause').getBoundingClientRect();"
+                + "return (r.left+r.width/2)+','+(r.top+r.height/2)})()");
         String[] xy = box.split(",");
-        final float pageX = Float.parseFloat(xy[0]);
-        final float pageY = Float.parseFloat(xy[1]);
-
-        // Convert page coordinates back into viewport coordinates, which is what a touch carries.
         final View viewport = editor.findViewById(R.id.preview_viewport);
-        final float scale = ((com.nous.codecanvas.ui.SvgViewport) viewport).getZoomFactor();
-        final android.graphics.RectF bounds =
-                ((com.nous.codecanvas.ui.SvgViewport) viewport).contentBoundsForTest();
-        final float vx = pageX * scale + bounds.left;
-        final float vy = pageY * scale + bounds.top;
-
-        long t = android.os.SystemClock.uptimeMillis();
         getInstrumentation().runOnMainSync(() -> {
-            viewport.dispatchTouchEvent(MotionEvent.obtain(t, t, MotionEvent.ACTION_DOWN, vx, vy, 0));
-            viewport.dispatchTouchEvent(MotionEvent.obtain(t, t + 60, MotionEvent.ACTION_UP, vx, vy, 0));
+            float x = Float.parseFloat(xy[0]) * web.getScale();
+            float y = Float.parseFloat(xy[1]) * web.getScale();
+            long t = android.os.SystemClock.uptimeMillis();
+            MotionEvent down = MotionEvent.obtain(t, t, MotionEvent.ACTION_DOWN, x, y, 0);
+            MotionEvent up = MotionEvent.obtain(t, t + 60, MotionEvent.ACTION_UP, x, y, 0);
+            viewport.dispatchTouchEvent(down);
+            viewport.dispatchTouchEvent(up);
+            down.recycle();
+            up.recycle();
         });
-        getInstrumentation().waitForIdleSync();
-        Thread.sleep(700);
-
-        String paused = evalToken(web,
-                "(function(){var b=document.getElementById('btn-pause');"
-                        + "if(!b)return 'none';"
-                        + "return 'PAUSED_' + (b.getAttribute('data-state')||b.textContent||'');})()");
-        android.util.Log.i("CCINLINE", "afterTap=" + paused);
-
-        // The button must have reacted in some observable way: either its label/state changed, or
-        // the animation stopped. Compare two frames after the tap.
-        String f1 = frameSignature(web);
-        Thread.sleep(800);
-        String f2 = frameSignature(web);
-        boolean stopped = f1.equals(f2);
-        boolean reacted = !"none".equals(paused) && paused.toLowerCase().contains("pause");
-        android.util.Log.i("CCINLINE", "stopped=" + stopped + " reacted=" + reacted);
-        assertTrue("点击必须送达作品自己的按钮：要么动画停止，要么按钮状态变化（" + paused + "）",
-                stopped || reacted);
+        Thread.sleep(550);
+        assertEquals("1", evalToken(web, "document.getElementById('paused-badge').getAttribute('opacity')"));
     }
 
     private float pageScale(WebView web) throws Exception {
-        String raw = evalToken(web,
-                "(function(){var s=document.getElementById('cc-stage');if(!s)return '1';"
-                        + "var t=getComputedStyle(s).transform;if(!t||t==='none')return '1';"
-                        + "var i=t.indexOf('matrix(');if(i<0)return '1';"
-                        + "return t.substring(i+7,t.indexOf(')',i)).split(',')[0];})()");
-        return raw.isEmpty() ? 1f : Float.parseFloat(raw);
+        return Float.parseFloat(evalToken(web, "String(visualViewport.scale)"));
     }
 }

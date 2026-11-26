@@ -61,7 +61,39 @@ public class PreviewHtmlViewportTest {
     @Test
     public void svgGoesThroughTheResponsiveWrapper() {
         String html = PreviewHtml.forDocument("<svg width=\"10\" height=\"10\"></svg>", RenderKind.SVG, true);
-        assertTrue(html.contains("svg-wrapper"));
-        assertTrue("the wrapper scales to the container width", html.contains("width: 100%;"));
+        assertTrue(html.contains("image/svg+xml"));
+        assertTrue(html.contains("sandbox=\"allow-same-origin allow-scripts\""));
+    }
+
+    @Test
+    public void zoomOverrideKeepsMetadataInTheRealPageAndDoesNotChangeScripts() {
+        String js = "<script>let source=\"<meta name='viewport' content='user-scalable=no'>\";</script>";
+        String html = "<!DOCTYPE html><!-- <meta name='viewport' content='width=777'> -->"
+                + "<html><head>" + js + "<META content='width=640;maximum-scale=1;user-scalable=no' name=viewport>"
+                + "</head><body>game</body></html>";
+        String preview = PreviewHtml.forWebPage(html);
+        assertTrue(preview.startsWith("<!DOCTYPE html>"));
+        assertTrue(preview.contains(js));
+        assertTrue(preview.contains("width=640, minimum-scale=0.1, maximum-scale=8, user-scalable=yes"));
+        assertFalse(preview.contains("maximum-scale=1;user-scalable=no"));
+    }
+
+    @Test
+    public void fitsOnlyASingleInlineSvgWithoutChangingItsArtworkOrScripts() {
+        String svg = "<svg viewBox='0 0 1200 600' preserveAspectRatio='xMidYMid slice'><rect /></svg>";
+        String js = "<script>document.documentElement.lang='zh'</script>";
+        String preview = PreviewHtml.forWebPage("<!doctype html><body>" + svg + js + "</body>");
+        assertTrue(preview.contains("body>svg{width:min(100vw,calc(100vh * 2.0))"));
+        assertTrue(preview.contains(svg + js));
+        String article = PreviewHtml.forWebPage("<html><body><h1>Chart</h1>" + svg + "</body></html>");
+        assertFalse(article.contains("body>svg{width:min"));
+    }
+
+    @Test
+    public void thumbnailKeysTrackPreviewKindAndPermission() {
+        String k = PreviewKey.forThumbnail("d", "HTML", "p", false, true);
+        assertFalse(k.equals(PreviewKey.forThumbnail("d", "HTML", "p", false, false)));
+        assertFalse(k.equals(PreviewKey.forThumbnail("d", "SVG", "p", false, true)));
+        assertFalse(k.equals(PreviewKey.forDocument("d", "p", false)));
     }
 }

@@ -50,7 +50,7 @@ public class ThumbnailBackfillTest extends InstrumentationTestCase {
                 & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                 == android.content.res.Configuration.UI_MODE_NIGHT_YES;
         final File thumb = PreviewThumbnailCache.file(c,
-                PreviewKey.forDocument(doc.getId(), doc.getContent(), dark));
+                PreviewKey.forThumbnail(doc.getId(), doc.kind().name(), doc.getContent(), dark, true));
         if (thumb.exists() && !thumb.delete()) {
             fail("could not clear the previous capture at " + thumb);
         }

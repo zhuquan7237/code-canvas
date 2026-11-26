@@ -1,20 +1,20 @@
 package com.nous.codecanvas;
 import android.test.InstrumentationTestCase;
 import android.content.Intent;
-import com.nous.codecanvas.ui.EditorActivity;
+import com.nous.codecanvas.ui.MainActivity;
 import com.nous.codecanvas.model.CanvasDocument;
 import com.nous.codecanvas.data.DocumentRepository;
 import java.io.File;
 public class ThumbnailCaptureTest extends InstrumentationTestCase {
- public void testPreviewStoresRealThumbnail() throws Exception {
+ public void testGalleryStoresRealThumbnail() throws Exception {
   android.content.Context c=getInstrumentation().getTargetContext();
   CanvasDocument d=new CanvasDocument("thumbnail-"+System.nanoTime(),"封面.html","<html><body style='background:#0f766e'><h1>真实预览封面</h1></body></html>",System.currentTimeMillis());
   new DocumentRepository(c).saveDocument(d);
-  Intent i=new Intent(c,EditorActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra(EditorActivity.EXTRA_DOC_ID,d.getId()).putExtra(EditorActivity.EXTRA_START_PREVIEW,true);
-  EditorActivity a=(EditorActivity)getInstrumentation().startActivitySync(i);
+  Intent i=new Intent(c,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+  MainActivity a=(MainActivity)getInstrumentation().startActivitySync(i);
   try {
    boolean dark=(a.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_YES;
-   File f=new File(new File(c.getCacheDir(),"previews"),com.nous.codecanvas.util.PreviewKey.forDocument(d.getId(),d.getContent(),dark)+".png");
+   File f=new File(new File(c.getCacheDir(),"previews"),com.nous.codecanvas.util.PreviewKey.forThumbnail(d.getId(),d.kind().name(),d.getContent(),dark,com.nous.codecanvas.util.CanvasPrefs.scriptsAllowed(c))+".png");
    long deadline=System.currentTimeMillis()+8000;
    while(!f.exists()&&System.currentTimeMillis()<deadline) Thread.sleep(100);
    assertTrue("实际预览必须生成封面缓存",f.exists());

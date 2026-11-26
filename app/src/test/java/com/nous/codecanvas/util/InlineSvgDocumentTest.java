@@ -193,11 +193,11 @@ public class InlineSvgDocumentTest {
     }
 
     @Test
-    public void theWrappedPreviewContainsTheDrawingOnceAndNoPageTags() {
-        String html = PreviewHtml.forDocument(AI_ARTWORK, RenderKind.SVG, false);
-        assertTrue("包装页必须包含图形", html.contains("viewBox=\"0 0 1200 675\""));
-        assertFalse("包装页里不能嵌套整份 HTML", html.contains("<html lang=\"zh-CN\""));
-        assertTrue("必须是视口页", html.contains("CCViewport"));
+    public void thePreviewPreservesTheOriginalHtmlDocumentAndScript() {
+        String html = PreviewHtml.forDocument(AI_ARTWORK, RenderKind.HTML, false);
+        assertTrue("必须包含原图", html.contains("viewBox=\"0 0 1200 675\""));
+        assertTrue("保留原网页外壳", html.contains("<html lang=\"zh-CN\""));
+        assertFalse("不能转换为独立 SVG", html.contains("image/svg+xml"));
     }
 
     @Test

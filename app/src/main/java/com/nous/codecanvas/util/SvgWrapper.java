@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
  */
 public final class SvgWrapper {
 
-    private static final Pattern ROOT_SVG_PATTERN = Pattern.compile("<svg\\b([^>]*)>", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ROOT_SVG_PATTERN = Pattern.compile("<svg(?=[\\s/>])((?:\"[^\"]*\"|'[^']*'|[^\"'>]+)*+)>", Pattern.CASE_INSENSITIVE);
     private static final Pattern PRESERVE_ASPECT_PATTERN =
             Pattern.compile("preserveAspectRatio\\s*=\\s*\"([^\"]*)\"", Pattern.CASE_INSENSITIVE);
     private static final Pattern PRESERVE_ASPECT_APOS_PATTERN =
@@ -47,128 +47,116 @@ public final class SvgWrapper {
      *                        document's own. Never written back to the file.
      */
     public static String wrapSvgInResponsiveHtml(String svgContent, boolean darkTheme, String viewBoxOverride) {
-        String bgColor = darkTheme ? "#121417" : "#F8FAFC";
-        String gridColor = darkTheme ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)";
+        return wrapSvgInResponsiveHtml(svgContent, darkTheme, viewBoxOverride, true);
+    }
 
-        String sanitized = sanitizeRootSvg(svgContent);
-        if (viewBoxOverride != null && !viewBoxOverride.trim().isEmpty()) {
-            sanitized = overrideViewBox(sanitized, viewBoxOverride.trim());
+    public static String wrapSvgInResponsiveHtml(String svgContent, boolean darkTheme,
+                                                String viewBoxOverride, boolean allowScripts) {
+        String bg = darkTheme ? "#121417" : "#F8FAFC";
+        String grid = darkTheme ? "#22262c" : "#ecf0f3";
+        String svg = nativeSvg(svgContent, viewBoxOverride);
+        // A real SVG document (not inline HTML) is essential: SVG scripts use
+        // document.documentElement, root CSS, CDATA and document-relative fragment links.
+        String bytes = java.util.Base64.getEncoder().encodeToString(
+                svg.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return "<!doctype html><html><head><meta charset=utf-8>"
+                + "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
+                + "<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:" + bg
+                + ";background-image:linear-gradient(" + grid + " 1px,transparent 1px),"
+                + "linear-gradient(90deg," + grid + " 1px,transparent 1px);background-size:20px 20px}"
+                + "#cc-stage{position:absolute;inset:0;transform-origin:0 0}"
+                + "#cc-fit{border:0;display:block;width:100%;height:100%}"
+                + "#cc-error{position:absolute;bottom:0;inset-inline:0;padding:10px 14px;"
+                + "font:14px sans-serif;background:#fbe4e1;color:#8b2319}</style></head><body>"
+                + "<div id=cc-stage><iframe id=cc-fit title=\"SVG\" sandbox=\"allow-same-origin"
+                + (allowScripts ? " allow-scripts" : "") + "\"></iframe></div>"
+                + "<div id=cc-error hidden>无法渲染 SVG：请检查文件是否是有效的 SVG/XML。</div>"
+                + "<script>" + SVG_RUNTIME + "\n"
+                + "const raw=atob('" + bytes + "');const array=Uint8Array.from(raw,c=>c.charCodeAt(0));"
+                + "const url=URL.createObjectURL(new Blob([array],{type:'image/svg+xml'}));"
+                + "frame.src=url;</script></body></html>";
+    }
+
+    private static final String SVG_RUNTIME = """
+            const stage=document.getElementById('cc-stage'), frame=document.getElementById('cc-fit');
+            let svg=null, observer=null;
+            function layout(){
+              if(!svg) return;
+              const b=svg.viewBox.baseVal, w=frame.clientWidth, h=frame.clientHeight;
+              const pad=Math.min(8,w/16,h/16);
+              const availW=w-2*pad, availH=h-2*pad;
+              const k=b.width>0&&b.height>0?Math.min(availW/b.width,availH/b.height):0;
+              const width=k?b.width*k:availW, height=k?b.height*k:availH;
+              const css=svg.style;
+              for(const [prop,val] of Object.entries({
+                position:'absolute',display:'block',margin:'0',left:(w-width)/2+'px',
+                top:(h-height)/2+'px',width:width+'px',height:height+'px',
+                'min-width':'0','min-height':'0','max-width':'none','max-height':'none'
+              })) css.setProperty(prop,val,'important');
+            }
+            frame.addEventListener('load',()=>{
+              let root=null;
+              try {root=frame.contentDocument.documentElement;} catch (e) {}
+              svg=root&&root.namespaceURI==='http://www.w3.org/2000/svg'&&root.localName==='svg'
+                 &&!root.querySelector('parsererror')?root:null;
+              document.getElementById('cc-error').hidden=!!svg;
+              if(!svg) return;
+              layout();
+              if(observer) observer.disconnect();
+              observer=new MutationObserver(layout);
+              observer.observe(svg,{attributes:true,attributeFilter:['viewBox']});
+              svg.addEventListener('click',e=>{
+                if(e.target.closest('a')) e.preventDefault();
+              },true);
+            });
+            new ResizeObserver(layout).observe(frame);
+            window.CCViewport={
+              set(scale,dx,dy){stage.style.transform='translate('+dx+'px,'+dy+'px) scale('+scale+')';},
+              svg(){return svg;},
+              bounds(){
+                if(!svg)return null;
+                const r=svg.getBoundingClientRect(), f=frame.getBoundingClientRect();
+                const k=frame.clientWidth?f.width/frame.clientWidth:1;
+                return {x:f.left+r.left*k,y:f.top+r.top*k,w:r.width*k,h:r.height*k,
+                        vw:innerWidth,vh:innerHeight};
+              },
+              contentBox(){
+                if(!svg)return null;
+                try {const {x,y,width:w,height:h}=svg.getBBox();return {x,y,w,h};} catch(e){return null;}
+              }
+            };
+            window.CCTap=(x,y)=>{
+              if(!svg)return;
+              const f=frame.getBoundingClientRect(), k=f.width/frame.clientWidth;
+              const cx=(x-f.left)/k, cy=(y-f.top)/k;
+              const doc=svg.ownerDocument, el=doc.elementFromPoint(cx,cy);
+              if(!el)return;
+              const opts={bubbles:true,cancelable:true,clientX:cx,clientY:cy,button:0,pointerId:1,
+                          pointerType:'touch',isPrimary:true};
+              const win=doc.defaultView;
+              el.dispatchEvent(new win.PointerEvent('pointerdown',opts));
+              el.dispatchEvent(new win.PointerEvent('pointerup',opts));
+              el.dispatchEvent(new win.MouseEvent('click',opts));
+            };
+            """;
+
+    private static String nativeSvg(String content, String viewBoxOverride) {
+        String svg = sanitizeRootSvg(content);
+        SvgGeometry.Box box = SvgGeometry.measure(svg);
+        if (viewBoxOverride != null && viewBoxOverride.matches("[-+.eE0-9 ,]+")) {
+            svg = overrideViewBox(svg, viewBoxOverride);
+        } else if (box.source == SvgGeometry.Source.WIDTH_HEIGHT && box.isValid()) {
+            svg = overrideViewBox(svg, "0 0 " + box.width + " " + box.height);
         }
-
-        return "<!DOCTYPE html>\n"
-                + "<html>\n"
-                + "<head>\n"
-                + "  <meta charset=\"utf-8\">\n"
-                + "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">\n"
-                + "  <style>\n"
-                + "    * { box-sizing: border-box; }\n"
-                + "    html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden;\n"
-                + "      background-color:" + bgColor + ";\n"
-                + "      background-image: linear-gradient(" + gridColor + " 1px, transparent 1px),"
-                + " linear-gradient(90deg, " + gridColor + " 1px, transparent 1px);\n"
-                + "      background-size:20px 20px; }\n"
-                + "    /* The transform layer. Its child is fitted once; the viewport only scales this. */\n"
-                + "    #cc-stage { position:absolute; left:0; top:0; right:0; bottom:0;"
-                + " transform-origin:0 0; will-change:transform; }\n"
-                + "    .svg-wrapper { position:absolute; left:0; top:0; right:0; bottom:0; display:flex;\n"
-                + "      align-items:center; justify-content:center; padding:8px;\n"
-                + "      width: 100%; height: 100%; }\n"
-                + "    .svg-wrapper svg {\n"
-                + "      /* Both axes are capped so a wide or tall drawing arrives whole. */\n"
-                + "      max-width: 100% !important;\n"
-                + "      max-height: 100% !important;\n"
-                + "      width: auto !important;\n"
-                + "      height: auto !important;\n"
-                + "      object-fit: contain !important;\n"
-                + "      display: block; }\n"
-                + "    #cc-error { position:absolute; left:0; right:0; bottom:0; padding:10px 14px;\n"
-                + "      font:12px/1.5 -apple-system,'Noto Sans SC',sans-serif;\n"
-                + "      color:#B42318; background:rgba(251,228,225,0.96); display:none; }\n"
-                + "  </style>\n"
-                + "</head>\n"
-                + "<body>\n"
-                + "  <div id=\"cc-stage\"><div id=\"cc-fit\" class=\"svg-wrapper\">\n"
-                + sanitized + "\n"
-                + "  </div></div>\n"
-                + "  <div id=\"cc-error\"></div>\n"
-                + "  <script>\n"
-                + "  (function(){\n"
-                + "    var stage = document.getElementById('cc-stage');\n"
-                + "    var fit = document.getElementById('cc-fit');\n"
-                + "    var errorBox = document.getElementById('cc-error');\n"
-                + "    var svg = fit.querySelector('svg');\n"
-                + "    if (!svg) {\n"
-                + "      errorBox.textContent = '这段内容里没有找到 <svg> 根元素，无法按矢量图预览。';\n"
-                + "      errorBox.style.display = 'block';\n"
-                + "    }\n"
-                + "    // A tap or a drag must never navigate away from the preview.\n"
-                + "    document.addEventListener('click', function(e){\n"
-                + "      var a = e.target && e.target.closest ? e.target.closest('a') : null;\n"
-                + "      if (a) { e.preventDefault(); e.stopPropagation(); }\n"
-                + "    }, true);\n"
-                + "    var last = { scale: 1, dx: 0, dy: 0 };\n"
-                + "    window.CCViewport = {\n"
-                + "      set: function(scale, dx, dy){\n"
-                + "        last = { scale: scale, dx: dx, dy: dy };\n"
-                + "        stage.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + scale + ')';\n"
-                + "      },\n"
-                + "      /* Content box in CSS pixels, for fit-to-window checks. */\n"
-                + "      bounds: function(){\n"
-                + "        if (!svg || !svg.getBoundingClientRect) return null;\n"
-                + "        var r = svg.getBoundingClientRect();\n"
-                + "        return { x:r.left, y:r.top, w:r.width, h:r.height,\n"
-                + "                 vw:window.innerWidth, vh:window.innerHeight };\n"
-                + "      },\n"
-                + "      /* Measured content box of the drawing itself, in user units. */\n"
-                + "      contentBox: function(){\n"
-                + "        if (!svg || !svg.getBBox) return null;\n"
-                + "        try { var b = svg.getBBox();\n"
-                + "          return { x:b.x, y:b.y, w:b.width, h:b.height };\n"
-                + "        } catch (e) { return null; }\n"
-                + "      }\n"
-                + "    };\n"
-                + "    // Tap forwarding: the viewport owns pan and pinch, so it hands a tap back here as\n"
-                + "    // page coordinates. Dispatch it to whatever element is under that point, which is\n"
-                + "    // what lets the artwork's own buttons (play / pause / speed) work.\n"
-                + "    window.CCTap = function(px, py){\n"
-                + "      var el = document.elementFromPoint(px, py);\n"
-                + "      if (!el) return;\n"
-                + "      var target = el;\n"
-                + "      // Walk up to the nearest element that looks interactive.\n"
-                + "      for (var i = 0; i < 6 && target; i++){\n"
-                + "        var cls = (target.getAttribute && target.getAttribute('class')) || '';\n"
-                + "        if (target.onclick || target.getAttribute('onclick')\n"
-                + "            || cls.indexOf('btn') >= 0 || cls.indexOf('button') >= 0\n"
-                + "            || target.tagName === 'BUTTON' || target.tagName === 'A') break;\n"
-                + "        target = target.parentNode;\n"
-                + "      }\n"
-                + "      if (!target || !target.dispatchEvent) return;\n"
-                + "      var opts = { bubbles: true, cancelable: true, clientX: px, clientY: py };\n"
-                + "      target.dispatchEvent(new MouseEvent('pointerdown', opts));\n"
-                + "      target.dispatchEvent(new MouseEvent('mousedown', opts));\n"
-                + "      target.dispatchEvent(new MouseEvent('pointerup', opts));\n"
-                + "      target.dispatchEvent(new MouseEvent('mouseup', opts));\n"
-                + "      target.dispatchEvent(new MouseEvent('click', opts));\n"
-                + "    };\n"
-                + "    window.CCViewport.set(1, 0, 0);\n"
-                + "    // A viewport resize (toolbar appearing, rotation, keyboard closing) changes where\n"
-                + "    // the centre is. Re-centre ONLY when the user has not zoomed: resetting a zoom the\n"
-                + "    // user set is exactly the \"big SVG will not zoom\" defect.\n"
-                + "    var lastH = window.innerHeight, lastW = window.innerWidth;\n"
-                + "    window.addEventListener('resize', function(){\n"
-                + "      if (window.innerHeight === lastH && window.innerWidth === lastW) return;\n"
-                + "      lastH = window.innerHeight; lastW = window.innerWidth;\n"
-                + "      if (!window.CCViewport || !window.CCViewport.set) return;\n"
-                + "      if (last.scale === 1 && last.dx === 0 && last.dy === 0) {\n"
-                + "        window.CCViewport.set(1, 0, 0);\n"
-                + "      } else {\n"
-                + "        window.CCViewport.set(last.scale, last.dx, last.dy);\n"
-                + "      }\n"
-                + "    });\n"
-                + "  })();\n"
-                + "  </script>\n"
-                + "</body>\n"
-                + "</html>";
+        Matcher root = ROOT_SVG_PATTERN.matcher(svg);
+        if (!root.find()) return svg;
+        String attrs = root.group(1);
+        String ns = attrs.matches("(?is).*\\sxmlns\\s*=.*") ? ""
+                : " xmlns=\"http://www.w3.org/2000/svg\"";
+        if (svg.contains("xlink:") && !attrs.matches("(?is).*\\sxmlns:xlink\\s*=.*")) {
+            ns += " xmlns:xlink=\"http://www.w3.org/1999/xlink\"";
+        }
+        return svg.substring(0, root.start(1)) + ns + svg.substring(root.start(1));
     }
 
     /**
@@ -187,7 +175,8 @@ public final class SvgWrapper {
         }
 
         String attrs = m.group(1);
-        String updatedAttrs = attrs;
+        boolean selfClosing = attrs.endsWith("/");
+        String updatedAttrs = selfClosing ? attrs.substring(0, attrs.length() - 1) : attrs;
 
         // 1. Remove inline 100vw/100vh from root tag if present
         updatedAttrs = updatedAttrs.replaceAll("(?i)(width\\s*:\\s*100vw\\s*;?)", "");
@@ -213,7 +202,8 @@ public final class SvgWrapper {
             }
         }
 
-        return content.substring(0, m.start(1)) + updatedAttrs + content.substring(m.end(1));
+        return content.substring(0, m.start(1)) + updatedAttrs + (selfClosing ? "/" : "")
+                + content.substring(m.end(1));
     }
 
     /** Preview-only viewBox swap. The document's own viewBox is left in the source untouched. */
@@ -222,6 +212,8 @@ public final class SvgWrapper {
         Matcher m = ROOT_SVG_PATTERN.matcher(content);
         if (!m.find()) return content;
         String attrs = m.group(1);
+        boolean selfClosing = attrs.endsWith("/");
+        if (selfClosing) attrs = attrs.substring(0, attrs.length() - 1);
         String replaced;
         if (attrs.matches("(?is).*\\bviewBox\\s*=.*")) {
             replaced = attrs.replaceAll("(?is)viewBox\\s*=\\s*(\"[^\"]*\"|'[^']*')",
@@ -229,7 +221,8 @@ public final class SvgWrapper {
         } else {
             replaced = attrs + " viewBox=\"" + viewBox + "\"";
         }
-        return content.substring(0, m.start(1)) + replaced + content.substring(m.end(1));
+        return content.substring(0, m.start(1)) + replaced + (selfClosing ? "/" : "")
+                + content.substring(m.end(1));
     }
 
     /** True when the source actually contains an SVG root, so the UI can explain a failed render. */

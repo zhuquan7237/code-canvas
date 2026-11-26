@@ -33,7 +33,6 @@ final class PdfPageRenderer {
         if (file == null || !file.isFile()) {
             throw new IOException("找不到 PDF 原文件");
         }
-        int width = Math.max(1, targetWidth);
         try (ParcelFileDescriptor pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY);
              PdfRenderer renderer = new PdfRenderer(pfd)) {
             int count = renderer.getPageCount();
@@ -42,8 +41,12 @@ final class PdfPageRenderer {
             }
             int index = Math.max(0, Math.min(requestedIndex, count - 1));
             try (PdfRenderer.Page page = renderer.openPage(index)) {
-                float scale = width / (float) Math.max(1, page.getWidth());
-                int height = Math.max(1, Math.round(page.getHeight() * scale));
+                int sourceW = Math.max(1, page.getWidth());
+                int sourceH = Math.max(1, page.getHeight());
+                float scale = Math.min(Math.max(1, targetWidth) / (float) sourceW,
+                        3072f / Math.max(sourceW, sourceH));
+                int width = Math.max(1, Math.round(sourceW * scale));
+                int height = Math.max(1, Math.round(sourceH * scale));
                 Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
                 bitmap.eraseColor(Color.WHITE);
                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
