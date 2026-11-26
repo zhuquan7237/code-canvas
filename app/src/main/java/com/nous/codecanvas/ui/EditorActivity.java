@@ -53,7 +53,6 @@ import com.nous.codecanvas.util.PreviewAssets;
 import com.nous.codecanvas.util.PreviewKey;
 import com.nous.codecanvas.util.PreviewPage;
 import com.nous.codecanvas.util.SourceWriter;
-import com.nous.codecanvas.util.SvgGeometry;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -129,8 +128,9 @@ public class EditorActivity extends Activity {
     private TextView txtPdfPage;
     private int pdfPageIndex;
     private int pdfPageCount = 1;
-    /** Preview-only viewBox for "fit to content"; null means the document's own. */
-    private String svgViewBoxOverride;
+    /** The SVG's base framing, independent of the user's subsequent zoom and pan. */
+    private boolean svgContentFit;
+    private long svgFitClick;
 
     // --- search -------------------------------------------------------------------------------
     private View searchBar;
@@ -299,6 +299,7 @@ public class EditorActivity extends Activity {
             isAllowJs = savedInstanceState.getBoolean("key_allow_js", isAllowJs);
             isAllowNetwork = savedInstanceState.getBoolean("key_allow_network", isAllowNetwork);
             searchCaseSensitive = savedInstanceState.getBoolean("key_search_case", false);
+            svgContentFit = kind == DocumentKind.SVG && savedInstanceState.getBoolean("key_svg_content_fit");
         }
         applyingScriptPref = true;
         switchAllowJs.setChecked(isAllowJs);
@@ -364,6 +365,27 @@ public class EditorActivity extends Activity {
             viewportToolbar.setVisibility(showViewportDock ? View.VISIBLE : View.GONE);
             View previewDock = findViewById(R.id.preview_dock);
             if (previewDock != null) previewDock.setVisibility(showViewportDock ? View.VISIBLE : View.GONE);
+            if (showViewportDock && viewportToolbar instanceof LinearLayout) {
+                // At compact widths leave all 48dp targets onscreen instead of
+                // hiding the zoom-in control at the end of a scrollable row.
+                LinearLayout row = (LinearLayout) viewportToolbar;
+                boolean stack = compact && (isVectorKind() || isImageKind());
+                int desired = stack ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL;
+                if (row.getOrientation() != desired) row.setOrientation(desired);
+                row.setGravity(stack ? android.view.Gravity.CENTER
+                        : android.view.Gravity.CENTER_VERTICAL);
+                View zoom = findViewById(R.id.viewport_zoom_group);
+                if (zoom != null && zoom.getLayoutParams() instanceof LinearLayout.LayoutParams) {
+                    LinearLayout.LayoutParams margins = (LinearLayout.LayoutParams) zoom.getLayoutParams();
+                    int start = stack ? 0 : dp(8);
+                    int top = stack ? dp(4) : 0;
+                    if (margins.getMarginStart() != start || margins.topMargin != top) {
+                        margins.setMarginStart(start);
+                        margins.topMargin = top;
+                        zoom.setLayoutParams(margins);
+                    }
+                }
+            }
         }
         if (switchAllowJs != null) {
             switchAllowJs.setVisibility(!land && !compact && preview
@@ -390,6 +412,7 @@ public class EditorActivity extends Activity {
         outState.putBoolean("key_allow_js", isAllowJs);
         outState.putBoolean("key_allow_network", isAllowNetwork);
         outState.putBoolean("key_search_case", searchCaseSensitive);
+        outState.putBoolean("key_svg_content_fit", svgContentFit);
     }
 
     private void initViews() {
@@ -584,6 +607,7 @@ public class EditorActivity extends Activity {
                 public void onComplete(long id) {
                     if (isDestroyed() || isFinishing() || !previewState.ready(ticket)) return;
                     if (previewLoadingView != null) previewLoadingView.setVisibility(View.GONE);
+                    if (isVectorKind()) syncSvgFit(view, ticket);
                     if (isWebZoomKind() && webFitScale <= 0) {
                         // getScale is only a fallback when WebView didn't issue an initial callback.
                         webFitScale = webScale = view.getScale();
@@ -887,24 +911,39 @@ public class EditorActivity extends Activity {
 
             @Override
             public void onFitStateChanged(boolean fitted) {
-                if (btnViewportFit != null) btnViewportFit.setSelected(fitted);
+                if (!isWebZoomKind()) updateFitControls(fitted);
             }
         });
 
+        // Keep two equal native Button targets on compact screens; announce this pair as
+        // checkable in TalkBack only where both fit modes actually exist.
+        View.AccessibilityDelegate fitModeSemantics = new View.AccessibilityDelegate() {
+            @Override public void onInitializeAccessibilityNodeInfo(View host,
+                    android.view.accessibility.AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(host, info);
+                if (isVectorKind()) {
+                    info.setClassName(android.widget.RadioButton.class.getName());
+                    info.setCheckable(true);
+                    info.setChecked(host.isSelected());
+                    info.setSelected(false);
+                }
+            }
+        };
+        btnViewportFit.setAccessibilityDelegate(fitModeSemantics);
+        btnViewportFitContent.setAccessibilityDelegate(fitModeSemantics);
         btnViewportFit.setOnClickListener(v -> {
-            if (isWebZoomKind()) {
+            if (isVectorKind()) {
+                setSvgFitMode(false);
+            } else if (isWebZoomKind()) {
                 if (webPreview != null && webScale > 0 && webFitScale > 0) {
                     float ratio = webFitScale / webScale;
                     // zoomBy is asynchronous; preserve the live page, not a reload/reset.
                     if (Math.abs(ratio - 1) > .01f) webPreview.zoomBy(ratio);
                     webPreview.scrollTo(0, 0);
                 }
-            } else if (isVectorKind() && svgViewBoxOverride != null) {
-                svgViewBoxOverride = null;
-                renderPreview(true);
             } else previewViewport.animateFit();
         });
-        btnViewportFitContent.setOnClickListener(v -> fitToContent());
+        btnViewportFitContent.setOnClickListener(v -> setSvgFitMode(true));
         btnViewportZoomIn.setOnClickListener(v -> {
             if (isWebZoomKind()) {
                 if (webPreview != null) webPreview.zoomIn();
@@ -991,6 +1030,7 @@ public class EditorActivity extends Activity {
             // identity and the page re-centres. Resetting to identity here would throw away a zoom
             // the user had just made.
             applyViewportToWeb();
+            syncSvgFit(webPreview, previewTicket);
         }
     };
 
@@ -1009,7 +1049,7 @@ public class EditorActivity extends Activity {
         if (isWebZoomKind() && txtViewportZoom != null) {
             int percent = webFitScale > 0 ? Math.round(100 * webScale / webFitScale) : 100;
             txtViewportZoom.setText(percent + "%");
-            btnViewportFit.setSelected(Math.abs(percent - 100) <= 1);
+            updateFitControls(Math.abs(percent - 100) <= 1);
         }
     }
 
@@ -1017,36 +1057,47 @@ public class EditorActivity extends Activity {
         return kind == DocumentKind.IMAGE || kind == DocumentKind.GIF;
     }
 
-    /**
-     * "Fit to content": temporarily widen the preview's viewBox so a drawing whose own viewBox
-     * clips it can be inspected. This is a preview adjustment only — the document's source is not
-     * touched, and internal {@code clipPath}/{@code mask} definitions keep their meaning.
-     */
-    private void fitToContent() {
-        if (kind != DocumentKind.SVG) {
-            Toast.makeText(this, "只有 SVG 支持按内容边界适应", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        String content = editorTextOrStored();
-        SvgGeometry.Box box = SvgGeometry.measure(content);
-        if (!box.isValid()) {
-            Toast.makeText(this, "这个 SVG 没有可用的坐标范围（无 viewBox、宽高是百分比），只能用适应窗口", Toast.LENGTH_LONG).show();
-            return;
-        }
-        String override = SvgGeometry.fitContentViewBox(content, 0.06);
-        if (override == null) {
-            Toast.makeText(this, "无法计算内容边界", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        svgViewBoxOverride = override;
-        previewState.invalidate();
-        renderPreview(true);
-        previewViewport.fitToWindow();
-        String note = "已按内容边界临时扩大预览范围（不会写回原文件）";
-        if (SvgGeometry.hasInternalClipping(content)) {
-            note += "。这个 SVG 内部有 clipPath/遮罩，扩大视图也无法还原被有意裁掉的部分。";
-        }
-        Toast.makeText(this, note, Toast.LENGTH_LONG).show();
+    private void updateFitControls(boolean fitted) {
+        if (btnViewportFit == null || btnViewportFitContent == null) return;
+        boolean vector = isVectorKind();
+        btnViewportFit.setSelected(vector ? !svgContentFit : fitted);
+        btnViewportFitContent.setSelected(vector && svgContentFit);
+    }
+
+    private void syncSvgFit(WebView view, long ticket) {
+        final long click = svgFitClick;
+        view.evaluateJavascript("window.CCViewport ? CCViewport.fitMode() : null", result -> {
+            if (ticket != previewTicket || click != svgFitClick || view != webPreview
+                    || !isVectorKind() || isDestroyed() || isFinishing()) return;
+            if ("\"content\"".equals(result) || "\"window\"".equals(result)) {
+                svgContentFit = "\"content\"".equals(result);
+                updateFitControls(true);
+            }
+        });
+    }
+
+    /** Change only the live SVG camera, keeping the document and authored animation state. */
+    private void setSvgFitMode(boolean contentMode) {
+        if (!isVectorKind() || webPreview == null || previewRendererDead) return;
+        WebView renderer = webPreview;
+        final long ticket = previewTicket, click = ++svgFitClick;
+        final String mode = contentMode ? "content" : "window";
+        renderer.evaluateJavascript("window.CCViewport ? CCViewport.setFitMode('" + mode + "') : null",
+                result -> {
+                    if (renderer != webPreview || ticket != previewTicket || click != svgFitClick
+                            || !isVectorKind() || isDestroyed() || isFinishing()) return;
+                    if ("\"window\"".equals(result) || "\"content\"".equals(result)) {
+                        svgContentFit = "\"content\"".equals(result);
+                        if (svgContentFit == contentMode) {
+                            previewViewport.fitToWindow();
+                            applyViewportToWeb();
+                        }
+                        updateFitControls(true);
+                    }
+                    if (contentMode && !svgContentFit) {
+                        Toast.makeText(this, R.string.svg_fit_unavailable, Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     // ------------------------------------------------------------------ search
@@ -1958,6 +2009,7 @@ public class EditorActivity extends Activity {
         }
         // "Fit to content" is an SVG-only idea.
         btnViewportFitContent.setVisibility(kind == DocumentKind.SVG ? View.VISIBLE : View.GONE);
+        updateFitControls(true);
         boolean zoomable = isWebZoomKind() || isVectorKind() || isImageKind() || kind == DocumentKind.PDF;
         viewportToolbar.setVisibility(zoomable ? View.VISIBLE : View.GONE);
         if (previewViewport != null) {
@@ -1994,6 +2046,7 @@ public class EditorActivity extends Activity {
         DocumentKind current = currentDocument.kind();
         if (current != kind) {
             isAllowNetwork = false;
+            svgContentFit = false;
             kind = current;
             applyKindToChrome();
         }
@@ -2002,7 +2055,7 @@ public class EditorActivity extends Activity {
 
         String fingerprint = PreviewKey.forDocument(currentDocument.getId(), content, isDark())
                 + "|" + kind.name() + "|" + isAllowJs + "|" + isAllowNetwork
-                + "|" + svgViewBoxOverride + "|" + title;
+                + "|" + title;
         // A format-changing rename can change the preview even when all source bytes are equal.
         // Check the full key before clearing the current page's advice.
         if (!force && fingerprint.equals(lastRenderedFingerprint)) return;
@@ -2066,7 +2119,7 @@ public class EditorActivity extends Activity {
         request.dark = isDark();
         request.allowScripts = isAllowJs;
         request.allowNetwork = isAllowNetwork;
-        request.svgViewBoxOverride = svgViewBoxOverride;
+        request.fitSvgContent = svgContentFit;
         previewViewport.setArtworkGestures(isVectorKind() && isAllowJs
                 && content.toLowerCase(java.util.Locale.ROOT).contains("<script"));
         loadPreview(PreviewPage.build(request), fingerprint);
@@ -2400,7 +2453,6 @@ public class EditorActivity extends Activity {
         tab.setSelected(selected);
         tab.setTextColor(getResources().getColor(selected
                 ? R.color.canvas_on_primary : R.color.canvas_ink_secondary));
-        tab.setBackgroundResource(R.drawable.bg_segment_item);
     }
 
     // ------------------------------------------------------------------ saving

@@ -1,189 +1,103 @@
 'use strict';
-
-const strings = {
-  zh: {
-    skip:'跳到工作区',brand:'代码画布',brandTag:'本地优先的代码工作台',local:'仅在本机',offline:'当前离线',ready:'可离线使用',
-    install:'安装应用',installHelp:'在 iPhone／iPad Safari 中点「分享 → 添加到主屏幕」。Android Chrome 可打开菜单选择「安装应用」或「添加到主屏幕」。',
-    offlineHelp:'首次打开后等待「可离线使用」提示。在同一个浏览器或已安装的网页应用中使用。',
-    library:'作品库',new:'新建',import:'导入文件',openDemo:'打开演示作品',shelfNote:'文件保存在这台设备的浏览器中。重要内容请导出备份。',
-    saved:'已保存在本机',unsaved:'未能写入本机',rename:'重命名',export:'导出',remove:'删除作品',tabs:'工作区模式',preview:'预览',source:'源码',
-    expanded:'展开画布',shrink:'还原画布',frame:'代码预览',sandbox:'隔离预览 · 禁用脚本与联网',textPreview:'纯文本预览 · 不执行代码',
-    format:'格式',plain:'纯文本',paste:'粘贴',apply:'应用并预览',sourceEditor:'源码编辑器',sourceNote:'浏览器本地保存；不会上传。',
-    webEdition:'网页预览版',close:'关闭',name:'文件名',cancel:'取消',confirm:'确定',newFile:'新建作品',untitled:'未命名',
-    demoTitle:'轨道 · 光影练习',blank:'在源码页粘贴代码，或从作品库导入文件。',deleteConfirm:'确定删除《{name}》？这一操作无法撤销。',
-    storedLimit:'最多保存 {number} 个作品。请先导出备份，再删除不需要的作品。',
-    sizeLimit:'这个文件超过 512 KB，请先缩小文件大小。',fileType:'请导入 HTML、SVG 或文本文件。',importError:'未能读取文件。',
-    pasteFallback:'请在源码编辑器中手动粘贴。',exported:'已发起下载。',imported:'已导入到本机。',storageError:'浏览器未能保存文件。请导出备份。',
-    emptyList:'暂无作品',emptyTitle:'开始一个新作品',emptyText:'新建、导入文件，或者打开演示作品。',lines:'{number} 行',deleted:'已删除作品。',
-    plainTag:'文本',motion:'播放／暂停',characterLimit:'最多支持 524,288 个字符，请缩短作品。'
-  },
-  en: {
-    skip:'Skip to workspace',brand:'Code Canvas',brandTag:'A local-first code workspace',local:'On this device',offline:'Offline',ready:'Offline ready',
-    install:'Install app',installHelp:'On iPhone or iPad, open Safari and choose Share → Add to Home Screen. On Android, open the Chrome menu and choose Install app or Add to Home screen.',
-    offlineHelp:'Wait for the Offline ready indicator on your first visit. Reopen the same browser or installed web app.',
-    library:'Library',new:'New',import:'Import file',openDemo:'Open a sample',shelfNote:'Files are stored in this browser on this device. Export important work to keep a backup.',
-    saved:'Saved on device',unsaved:'Not saved on device',rename:'Rename',export:'Export',remove:'Delete document',tabs:'Workspace mode',preview:'Preview',source:'Source',
-    expanded:'Expand canvas',shrink:'Restore canvas',frame:'Code preview',sandbox:'Isolated preview · Scripts and network disabled',textPreview:'Plain-text preview · Code is not executed',
-    format:'Format',plain:'Plain text',paste:'Paste',apply:'Apply & preview',sourceEditor:'Source editor',sourceNote:'Saved locally in this browser; never uploaded.',
-    webEdition:'Web preview edition',close:'Close',name:'File name',cancel:'Cancel',confirm:'Confirm',newFile:'New document',untitled:'Untitled',
-    demoTitle:'Orbit · Study in light',blank:'Paste code in the Source tab, or import a file from the library.',deleteConfirm:'Delete “{name}”? This cannot be undone.',
-    storedLimit:'You can save up to {number} documents. Export a backup and delete a document first.',
-    sizeLimit:'This file exceeds 512 KB. Reduce its size and try again.',fileType:'Import an HTML, SVG, or text file.',importError:'This file could not be read.',
-    pasteFallback:'Paste manually in the source editor.',exported:'Download started.',imported:'Imported to this device.',storageError:'The browser could not save this work. Export a backup.',
-    emptyList:'No documents yet',emptyTitle:'Start a new document',emptyText:'Create or import a file, or open the sample.',lines:'{number} lines',deleted:'Document deleted.',
-    plainTag:'Text',motion:'Play / pause',characterLimit:'The editor accepts up to 524,288 characters. Shorten the document and try again.'
-  }
+const strings={
+ zh:{
+  skip:'跳到工作区',brand:'代码画布',local:'仅在本机',offline:'当前离线',ready:'可离线使用',install:'安装应用',
+  installHelp:'在 iPhone／iPad Safari 中点「分享 → 添加到主屏幕」。Android Chrome 可打开菜单选择「安装应用」或「添加到主屏幕」。',
+  offlineHelp:'首次打开后等待「可离线使用」。请在相同的浏览器或已安装的网页应用中使用。',
+  new:'新建',import:'导入文件',saved:'已保存在本机',unsaved:'未能写入本机',rename:'重命名',export:'导出',remove:'删除文件',
+  tabs:'工作区模式',preview:'预览',source:'代码',frame:'代码预览',sandbox:'隔离预览 · 禁用脚本与联网',textPreview:'纯文本预览 · 不执行代码',
+  format:'格式',plain:'纯文本',paste:'粘贴',apply:'应用并预览',sourceEditor:'代码编辑器',close:'关闭',name:'文件名',cancel:'取消',
+  confirm:'确定',newFile:'新建文件',untitled:'未命名',blank:'在代码页输入或粘贴内容。',deleteConfirm:'确定删除《{name}》？这一操作无法撤销。',
+  storedLimit:'最多保存 {number} 个文件。请先导出备份，再删除不需要的文件。',sizeLimit:'文件超过 512 KB，请先缩小文件大小。',
+  fileType:'请导入 HTML、SVG 或文本文件。',importError:'未能读取文件。',pasteFallback:'请在下方手动粘贴。',pasteEditor:'请在代码编辑器中手动粘贴。',
+  exported:'已发起下载。',imported:'已导入到本机。',storageError:'浏览器未能保存文件，请导出备份。',
+  emptyTitle:'从一段代码开始',emptyText:'粘贴一段代码、导入本机文件，或新建一个空白草稿。',lines:'{number} 行',deleted:'已删除文件。',
+  plainTag:'文本',characterLimit:'最多支持 524,288 个字符，请缩短内容。',
+  settings:'设置',actions:'文件操作',back:'返回文件库',findStudy:'搜索文件或代码',aboutPort:'网页编辑器。文件只存在当前浏览器，不会同步。请导出重要文件。',
+  noResults:'没有匹配的文件',noResultsHelp:'换一个文件名或代码关键词试试。',localDrafts:'我的文件 · {number}',canvasControls:'画布控制',
+  zoomOut:'缩小',zoomIn:'放大',fitWindow:'适应窗口',fitContent:'适应内容',fitModes:'适应方式',zoomControls:'手动缩放',canvasViewport:'可滚动的画布',
+  fullExit:'退出全屏',fullscreen:'全屏',refresh:'刷新',refreshed:'已刷新预览。',viewMode:'文件显示方式',listView:'列表视图',galleryView:'网格视图',
+  openActions:'{name} 的文件操作',fitUnavailable:'这个 SVG 的绘制边界无法可靠测量，已保留原画框。',createFromPaste:'创建文件',noPreview:'暂无预览'
+ },
+ en:{
+  skip:'Skip to workspace',brand:'Code Canvas',local:'On this device',offline:'Offline',ready:'Offline ready',install:'Install app',
+  installHelp:'On iPhone or iPad, open Safari and choose Share → Add to Home Screen. On Android Chrome, choose Install app or Add to Home screen.',
+  offlineHelp:'Wait for the Offline ready indicator on the first visit. Reopen the same browser or installed web app.',
+  new:'New',import:'Import file',saved:'Saved on device',unsaved:'Not saved on device',rename:'Rename',export:'Export',remove:'Delete file',
+  tabs:'Workspace mode',preview:'Preview',source:'Code',frame:'Code preview',sandbox:'Isolated preview · Scripts and network disabled',textPreview:'Plain text · Code is not executed',
+  format:'Format',plain:'Plain text',paste:'Paste',apply:'Apply & preview',sourceEditor:'Code editor',close:'Close',name:'File name',cancel:'Cancel',
+  confirm:'Confirm',newFile:'New file',untitled:'Untitled',blank:'Type or paste content in the Code tab.',deleteConfirm:'Delete “{name}”? This cannot be undone.',
+  storedLimit:'You can save up to {number} files. Export a backup and delete a file first.',sizeLimit:'This file exceeds 512 KB. Reduce its size and try again.',
+  fileType:'Import an HTML, SVG, or text file.',importError:'This file could not be read.',pasteFallback:'Paste manually below.',pasteEditor:'Paste manually in the code editor.',
+  exported:'Download started.',imported:'Imported to this device.',storageError:'The browser could not save this file. Export a backup.',
+  emptyTitle:'Start with a snippet',emptyText:'Paste a snippet, import a file from your device, or create a blank draft.',lines:'{number} lines',deleted:'File deleted.',
+  plainTag:'Text',characterLimit:'The editor accepts up to 524,288 characters. Shorten the file and try again.',
+  settings:'Settings',actions:'File actions',back:'Back to files',findStudy:'Search files or code',aboutPort:'Files stay in this browser and do not sync. Export important files to keep a backup.',
+  noResults:'No matching files',noResultsHelp:'Try a different file name or a code keyword.',localDrafts:'My files · {number}',canvasControls:'Canvas controls',
+  zoomOut:'Zoom out',zoomIn:'Zoom in',fitWindow:'Fit window',fitContent:'Fit content',fitModes:'Fit modes',zoomControls:'Manual zoom',canvasViewport:'Scrollable canvas',
+  fullExit:'Exit full screen',fullscreen:'Full screen',refresh:'Refresh',refreshed:'Preview refreshed.',viewMode:'File layout',listView:'List view',galleryView:'Grid view',
+  openActions:'File actions for {name}',fitUnavailable:'The artwork bounds could not be measured reliably. Showing the original SVG frame.',createFromPaste:'Create file',noPreview:'No preview yet'
+ }
 };
-
-Object.assign(strings.zh, {
-  about:'关于', actions:'作品操作', back:'返回作品库', findStudy:'搜索作品',
-  designLab:'设计实验室', closerLook:'走近画布', studyIntro:'用三个本地作品，探索光线、色彩与空间。',
-  aboutPort:'以 Apple 版设计实验室为原型，在浏览器里重现三个习作和画布操作。你也可以导入、编辑和导出自己的作品。',
-  noResults:'没有匹配的作品', localDrafts:'{number} 个本机作品', canvasControls:'画布控制',
-  zoomOut:'缩小', zoomIn:'放大', fitCanvas:'适合画布', alignment:'对齐网格', editCopy:'复制并编辑', sample:'内置习作'
-});
-Object.assign(strings.en, {
-  about:'About', actions:'Artwork actions', back:'Back to library', findStudy:'Find a study',
-  designLab:'Design Lab', closerLook:'A closer look', studyIntro:'Explore three local studies in light, color, and space.',
-  aboutPort:'A browser port of the Apple Design Lab’s three studies and canvas controls. You can also import, edit and export your own work.',
-  noResults:'No matching artwork', localDrafts:'{number} local documents', canvasControls:'Canvas controls',
-  zoomOut:'Zoom out', zoomIn:'Zoom in', fitCanvas:'Fit artwork', alignment:'Alignment grid', editCopy:'Copy and edit', sample:'Built-in study'
-});
-
-const LIMIT = 524288;
-const MAX = 8;
-const STORAGE = 'code-canvas-web:library:v1';
-const TYPES = new Set(['html','svg','text']);
-const htmlLike = /^\s*(?:<!doctype\s+html\b|<!--|<\/?(?:html|body|head|style|script|div|main|article|section|h[1-6]|p|span|pre|button|input|img|video|canvas|table|form)\b)/i;
-const svgLike = /^\s*(?:<\?xml[^>]*\?>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg(?:\s|>)/i;
-const knownExt = /\.(html?|svg|txt|md|css|js|json|xml)$/i;
-const $ = id => document.getElementById(id);
-const refs = Object.fromEntries(['workspace','document-title','documents','document-count','library-toggle','kind-badge','save-state','tab-preview','tab-code','preview-panel','code-panel','preview-wrap','preview','plain-preview','preview-format','toggle-fit','editor','format-select','source-count','connection','connection-label','status','language-button','file-picker','new-button','import-button','remove-button','rename-button','export-button','install-button','install-dialog','name-dialog','name-title','name-input','name-format','name-form','delete-dialog','delete-message','delete-confirm'].map(id => [id,$(id)]));
-const get = id => refs[id];
-function prefsGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
-function prefsSet(key,value) { try { localStorage.setItem(key,value); return true; } catch { return false; } }
-const requested = new URLSearchParams(location.search).get('lang');
-let lang = requested === 'en' || requested === 'zh' ? requested : prefsGet('code-canvas-web:lang') === 'en' ? 'en' : 'zh';
-let tab = 'preview';
-let saveOK = true;
-let toastTimer, persistTimer;
-let installPrompt;
-let naming;
-let pendingDelete = null;
-let renderedKey;
-let offlineReady = false;
-let previousNameFocus;
-let previousDeleteFocus;
-const translate = (key, args = {}) => (strings[lang][key] || key).replace(/\{(\w+)\}/g, (_, name) => args[name] ?? '');
-const typeTag = format => format === 'text' ? translate('plainTag') : format.toUpperCase();
-const makeId = () => globalThis.crypto?.randomUUID?.() || 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
-const validName = value => (typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f/\\:*?"<>|]/g, ' ').trim().slice(0,80) : '') || translate('untitled');
-
-function stateFrom(raw) {
-  if (!raw) return {docs:[], current:null};
-  try {
-    const data = JSON.parse(raw);
-    if (!Array.isArray(data.docs)) throw new Error('invalid');
-    const seen = new Set();
-    const docs = data.docs.filter(d => d && typeof d.id === 'string' && d.id.length <= 100 && !seen.has(d.id) && seen.add(d.id)
-      && TYPES.has(d.format) && typeof d.source === 'string' && d.source.length <= LIMIT)
-      .slice(0,MAX).map(d => ({id:d.id, name:validName(d.name), format:d.format, source:d.source, sample:d.sample === true}));
-    return {docs,current:docs.some(d => d.id === data.current) ? data.current : docs[0]?.id ?? null};
-  } catch { return {docs:[], current:null}; }
+const LIMIT=524288, MAX=8;
+const STORAGE='code-canvas-web:library:v1', PREF='code-canvas-web:';
+const TYPES=new Set(['html','svg','text']);
+const htmlLike=/^\s*(?:<!doctype\s+html\b|<!--|<\/?(?:html|body|head|style|script|div|main|article|section|h[1-6]|p|span|pre|button|input|img|video|canvas|table|form)\b)/i;
+const svgLike=/^\s*(?:<\?xml[^>]*\?>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg(?:\s|>)/i;
+const knownExt=/\.(html?|svg|txt|md|css|js|json|xml)$/i;
+const $=id=>document.getElementById(id);
+function prefsGet(key){try{return localStorage.getItem(key);}catch{return null;}}
+function prefsSet(key,value){try{localStorage.setItem(key,value);return true;}catch{return false;}}
+const requested=new URLSearchParams(location.search).get('lang');
+let lang=requested==='en'||requested==='zh'?requested:prefsGet(PREF+'lang')==='en'?'en':'zh';
+let layout=prefsGet(PREF+'layout')==='list'?'list':'grid';
+let saveOK=true, tab='preview', fit='window', zoom=1, baseFit='window', fullscreen=false, offlineReady=false;
+let toastTimer,persistTimer,installPrompt,naming,pendingDelete,renderedKey,menuOpenedBy,libraryFocus,previousFocus,prepared,libraryScroll=0;
+const t=(key,args={})=>(strings[lang][key]||key).replace(/\{(\w+)\}/g,(_,name)=>args[name]??'');
+const tag=format=>format==='text'?t('plainTag'):format.toUpperCase();
+const makeId=()=>globalThis.crypto?.randomUUID?.()||'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+const validName=value=>(typeof value==='string'?value.replace(/[\u0000-\u001f\u007f/\\:*?"<>|]/g,' ').trim().slice(0,80):'')||t('untitled');
+function readState(raw){
+ try{
+  const data=JSON.parse(raw);
+  if(!Array.isArray(data?.docs))return {docs:[],current:null};
+  const seen=new Set();
+  const docs=data.docs.filter(d=>d&&d.sample!==true&&typeof d.id==='string'&&d.id.length<=100&&!seen.has(d.id)&&seen.add(d.id)&&TYPES.has(d.format)&&typeof d.source==='string'&&d.source.length<=LIMIT)
+   .slice(0,MAX).map(d=>({id:d.id,name:validName(d.name),format:d.format,source:d.source}));
+  return {docs,current:docs.some(d=>d.id===data.current)?data.current:null};
+ }catch{return {docs:[],current:null};}
 }
-const state = stateFrom(prefsGet(STORAGE));
-let activeStudy = null;
-let zoom = 1;
-let libraryReturnFocus = null;
-let libraryScroll = 0;
-const current = () => activeStudy
-  ? {name:activeStudy[lang][0],format:'svg',source:studySVG(activeStudy,lang)}
-  : state.docs.find(d => d.id === state.current);
-function toast(key,args) {
-  get('status').textContent = translate(key,args);
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { get('status').textContent = ''; },4200);
+const state=readState(prefsGet(STORAGE));
+const current=()=>state.docs.find(d=>d.id===state.current);
+function toast(key,args){
+ $('status').textContent=t(key,args);
+ clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('status').textContent='',4000);
 }
-function setSaveState() { get('save-state').textContent = translate(activeStudy ? 'sample' : saveOK ? 'saved' : 'unsaved'); }
-function save() {
-  try { saveOK = prefsSet(STORAGE,JSON.stringify(state)); } catch { saveOK = false; }
-  setSaveState();
-  return saveOK;
+function persist(){
+ clearTimeout(persistTimer);persistTimer=undefined;
+ saveOK=prefsSet(STORAGE,JSON.stringify(state));$('save-state').textContent=t(saveOK?'saved':'unsaved');
+ return saveOK;
 }
-function queueSave() { clearTimeout(persistTimer); persistTimer = setTimeout(persist,180); }
-function persist() { clearTimeout(persistTimer); persistTimer = undefined; return save(); }
-window.addEventListener('pagehide', () => { if (persistTimer !== undefined) persist(); });
-function route(screen) {
-  const detail=screen === 'detail';
-  get('workspace').dataset.screen=screen;
-  for (const id of ['library-toggle','document-title','document-menu-button','study-screen']) $(id).hidden=!detail;
-  for (const id of ['library-title','about-button','library']) $(id).hidden=detail;
-  window.scrollTo(0,detail ? 0 : libraryScroll);
-  (detail ? get('document-title') : libraryReturnFocus?.isConnected ? libraryReturnFocus : $('search')).focus({preventScroll:true});
+function queueSave(){clearTimeout(persistTimer);persistTimer=setTimeout(persist,180);}
+window.addEventListener('pagehide',()=>{if(persistTimer!==undefined)persist();});
+function updateConnection(){$('connection').dataset.state=navigator.onLine?'online':'offline';$('connection-label').textContent=t(navigator.onLine?offlineReady?'ready':'local':'offline');}
+function localize(){
+ document.documentElement.lang=lang==='zh'?'zh-CN':'en';
+ document.title=t('brand')+(lang==='zh'?' · Code Canvas':' · Web workspace');
+ for(const n of document.querySelectorAll('[data-text]'))n.textContent=t(n.dataset.text);
+ for(const n of document.querySelectorAll('[data-label]'))n.setAttribute('aria-label',t(n.dataset.label));
+ for(const n of document.querySelectorAll('[data-title]'))n.title=t(n.dataset.title);
+ $('language-button').lang=lang==='en'?'zh-CN':'en';$('language-button').textContent=lang==='en'?'中文':'English';
+ $('search').placeholder=t('findStudy');$('save-state').textContent=t(saveOK?'saved':'unsaved');
+ updateConnection();updateViewportLabels();
 }
-function enterDetail() {
-  if (get('workspace').dataset.screen !== 'detail') {
-    libraryScroll=window.scrollY;
-    libraryReturnFocus=document.activeElement;
-    if (history.state?.codeCanvasDetail !== true) history.pushState({codeCanvasDetail:true},'');
-  }
-  resetCanvas();
-  route('detail');
-}
-function leaveDetail() {
-  if (history.state?.codeCanvasDetail === true) history.back();
-  else route('library');
-}
-window.addEventListener('popstate',event => {
-  if (event.state?.codeCanvasDetail && current()) route('detail');
-  else route('library');
-});
-if (history.state?.codeCanvasDetail) history.replaceState(null,'');
-function resetCanvas() {
-  setZoom(1);
-  $('toggle-grid').setAttribute('aria-pressed','false');
-  $('alignment').hidden=true;
-}
-function setZoom(value) {
-  zoom=Math.max(1,Math.min(2,value));
-  const view=get('preview-wrap');
-  const centerX=(view.scrollLeft+view.clientWidth/2)/Math.max(view.clientWidth,view.scrollWidth,1);
-  const centerY=(view.scrollTop+view.clientHeight/2)/Math.max(view.clientHeight,view.scrollHeight,1);
-  $('preview-content').style.width=zoom*100+'%';
-  const percent=Math.round(zoom*100)+'%';
-  get('toggle-fit').textContent=percent;
-  get('toggle-fit').setAttribute('aria-label',translate('fitCanvas')+' · '+percent);
-  $('zoom-out').disabled=zoom===1; $('zoom-in').disabled=zoom===2;
-  if (zoom===1) {view.scrollLeft=0;view.scrollTop=0;}
-  else requestAnimationFrame(() => {
-    view.scrollLeft=view.scrollWidth*centerX-view.clientWidth/2;
-    view.scrollTop=view.scrollHeight*centerY-view.clientHeight/2;
-  });
-}
-function updateConnection() {
-  get('connection').dataset.state = navigator.onLine ? 'online' : 'offline';
-  get('connection-label').textContent = translate(navigator.onLine ? offlineReady ? 'ready' : 'local' : 'offline');
-}
-function l10n() {
-  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
-  document.title = lang === 'zh' ? '代码画布 · Code Canvas' : 'Code Canvas · Local code workspace';
-  document.querySelectorAll('[data-text]').forEach(n => { n.textContent = translate(n.dataset.text); });
-  document.querySelectorAll('[data-label]').forEach(n => { n.setAttribute('aria-label',translate(n.dataset.label)); });
-  document.querySelectorAll('[data-title]').forEach(n => { n.title = translate(n.dataset.title); });
-  get('language-button').lang = lang === 'en' ? 'zh-CN' : 'en';
-  get('language-button').textContent = lang === 'en' ? '中文' : 'English';
-  $('search').placeholder = translate('findStudy');
-  get('toggle-fit').setAttribute('aria-label',translate('fitCanvas')+' · '+get('toggle-fit').textContent);
-  setSaveState(); updateConnection();
-}
-
 const BLOCK = new Set(['script','noscript','link','meta','base','iframe','frame','frameset','object','embed','portal','fencedframe','foreignobject','template','handler','discard']);
 const URL_ATTR = new Set(['href','src','srcset','imagesrcset','srcdoc','action','formaction','data','poster','background','ping','cite','manifest','longdesc','codebase','classid','profile','archive','target','download','attributionsrc','itemid','itemtype','itemprop','lowsrc','dynsrc','urn']);
 const LOCAL_FRAGMENT = /^#[^\s"'<>]*$/;
 const INLINE_MEDIA = /^data:(?:image\/(?:png|jpe?g|gif|webp|avif|bmp|x-icon)|audio\/(?:ogg|wav|mp3|mpeg|webm)|video\/(?:mp4|webm|ogg));base64,[a-z0-9+/=\s]+$/i;
 const SAFE_ANIMATION = /^(?:[dxy]|opacity|stroke(?:-width|-dashoffset|-dasharray|-opacity)?|fill(?:-opacity)?|(?:cx|cy|r|rx|ry)|(?:x|y)[12]|width|height|viewbox|offset|stop-color|stop-opacity|transform)$/i;
 const PAGE_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; media-src data:; font-src data:; base-uri 'none'; form-action 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; script-src 'none'";
-function isolatedMarkup(source,kind,builtIn=false) {
+function isolatedTree(source) {
   // Template content is inert while parsing; user markup is never attached to the app DOM.
   const template = document.createElement('template');
   template.innerHTML = source;
@@ -206,265 +120,332 @@ function isolatedMarkup(source,kind,builtIn=false) {
       }
     }
   }
-  const markup = template.innerHTML;
-  const css = "html{min-height:100%;color-scheme:light dark}body{margin:0;overflow-wrap:anywhere}img,video{max-width:100%}pre{overflow:auto}svg{max-width:100%;height:auto}body.canvas-vector{min-height:100vh;display:grid;place-items:center;padding:10px;box-sizing:border-box}body.canvas-vector>svg{display:block;width:auto;max-width:100%;max-height:calc(100vh - 20px)}" + (builtIn ? 'body.canvas-vector{padding:0;display:block}body.canvas-vector>svg{width:100%;max-height:none}' : '');
-  return '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="' + PAGE_CSP + '"><style>' + css + '</style><body' + (kind === 'svg' ? ' class="canvas-vector"' : '') + '>' + markup + '</body>';
+  return template;
 }
-
-function renderPreview(force=false) {
-  const doc = current();
-  const key = doc ? doc.format + '\0' + doc.source : 'empty';
-  get('preview-wrap').dataset.study = activeStudy ? 'true' : 'false';
-  if (!force && renderedKey === key) return;
-  renderedKey = key;
-  const readable = !doc || doc.format === 'text' || !doc.source.trim();
-  get('preview').hidden = readable;
-  get('plain-preview').hidden = !readable;
-  if (readable) {
-    get('preview').removeAttribute('srcdoc');
-    get('plain-preview').textContent = doc?.source || (doc ? translate('blank') : translate('emptyText'));
-  } else {
-    get('plain-preview').textContent = '';
-    get('preview').srcdoc = isolatedMarkup(doc.source,doc.format,Boolean(activeStudy));
-  }
-  $('study-subtitle').textContent = activeStudy ? activeStudy[lang][1] : translate(readable ? 'textPreview' : 'sandbox');
-  get('preview-format').textContent = doc && !activeStudy ? typeTag(doc.format) : '';
+const SVG_SHELL='html,body{margin:0;width:100%;height:100%;overflow:hidden}body>svg:first-of-type{display:block;width:100%!important;height:100%!important}';
+const HTML_SHELL='html{min-height:100%;color-scheme:light dark}body{margin:0;overflow-wrap:anywhere}img,video,Svg{max-width:100%}svg{height:auto}pre{max-width:100%;overflow:auto}';
+function prepareSvg(source){
+ const template=isolatedTree(source);
+ const root=template.content.querySelector('svg');
+ if(!root)return {template,root:null,bounds:null};
+ const frame=declaredFrame(root);
+ if(!root.hasAttribute('viewBox'))root.setAttribute('viewBox',frame.join(' '));
+ root.setAttribute('xmlns',SVG_NS);
+ return {template,root,frame,bounds:contentFrame(root,frame)};
 }
-function selectTab(next,moveFocus=false) {
-  tab = next;
-  for (const name of ['preview','code']) {
-    const yes = next === name;
-    get('tab-' + name).setAttribute('aria-selected',String(yes));
-    get('tab-' + name).tabIndex = yes ? 0 : -1;
-    get(name + '-panel').hidden = !yes;
-  }
-  $('canvas-controls').hidden = next !== 'preview';
-  if (next === 'preview') renderPreview();
-  if (moveFocus) get('tab-' + next).focus();
+function markupFor(source,format,scaleFit){
+ let template;
+ if(format==='svg'){
+  if(prepared?.source!==source)prepared={source,...prepareSvg(source)};
+  ({template}=prepared);
+  if(prepared.root)prepared.root.setAttribute('viewBox',(scaleFit==='content'&&prepared.bounds?prepared.bounds:prepared.frame).join(' '));
+ }else template=isolatedTree(source);
+ return '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="'+PAGE_CSP+'"><style>'+(format==='svg'?HTML_SHELL+SVG_SHELL:HTML_SHELL)+'</style><body>'+template.innerHTML+'</body>';
 }
-function syncSourceCount() {
-  const n = get('editor').value.split('\n').length;
-  get('source-count').textContent = translate('lines',{number:n.toLocaleString(lang)});
+function renderPreview(force=false){
+ const doc=current();
+ const format=doc?.format||'text', source=doc?.source||'';
+ if(format==='svg'&&baseFit==='content'&&prepared?.source!==source){
+  prepared={source,...prepareSvg(source)};
+  if(!prepared.bounds){baseFit='window';if(fit==='content')fit='window';}
+ }
+ const key=format+'\0'+source+'\0'+(format==='svg'?baseFit:'window');
+ const text=!source.trim()||format==='text';
+ if(force||key!==renderedKey){
+  renderedKey=key;
+  $('preview').hidden=text;$('plain-preview').hidden=!text;
+  if(text){$('preview').removeAttribute('srcdoc');$('plain-preview').textContent=source||t('blank');}
+  else{$('plain-preview').textContent='';$('preview').srcdoc=markupFor(source,format,baseFit);}
+ }
+ $('preview-wrap').dataset.format=format;
+ $('preview-description').textContent=doc?tag(format):'';
+ $('preview-security').textContent=t(text?'textPreview':'sandbox');
+ $('fit-content').hidden=format!=='svg'||text;
+ updateViewportLabels();
 }
-function renderShelf() {
-  const query=$('search').value.trim().toLocaleLowerCase(lang);
-  const matches=value=>value.toLocaleLowerCase(lang).includes(query);
-  const studies=$('studies');
-  studies.replaceChildren();
-  for(const study of studi) {
-    if (!matches(study[lang].slice(0,2).join(' '))) continue;
-    const li=document.createElement('li'), button=document.createElement('button'), artwork=document.createElement('img');
-    const labels=document.createElement('span'), name=document.createElement('strong'), subtitle=document.createElement('span'), chevron=document.createElement('span');
-    button.className='study-card'; button.type='button'; button.dataset.study=study.id;
-    artwork.src='data:image/svg+xml,'+encodeURIComponent(studySVG(study,lang));
-    artwork.width=960; artwork.height=600; artwork.alt='';
-    labels.className='card-labels'; name.textContent=study[lang][0]; subtitle.textContent=study[lang][1];
-    chevron.className='chevron'; chevron.setAttribute('aria-hidden','true'); chevron.textContent='›';
-    labels.append(name,subtitle,chevron); button.append(artwork,labels); li.append(button); studies.append(li);
-  }
-  const list=get('documents');
-  list.replaceChildren();
-  get('document-count').textContent=translate('localDrafts',{number:state.docs.length});
-  for (const doc of state.docs) {
-    if (!matches(doc.name+' '+typeTag(doc.format))) continue;
-    const li=document.createElement('li'), button=document.createElement('button'), kind=document.createElement('span'), name=document.createElement('span');
-    button.className='doc'; button.type='button';
-    button.dataset.docId=doc.id;
-    kind.className='doc-kind'; kind.textContent=typeTag(doc.format);
-    name.className='doc-name'; name.textContent=doc.name;
-    button.append(kind,name); li.append(button); list.append(li);
-  }
-  $('no-docs').hidden=list.children.length>0;
-  $('no-docs').textContent=translate(query ? 'noResults' : 'emptyList');
+function updateViewportLabels(){
+ $('fit-window').setAttribute('aria-pressed',String(fit==='window'));
+ $('fit-content').setAttribute('aria-pressed',String(fit==='content'));
+ $('fullscreen-button').setAttribute('aria-pressed',String(fullscreen));
+ $('fullscreen-button').querySelector('[data-text]').textContent=t(fullscreen?'fullExit':'fullscreen');
+ $('zoom-in').disabled=zoom>=3;
+ $('zoom-out').disabled=zoom<=.5;
+ $('zoom-value').textContent=Math.round(zoom*100)+'%';
 }
-function renderWorkspace() {
-  const doc = current();
-  get('document-title').textContent=doc?.name || translate('emptyTitle');
-  get('kind-badge').textContent=doc ? typeTag(doc.format) : '—';
-  get('editor').value=doc?.source || '';
-  get('format-select').value=doc?.format || 'text';
-  for (const id of ['editor','format-select','export-button']) get(id).disabled=!doc;
-  for (const id of ['rename-button','remove-button']) get(id).hidden=Boolean(activeStudy);
-  get('tab-code').textContent=translate(activeStudy ? 'editCopy' : 'source');
-  for (const id of ['paste-button','apply-button']) $(id).disabled=!doc;
-  get('tab-code').disabled=!doc;
-  get('toggle-fit').disabled=!doc;
-  syncSourceCount(); renderPreview(true); setSaveState();
+function paintViewport(recenter=false){
+ const view=$('preview-wrap'), spacer=$('preview-spacer'), content=$('preview-content');
+ const w=view.clientWidth,h=view.clientHeight;
+ if(!w||!h)return;
+ const x=(view.scrollLeft+w/2)/Math.max(w,view.scrollWidth), y=(view.scrollTop+h/2)/Math.max(h,view.scrollHeight);
+ content.style.width=w+'px';content.style.height=h+'px';content.style.transform='scale('+zoom+')';
+ spacer.style.width=Math.max(1,Math.round(w*zoom))+'px';spacer.style.height=Math.max(1,Math.round(h*zoom))+'px';
+ spacer.style.marginInlineStart=zoom<1?Math.round((w*(1-zoom))/2)+'px':'0';
+ spacer.style.marginBlockStart=zoom<1?Math.round((h*(1-zoom))/2)+'px':'0';
+ if(zoom<=1){view.scrollLeft=0;view.scrollTop=0;}
+ else if(recenter){
+  view.scrollLeft=Math.round(view.scrollWidth*x-w/2);view.scrollTop=Math.round(view.scrollHeight*y-h/2);
+ }
 }
-function addDoc(name,format,source='',sample=false,mode='preview') {
-  if (state.docs.length >= MAX) { toast('storedLimit',{number:MAX}); return; }
-  const doc={id:makeId(),name:validName(name),format,source,sample};
-  activeStudy=null; state.docs.unshift(doc); state.current=doc.id;
-  persist(); renderShelf(); renderWorkspace(); selectTab(mode); enterDetail();
-  return doc;
-}
-function guessFormat(text,name='') {
-  if (/\.svg$/i.test(name)) return 'svg';
-  if (/\.html?$/i.test(name)) return 'html';
-  if (name && knownExt.test(name)) return 'text';
-  return svgLike.test(text.slice(0,4096)) ? 'svg' : htmlLike.test(text.slice(0,4096)) ? 'html' : 'text';
-}
-function updateEditor() {
+new ResizeObserver(()=>paintViewport()).observe($('preview-wrap'));
+function setFit(mode,announce=true){
+ if(mode==='content'){
   const doc=current();
-  if (!doc) return;
-  const source=get('editor').value;
-  if (source.length > LIMIT) { get('editor').value=source.slice(0,LIMIT); toast('characterLimit'); }
-  doc.source=get('editor').value; doc.sample=false;
-  syncSourceCount(); queueSave();
+  if(doc?.format!=='svg'||!doc.source.trim())return;
+  if(prepared?.source!==doc.source)prepared={source:doc.source,...prepareSvg(doc.source)};
+  if(!prepared.bounds){if(announce)toast('fitUnavailable');return;}
+ }
+ fit=baseFit=mode;zoom=1;renderPreview();paintViewport();
 }
-
-get('library-toggle').addEventListener('click',leaveDetail);
-$('search').addEventListener('input',renderShelf);
-$('about-button').addEventListener('click',() => $('about-dialog').showModal());
-$('document-menu-button').addEventListener('click',() => $('document-menu').showModal());
-get('language-button').addEventListener('click',() => {
-  lang=lang === 'zh' ? 'en' : 'zh';
-  prefsSet('code-canvas-web:lang',lang);
-  const url=new URL(location.href); url.searchParams.set('lang',lang);
-  try { history.replaceState(history.state,'',url); } catch {}
-  l10n(); renderShelf(); renderWorkspace();
-});
-$('studies').addEventListener('click',event => {
-  const button=event.target.closest('button[data-study]'); if (!button) return;
-  activeStudy=studi.find(study=>study.id===button.dataset.study);
-  renderWorkspace(); selectTab('preview'); enterDetail();
-});
-get('documents').addEventListener('click',event => {
-  const button=event.target.closest('button[data-doc-id]'); if (!button) return;
-  activeStudy=null; state.current=button.dataset.docId;
-  persist(); renderWorkspace(); selectTab('preview'); enterDetail();
-});
-function chooseTab(next) {
-  $('document-menu').close();
-  if(next==='code' && activeStudy) {
-    const doc=current();
-    if(addDoc(doc.name,'svg',doc.source,false,'code')) get('editor').focus();
-    return;
-  }
-  selectTab(next);
-  (next==='code' ? get('editor') : get('document-title')).focus();
+function manualZoom(step){
+ zoom=Math.max(.5,Math.min(3,zoom+step));fit='manual';updateViewportLabels();paintViewport(true);
 }
-get('tab-preview').addEventListener('click',() => chooseTab('preview'));
-get('tab-code').addEventListener('click',() => chooseTab('code'));
-document.querySelector('[role=tablist]').addEventListener('keydown',event => {
-  if (!current() || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
-  event.preventDefault();
-  get(event.key==='Home' || event.key==='ArrowLeft' ? 'tab-preview' : 'tab-code').focus();
-});
-get('toggle-fit').addEventListener('click',() => setZoom(1));
-$('zoom-out').addEventListener('click',() => setZoom(zoom-.25));
-$('zoom-in').addEventListener('click',() => setZoom(zoom+.25));
-$('toggle-grid').addEventListener('click',() => {
-  const show=$('alignment').hidden;
-  $('alignment').hidden=!show;
-  $('toggle-grid').setAttribute('aria-pressed',String(show));
-});
-get('editor').addEventListener('input',updateEditor);
-$('apply-button').addEventListener('click',() => { if (!persist()) toast('storageError'); selectTab('preview'); get('document-title').focus(); });
-get('format-select').addEventListener('change',() => {
-  const doc=current(); if (!doc || !TYPES.has(get('format-select').value)) return;
-  doc.format=get('format-select').value; doc.sample=false; persist(); renderShelf(); get('kind-badge').textContent=typeTag(doc.format);
-});
-function insertPaste(text) {
-  const doc=current(), editor=get('editor');
-  if (!doc || typeof text !== 'string') return;
-  const selectionLength=editor.selectionEnd-editor.selectionStart;
-  if (editor.value.length + text.length - selectionLength > LIMIT) { toast('characterLimit'); return; }
-  const fresh=!editor.value.trim();
-  editor.setRangeText(text,editor.selectionStart,editor.selectionEnd,'end');
-  if (fresh && text.trim()) {
-    doc.format=guessFormat(text);
-    get('format-select').value=doc.format;
-    get('kind-badge').textContent=typeTag(doc.format);
-    renderShelf();
-  }
-  updateEditor();
+function setFullscreen(on){
+ if(fullscreen===on)return;
+ fullscreen=on;$('preview-panel').classList.toggle('fullscreen',on);
+ document.body.classList.toggle('immersive',on);
+ document.querySelector('.nav').inert=on;document.querySelector('.mode-toggle').inert=on;
+ updateViewportLabels();paintViewport();
+ $('fullscreen-button').focus({preventScroll:true});
 }
-$('paste-button').addEventListener('click',async () => {
-  const editor=get('editor');
-  try { insertPaste(await navigator.clipboard.readText()); } catch { toast('pasteFallback'); }
-  editor.focus();
-});
-get('editor').addEventListener('paste',event => {
-  if (!event.clipboardData) return;
-  event.preventDefault(); insertPaste(event.clipboardData.getData('text/plain'));
-});
-get('import-button').addEventListener('click',() => get('file-picker').click());
-get('file-picker').addEventListener('change',async () => {
-  const picker=get('file-picker'), file=picker.files[0];
-  picker.value='';
-  if (!file) return;
-  if (file.size > LIMIT) { toast('sizeLimit'); return; }
-  if (!knownExt.test(file.name) && !/^(?:text\/|image\/svg\+xml$)/i.test(file.type)) { toast('fileType'); return; }
-  try {
-    const text=await file.text();
-    if (/\u0000/.test(text)) { toast('fileType'); return; }
-    if (addDoc(file.name,guessFormat(text,file.name),text)) toast(saveOK ? 'imported' : 'storageError');
-  } catch { toast('importError'); }
-});
-function showName(mode) {
-  const doc=current();
-  if (mode === 'new' && state.docs.length >= MAX) { toast('storedLimit',{number:MAX}); return; }
-  naming=mode; previousNameFocus=document.activeElement;
-  get('name-title').textContent=translate(mode === 'new' ? 'newFile' : 'rename');
-  get('name-input').value=mode === 'new' ? '' : doc?.name ?? '';
-  get('name-input').placeholder=translate('untitled');
-  get('name-format').value=mode === 'new' ? 'html' : doc?.format ?? 'text';
-  get('name-format').disabled=mode !== 'new';
-  get('name-dialog').showModal(); get('name-input').focus();
+window.addEventListener('keydown',event=>{if(event.key==='Escape'&&fullscreen){event.preventDefault();setFullscreen(false);}});
+function selectTab(next,focus=false){
+ const old=tab;
+ if(next!=='preview'&&fullscreen)setFullscreen(false);
+ tab=next;
+ for(const name of ['preview','code']){
+  const yes=next===name;
+  $('tab-'+name).setAttribute('aria-selected',String(yes));$('tab-'+name).tabIndex=yes?0:-1;
+  $(name+'-panel').hidden=!yes;
+ }
+ if(old!==next)animate($(next+'-panel'),'tab-enter');
+ if(next==='preview'){renderPreview();paintViewport();}
+ if(focus)$('tab-'+next).focus();
 }
-get('new-button').addEventListener('click',() => showName('new'));
-get('rename-button').addEventListener('click',() => showName('rename'));
-get('name-form').addEventListener('submit',event => {
-  event.preventDefault();
-  const name=validName(get('name-input').value);
-  if (!name) return;
-  get('name-dialog').close('confirmed');
-  if (naming === 'new') {
-    if (addDoc(name,get('name-format').value,'',false,'code')) get('editor').focus();
-  } else {
-    const doc=current(); if (!doc) return;
-    doc.name=name; doc.sample=false; persist(); renderShelf(); get('document-title').textContent=doc.name;
-    get('rename-button').focus();
-  }
-});
-get('name-dialog').addEventListener('close',() => { if (get('name-dialog').returnValue !== 'confirmed') previousNameFocus?.focus(); get('name-dialog').returnValue=''; });
-get('remove-button').addEventListener('click',() => {
-  const doc=current(); if (!doc) return;
-  pendingDelete=doc.id; previousDeleteFocus=document.activeElement;
-  get('delete-message').textContent=translate('deleteConfirm',{name:doc.name});
-  get('delete-dialog').showModal();
-});
-get('delete-confirm').addEventListener('click',() => {
-  const index=state.docs.findIndex(doc => doc.id === pendingDelete);
-  if (index < 0) { get('delete-dialog').close(); return; }
-  state.docs.splice(index,1); state.current=state.docs[Math.min(index,state.docs.length-1)]?.id ?? null;
-  get('delete-dialog').close('confirmed');
-  persist(); renderShelf(); renderWorkspace(); selectTab('preview');
-  $('document-menu').close(); leaveDetail(); toast('deleted');
-});
-get('delete-dialog').addEventListener('close',() => { if (get('delete-dialog').returnValue !== 'confirmed') previousDeleteFocus?.focus(); get('delete-dialog').returnValue=''; });
-document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click',() => get(button.dataset.close).close()));
-get('export-button').addEventListener('click',() => {
-  const doc=current(); if (!doc) return;
-  const extension=doc.format === 'text' ? 'txt' : doc.format;
-  const mime=doc.format === 'html' ? 'text/html' : doc.format === 'svg' ? 'image/svg+xml' : 'text/plain';
-  const name=knownExt.test(doc.name) ? doc.name : doc.name+'.'+extension;
-  const a=document.createElement('a'), url=URL.createObjectURL(new Blob([doc.source],{type:mime+';charset=utf-8'}));
-  a.href=url; a.download=name; a.hidden=true; document.body.append(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url),10000);
-  toast('exported');
-});
-window.addEventListener('beforeinstallprompt',event => { event.preventDefault(); installPrompt=event; });
-get('install-button').addEventListener('click',async () => {
-  if (installPrompt) {
-    const p=installPrompt; installPrompt=null;
-    try { await p.prompt(); } catch { get('install-dialog').showModal(); }
-  } else get('install-dialog').showModal();
-});
-window.addEventListener('online',updateConnection);
-window.addEventListener('offline',updateConnection);
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('./sw.js').then(() => navigator.serviceWorker.ready).then(() => { offlineReady=true; updateConnection(); }).catch(() => {});
+function animate(el,klass){
+ el.classList.remove(klass);void el.offsetWidth;el.classList.add(klass);
 }
-l10n(); persist(); renderShelf(); renderWorkspace(); selectTab('preview');
+function route(detail,moveFocus=true){
+ if(!detail&&fullscreen)setFullscreen(false);
+ $('workspace').dataset.screen=detail?'detail':'library';
+ for(const id of ['library-toggle','document-title','document-tools','studio'])$(id).hidden=!detail;
+ for(const id of ['library-title','library-tools','library'])$(id).hidden=detail;
+ animate($(detail?'studio':'library'),detail?'screen-enter':'library-enter');
+ if(detail)paintViewport();
+ window.scrollTo(0,detail?0:libraryScroll);
+ if(moveFocus)(detail?$('document-title'):libraryFocus?.isConnected?libraryFocus:$('new-button')).focus({preventScroll:true});
+}
+function openDetail(doc,mode='preview'){
+ if($('workspace').dataset.screen!=='detail'){
+  libraryScroll=window.scrollY;libraryFocus=document.activeElement;
+  if(history.state?.codeCanvasDetail!==true)history.pushState({codeCanvasDetail:true},'','#file');
+ }
+ state.current=doc.id;fit=baseFit='window';zoom=1;prepared=null;renderedKey=undefined;
+ $('preview').removeAttribute('srcdoc');
+ $('document-title').textContent=doc.name;
+ $('editor').value=doc.source;$('format-select').value=doc.format;
+ syncCount();persist();selectTab(mode);route(true);
+}
+function leaveDetail(){
+ renderLibrary();route(false);
+ if(history.state?.codeCanvasDetail===true)history.back();
+}
+window.addEventListener('popstate',event=>{
+ if(event.state?.codeCanvasDetail&&current())route(true);
+ else{renderLibrary();route(false);}
+});
+if(history.state?.codeCanvasDetail||location.hash==='#file')history.replaceState(null,'',location.pathname+location.search);
+function formatBytes(value){
+ const bytes=new TextEncoder().encode(value).length;
+ return bytes<1024?bytes+' B':(bytes/1024).toLocaleString(lang,{maximumFractionDigits:1})+' KB';
+}
+const thumbCache=new Map();
+function thumbFor(doc){
+ if(doc.format!=='svg'||!doc.source.trim()||doc.source.length>131072)return null;
+ const previous=thumbCache.get(doc.id);
+ if(previous?.source===doc.source)return previous.url;
+ if(previous)URL.revokeObjectURL(previous.url);
+ const svg=isolatedTree(doc.source).content.querySelector('svg');
+ if(!svg)return null;
+ svg.setAttribute('xmlns',SVG_NS);
+ const url=URL.createObjectURL(new Blob([svg.outerHTML],{type:'image/svg+xml'}));
+ thumbCache.set(doc.id,{source:doc.source,url});
+ return url;
+}
+function renderLibrary(){
+ const term=$('search').value.trim().toLocaleLowerCase(lang);
+ const all=state.docs, matching=term?all.filter(d=>(d.name+' '+tag(d.format)+' '+d.source).toLocaleLowerCase(lang).includes(term)):all;
+ for(const [id,thumb] of thumbCache)if(!all.some(d=>d.id===id)){URL.revokeObjectURL(thumb.url);thumbCache.delete(id);}
+ $('document-count').textContent=t('localDrafts',{number:all.length});
+ const list=$('documents');list.dataset.view=layout;
+ $('view-list').setAttribute('aria-pressed',String(layout==='list'));$('view-grid').setAttribute('aria-pressed',String(layout==='grid'));
+ list.replaceChildren();
+ for(const doc of matching){
+  const li=document.createElement('li');li.className='document';
+  const open=document.createElement('button');open.className='doc-open';open.type='button';open.dataset.docId=doc.id;
+  const preview=document.createElement('span');preview.className='thumbnail';preview.dataset.kind=doc.format;preview.setAttribute('aria-hidden','true');
+  const url=layout==='grid'?thumbFor(doc):null;
+  if(url){const image=document.createElement('img');image.src=url;image.alt='';preview.append(image);}
+  else preview.textContent=layout==='list'?tag(doc.format):doc.source.trim().split('\n').slice(0,4).join('\n').slice(0,175)||t('noPreview');
+  const labels=document.createElement('span');labels.className='doc-labels';
+  const title=document.createElement('strong');title.textContent=doc.name;
+  const meta=document.createElement('span');meta.className='doc-meta';
+  const badge=document.createElement('span');badge.className='badge';badge.dataset.kind=doc.format;badge.textContent=tag(doc.format);
+  meta.append(badge,document.createTextNode(' '+formatBytes(doc.source)));labels.append(title,meta);
+  open.append(preview,labels);
+  const more=document.createElement('button');more.type='button';more.className='control icon doc-menu';more.dataset.moreId=doc.id;
+  more.setAttribute('aria-label',t('openActions',{name:doc.name}));more.textContent='⋮';
+  li.append(open,more);list.append(li);
+ }
+ $('empty').hidden=matching.length>0;
+ $('empty-title').textContent=t(term?'noResults':'emptyTitle');$('empty-text').textContent=t(term?'noResultsHelp':'emptyText');$('empty-new').hidden=Boolean(term);
+}
+function guessFormat(text,name=''){
+ if(/\.svg$/i.test(name))return 'svg';if(/\.html?$/i.test(name))return 'html';if(name&&knownExt.test(name))return 'text';
+ return svgLike.test(text.slice(0,4096))?'svg':htmlLike.test(text.slice(0,4096))?'html':'text';
+}
+function addDoc(name,format,source='',mode='preview'){
+ if(state.docs.length>=MAX){toast('storedLimit',{number:MAX});return null;}
+ const doc={id:makeId(),name:validName(name),format,source};
+ state.docs.unshift(doc);openDetail(doc,mode);if(!saveOK)toast('storageError');return doc;
+}
+function syncCount(){$('source-count').textContent=t('lines',{number:$('editor').value.split('\n').length.toLocaleString(lang)});}
+function updateEditor(){
+ const doc=current();if(!doc)return;
+ const source=$('editor').value;
+ if(source.length>LIMIT){$('editor').value=source.slice(0,LIMIT);toast('characterLimit');}
+ doc.source=$('editor').value;syncCount();queueSave();
+}
+function insertPaste(text){
+ const doc=current(), editor=$('editor');if(!doc||typeof text!=='string')return;
+ if(editor.value.length+text.length-(editor.selectionEnd-editor.selectionStart)>LIMIT){toast('characterLimit');return;}
+ if(!editor.value.trim()&&text.trim()){doc.format=guessFormat(text);$('format-select').value=doc.format;}
+ editor.setRangeText(text,editor.selectionStart,editor.selectionEnd,'end');updateEditor();
+}
+function createFromPaste(text){
+ if(!text.trim())return;
+ if(text.length>LIMIT||new TextEncoder().encode(text).length>LIMIT){toast('sizeLimit');return;}
+ addDoc(t('untitled'),guessFormat(text),text);
+}
+function openMenu(from,doc){
+ if(doc)state.current=doc.id;
+ if(!current())return;
+ menuOpenedBy=from;$('document-menu').showModal();
+}
+function showName(mode){
+ if(mode==='new'&&state.docs.length>=MAX){toast('storedLimit',{number:MAX});return;}
+ const doc=current();
+ naming=mode;previousFocus=document.activeElement;
+ $('name-title').textContent=t(mode==='new'?'newFile':'rename');
+ $('name-input').value=mode==='new'?'':doc?.name||'';
+ $('name-input').placeholder=t('untitled');$('name-format').value=mode==='new'?'html':doc?.format||'text';
+ $('name-format').disabled=mode!=='new';$('name-dialog').showModal();$('name-input').focus();
+}
+$('library-toggle').addEventListener('click',leaveDetail);
+$('search').addEventListener('input',renderLibrary);
+$('about-button').addEventListener('click',()=>$('about-dialog').showModal());
+$('new-button').addEventListener('click',()=>showName('new'));
+$('empty-new').addEventListener('click',()=>showName('new'));
+$('document-menu-button').addEventListener('click',event=>openMenu(event.currentTarget));
+$('library-paste').addEventListener('click',async()=>{
+ if(state.docs.length>=MAX){toast('storedLimit',{number:MAX});return;}
+ try{const text=await navigator.clipboard.readText();if(text.trim()){createFromPaste(text);return;}}catch{}
+ $('paste-input').value='';$('paste-dialog').showModal();$('paste-input').focus();
+});
+$('paste-form').addEventListener('submit',event=>{
+ event.preventDefault();const text=$('paste-input').value;
+ if(!text.trim())return;$('paste-dialog').close();createFromPaste(text);
+});
+$('language-button').addEventListener('click',()=>{
+ lang=lang==='zh'?'en':'zh';prefsSet(PREF+'lang',lang);
+ const url=new URL(location.href);url.searchParams.set('lang',lang);
+ try{history.replaceState(history.state,'',url);}catch{}
+ localize();renderLibrary();syncCount();if(current())renderPreview(true);
+});
+for(const mode of ['list','grid'])$('view-'+mode).addEventListener('click',()=>{layout=mode;prefsSet(PREF+'layout',mode);renderLibrary();});
+$('documents').addEventListener('click',event=>{
+ const open=event.target.closest('[data-doc-id]'), more=event.target.closest('[data-more-id]');
+ if(open){const doc=state.docs.find(d=>d.id===open.dataset.docId);if(doc)openDetail(doc);}
+ if(more){const doc=state.docs.find(d=>d.id===more.dataset.moreId);if(doc)openMenu(more,doc);}
+});
+$('document-menu').addEventListener('close',()=>menuOpenedBy?.focus({preventScroll:true}));
+$('tab-preview').addEventListener('click',()=>selectTab('preview'));
+$('tab-code').addEventListener('click',()=>selectTab('code'));
+document.querySelector('[role=tablist]').addEventListener('keydown',event=>{
+ if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+ event.preventDefault();selectTab(event.key==='Home'?'code':event.key==='End'?'preview':tab==='code'?'preview':'code',true);
+});
+$('fit-window').addEventListener('click',()=>setFit('window'));
+$('fit-content').addEventListener('click',()=>setFit('content'));
+$('zoom-out').addEventListener('click',()=>manualZoom(-.25));
+$('zoom-in').addEventListener('click',()=>manualZoom(.25));
+$('fullscreen-button').addEventListener('click',()=>setFullscreen(!fullscreen));
+$('refresh-button').addEventListener('click',()=>{renderPreview(true);toast('refreshed');});
+$('editor').addEventListener('input',updateEditor);
+$('apply-button').addEventListener('click',()=>{if(!persist())toast('storageError');selectTab('preview',true);});
+$('format-select').addEventListener('change',()=>{
+ const doc=current(),format=$('format-select').value;
+ if(!doc||!TYPES.has(format))return;
+ doc.format=format;fit=baseFit='window';zoom=1;persist();
+});
+$('paste-button').addEventListener('click',async()=>{
+ try{insertPaste(await navigator.clipboard.readText());}catch{toast('pasteEditor');}
+ $('editor').focus();
+});
+$('editor').addEventListener('paste',event=>{
+ if(!event.clipboardData)return;event.preventDefault();insertPaste(event.clipboardData.getData('text/plain'));
+});
+$('import-button').addEventListener('click',()=>$('file-picker').click());
+$('file-picker').addEventListener('change',async()=>{
+ const picker=$('file-picker'),file=picker.files[0];picker.value='';if(!file)return;
+ if(file.size>LIMIT){toast('sizeLimit');return;}
+ if(!knownExt.test(file.name)&&!/^(?:text\/|image\/svg\+xml$)/i.test(file.type)){toast('fileType');return;}
+ try{
+  const text=await file.text();
+  if(/\u0000/.test(text)){toast('fileType');return;}
+  addDoc(file.name,guessFormat(text,file.name),text);
+ }catch{toast('importError');}
+});
+$('rename-button').addEventListener('click',()=>showName('rename'));
+$('name-form').addEventListener('submit',event=>{
+ event.preventDefault();const name=validName($('name-input').value);
+ $('name-dialog').close('confirmed');
+ if(naming==='new'){if(addDoc(name,$('name-format').value,'','code'))$('editor').focus();}
+ else if(current()){
+  current().name=name;persist();$('document-title').textContent=name;renderLibrary();$('document-menu').close();
+ }
+});
+$('name-dialog').addEventListener('close',()=>{if($('name-dialog').returnValue!=='confirmed')previousFocus?.focus();$('name-dialog').returnValue='';});
+$('remove-button').addEventListener('click',()=>{
+ const doc=current();if(!doc)return;
+ pendingDelete=doc.id;$('delete-message').textContent=t('deleteConfirm',{name:doc.name});$('delete-dialog').showModal();
+});
+$('delete-confirm').addEventListener('click',()=>{
+ const index=state.docs.findIndex(doc=>doc.id===pendingDelete);if(index<0)return;
+ state.docs.splice(index,1);state.current=null;
+ $('delete-dialog').close();$('document-menu').close();persist();renderLibrary();
+ if($('workspace').dataset.screen==='detail')leaveDetail();else $('new-button').focus();
+ toast('deleted');
+});
+for(const button of document.querySelectorAll('[data-close]'))button.addEventListener('click',()=>$(button.dataset.close).close());
+$('export-button').addEventListener('click',()=>{
+ const doc=current();if(!doc)return;
+ const extension=doc.format==='text'?'txt':doc.format;
+ const mime=doc.format==='html'?'text/html':doc.format==='svg'?'image/svg+xml':'text/plain';
+ const name=knownExt.test(doc.name)?doc.name:doc.name+'.'+extension;
+ const anchor=document.createElement('a'),url=URL.createObjectURL(new Blob([doc.source],{type:mime+';charset=utf-8'}));
+ anchor.href=url;anchor.download=name;anchor.hidden=true;document.body.append(anchor);anchor.click();anchor.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),10000);toast('exported');
+});
+window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;});
+$('install-button').addEventListener('click',async()=>{
+ if(installPrompt){const prompt=installPrompt;installPrompt=null;try{await prompt.prompt();return;}catch{}}
+ $('install-dialog').showModal();
+});
+window.addEventListener('online',updateConnection);window.addEventListener('offline',updateConnection);
+if('serviceWorker'in navigator&&location.protocol!=='file:'){
+ navigator.serviceWorker.register('./sw.js').then(registration=>{
+  if(navigator.onLine)registration.update().catch(()=>{});
+  return navigator.serviceWorker.ready;
+ }).then(()=>{offlineReady=true;updateConnection();}).catch(()=>{});
+}
+localize();renderLibrary();persist();

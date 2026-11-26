@@ -1,35 +1,32 @@
 WEBVTT
 
 1
-00:00:00.120 --> 00:00:08.190
-这是代码画布的网页版。打开设计实验室，
-就能看到三个关于光线、色彩和空间的习作。
-This is Code Canvas for the web. The Design Lab opens with three studies in light, color, and space.
+00:00:00.120 --> 00:00:08.390
+这是代码画布的网页版。作品库一开始是空的。这里导入一张自己准备的矢量图。
+This is Code Canvas for the web. The library starts empty. Let's import a local SVG illustration.
 
 2
-00:00:08.420 --> 00:00:18.190
-打开珊瑚习作，放大看曲线的细节，再打开对齐网格。点百分比，就能回到全图。
-Open Coral study and zoom in on the ribbon. Turn on the alignment grid. Tap the percentage to fit the
-artwork again.
+00:00:08.620 --> 00:00:17.390
+适应窗口保留整张画布。切到适应内容，就能放大画里的图形，不改动源文件。
+Fit Window shows the whole canvas. Fit Content focuses on the artwork without changing the source file.
 
 3
-00:00:18.420 --> 00:00:25.690
-返回作品库，也可以导入自己的文件。这里打开的是一幅矢量图。
-Back in the library, you can import your own file. Here I'm opening a standalone SVG illustration.
+00:00:17.620 --> 00:00:26.390
+点击刷新重新加载预览。打开全屏，可以专注看画布，再退出回到编辑页。
+Refresh reloads the preview. Full screen gives the canvas more room. Exit to return to the workspace.
 
 4
-00:00:25.920 --> 00:00:35.690
-点右上角的菜单，选择源码。改一下图上的标题，再点应用并预览。
-Open the top-right menu and choose Source. Edit the title, then choose Apply and Preview to see the result.
+00:00:26.620 --> 00:00:36.390
+打开代码页，改一个图形的颜色，再点应用并预览。
+Open Code, change a shape’s color in the SVG, then choose Apply and Preview to see the result.
 
 5
-00:00:35.920 --> 00:00:44.190
-手机上也是同样的作品库和画布。无需登录，导入的文件保存在当前浏览器里。
-The same library and canvas work on a phone. No sign-in is needed. Imports stay in this browser.
+00:00:36.620 --> 00:00:45.890
+手机上也能从作品库打开文件，并切换两种适应方式。
+导入的文件保存在当前浏览器内。
+On a phone, open the file from the library and pick either fit mode. Imports stay in this browser.
 
 6
-00:00:44.420 --> 00:00:54.190
-最后，从作品菜单导出源文件，留一份备份。
-网页版和安卓版的功能不同，项目主页有各自的入口。
-Finally, export the source from the artwork menu to keep a backup. The web and Android apps have separate
-links on the project page.
+00:00:46.120 --> 00:00:55.390
+最后导出修改后的源文件，留一份备份。网页版和安卓版的入口都在项目主页。
+Finally, export the edited source as a backup. The project page links to both the web and Android apps.

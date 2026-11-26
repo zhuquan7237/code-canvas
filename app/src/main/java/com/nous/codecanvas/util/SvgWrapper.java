@@ -52,6 +52,11 @@ public final class SvgWrapper {
 
     public static String wrapSvgInResponsiveHtml(String svgContent, boolean darkTheme,
                                                 String viewBoxOverride, boolean allowScripts) {
+        return wrapSvgInResponsiveHtml(svgContent, darkTheme, viewBoxOverride, allowScripts, false);
+    }
+
+    static String wrapSvgInResponsiveHtml(String svgContent, boolean darkTheme,
+                                          String viewBoxOverride, boolean allowScripts, boolean fitContent) {
         String bg = darkTheme ? "#121417" : "#F8FAFC";
         String grid = darkTheme ? "#22262c" : "#ecf0f3";
         String svg = nativeSvg(svgContent, viewBoxOverride);
@@ -71,7 +76,7 @@ public final class SvgWrapper {
                 + "<div id=cc-stage><iframe id=cc-fit title=\"SVG\" sandbox=\"allow-same-origin"
                 + (allowScripts ? " allow-scripts" : "") + "\"></iframe></div>"
                 + "<div id=cc-error hidden>无法渲染 SVG：请检查文件是否是有效的 SVG/XML。</div>"
-                + "<script>" + SVG_RUNTIME + "\n"
+                + "<script>const initialFitContent=" + fitContent + ";\n" + SVG_RUNTIME + "\n"
                 + "const raw=atob('" + bytes + "');const array=Uint8Array.from(raw,c=>c.charCodeAt(0));"
                 + "const url=URL.createObjectURL(new Blob([array],{type:'image/svg+xml'}));"
                 + "frame.src=url;</script></body></html>";
@@ -79,7 +84,35 @@ public final class SvgWrapper {
 
     private static final String SVG_RUNTIME = """
             const stage=document.getElementById('cc-stage'), frame=document.getElementById('cc-fit');
-            let svg=null, observer=null;
+            let svg=null, observer=null, windowBox=null, fittedBox=null, mode='window';
+            function chooseMode(next){
+              if(!svg)return null;
+              if(next===mode)return mode;
+              if(next==='window'){
+                if(windowBox===null)svg.removeAttribute('viewBox');
+                else svg.setAttribute('viewBox',windowBox);
+                fittedBox=null;
+                mode='window';
+              }else if(next==='content'){
+                // Measure the live root in SVG coordinates after the stylesheet and children
+                // are present. A declared viewBox is a camera, not a bound on the drawing.
+                let b;
+                try{b=svg.getBBox();}catch(e){return mode;}
+                if(![b.x,b.y,b.width,b.height].every(Number.isFinite)
+                   || (b.width<=0&&b.height<=0))return mode;
+                // Include breathing room (including a usable second axis for line art).
+                // Authored clipPaths/masks are preserved; getBBox is not a filter-effect extent.
+                const pad=Math.max(b.width,b.height)*.06;
+                const box=[b.x-pad,b.y-pad,b.width+2*pad,b.height+2*pad];
+                if(!box.every(Number.isFinite)||box[2]<=0||box[3]<=0)return mode;
+                windowBox=svg.getAttribute('viewBox');
+                fittedBox=box.join(' ');
+                svg.setAttribute('viewBox',fittedBox);
+                mode='content';
+              }
+              layout();
+              return mode;
+            }
             function layout(){
               if(!svg) return;
               const b=svg.viewBox.baseVal, w=frame.clientWidth, h=frame.clientHeight;
@@ -96,14 +129,24 @@ public final class SvgWrapper {
             }
             frame.addEventListener('load',()=>{
               let root=null;
+              mode='window'; windowBox=null; fittedBox=null;
               try {root=frame.contentDocument.documentElement;} catch (e) {}
               svg=root&&root.namespaceURI==='http://www.w3.org/2000/svg'&&root.localName==='svg'
                  &&!root.querySelector('parsererror')?root:null;
               document.getElementById('cc-error').hidden=!!svg;
               if(!svg) return;
               layout();
+              if(initialFitContent)chooseMode('content');
               if(observer) observer.disconnect();
-              observer=new MutationObserver(layout);
+              observer=new MutationObserver(()=>{
+                if(mode==='content'&&svg.getAttribute('viewBox')!==fittedBox){
+                  // Responsive artwork may publish a new authored camera after orientation
+                  // changes. Measure against that camera, then restore it on Window mode.
+                  mode='window';
+                  layout();
+                  chooseMode('content');
+                }else layout();
+              });
               observer.observe(svg,{attributes:true,attributeFilter:['viewBox']});
               svg.addEventListener('click',e=>{
                 if(e.target.closest('a')) e.preventDefault();
@@ -111,6 +154,8 @@ public final class SvgWrapper {
             });
             new ResizeObserver(layout).observe(frame);
             window.CCViewport={
+              setFitMode:chooseMode,
+              fitMode(){return svg?mode:null;},
               set(scale,dx,dy){stage.style.transform='translate('+dx+'px,'+dy+'px) scale('+scale+')';},
               svg(){return svg;},
               bounds(){

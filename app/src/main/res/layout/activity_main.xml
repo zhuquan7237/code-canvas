@@ -25,8 +25,8 @@
         android:minHeight="64dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingStart="4dp"
-        android:paddingEnd="4dp">
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
 
         <ImageButton
             android:id="@+id/btn_drawer"
@@ -34,9 +34,10 @@
             android:layout_height="48dp"
             android:padding="12dp"
             android:scaleType="fitCenter"
-            android:background="@drawable/bg_icon_button"
+            android:background="@drawable/bg_studio_outline_action"
             android:src="@drawable/ic_menu"
-            android:contentDescription="打开目录" />
+            android:contentDescription="打开目录"
+            android:stateListAnimator="@null" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -73,19 +74,22 @@
             android:layout_height="48dp"
             android:padding="12dp"
             android:scaleType="fitCenter"
-            android:background="@drawable/bg_icon_button"
+            android:background="@drawable/bg_studio_outline_action"
             android:src="@drawable/ic_add"
-            android:contentDescription="新建或导入" />
+            android:contentDescription="新建或导入"
+            android:stateListAnimator="@null" />
 
         <ImageButton
             android:id="@+id/btn_settings"
+            android:layout_marginStart="4dp"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:padding="12dp"
             android:scaleType="fitCenter"
-            android:background="@drawable/bg_icon_button"
+            android:background="@drawable/bg_studio_outline_action"
             android:src="@drawable/ic_settings"
-            android:contentDescription="设置" />
+            android:contentDescription="设置"
+            android:stateListAnimator="@null" />
 
         <ImageButton
             android:id="@+id/btn_import"
@@ -149,10 +153,11 @@
             android:layout_width="@dimen/touch_min"
             android:layout_height="@dimen/touch_min"
             android:padding="10dp"
-            android:background="@drawable/bg_icon_button"
+            android:background="@drawable/bg_studio_outline_action"
             android:src="@drawable/ic_close"
             android:visibility="gone"
-            android:contentDescription="清空搜索" />
+            android:contentDescription="清空搜索"
+            android:stateListAnimator="@null" />
     </LinearLayout>
 
     <!-- Section header: result count, format selector, and a contained view switch. -->
@@ -187,8 +192,8 @@
             android:layout_marginStart="@dimen/space_4"
             android:layout_marginEnd="@dimen/space_4"
             android:padding="@dimen/space_12"
-            android:background="@drawable/bg_icon_toggle"
-            android:tint="@color/icon_toggle_tint"
+            android:background="@drawable/bg_studio_outline_action"
+            android:tint="@color/canvas_ink_primary"
             android:src="@drawable/ic_filter"
             android:contentDescription="@string/library_filter_all_description" />
 
@@ -388,7 +393,7 @@
             android:layout_width="@dimen/touch_min"
             android:layout_height="@dimen/touch_min"
             android:padding="11dp"
-            android:background="@drawable/bg_icon_button"
+            android:background="@drawable/bg_studio_outline_action"
             android:src="@drawable/ic_close"
             android:contentDescription="退出多选" />
 
@@ -408,7 +413,7 @@
             android:layout_width="@dimen/touch_min"
             android:layout_height="@dimen/touch_min"
             android:padding="11dp"
-            android:background="@drawable/bg_icon_button"
+            android:background="@drawable/bg_studio_outline_action"
             android:src="@drawable/ic_select_all"
             android:contentDescription="全选" />
 
@@ -426,7 +431,7 @@
             android:layout_width="@dimen/touch_min"
             android:layout_height="@dimen/touch_min"
             android:padding="11dp"
-            android:background="@drawable/bg_icon_button"
+            android:background="@drawable/bg_studio_outline_action"
             android:src="@drawable/ic_delete"
             android:contentDescription="删除所选" />
     </LinearLayout>
