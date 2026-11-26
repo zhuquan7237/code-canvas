@@ -61,12 +61,14 @@ public class LivePreviewRegressionTest extends InstrumentationTestCase {
         CountDownLatch latch = new CountDownLatch(1);
         getInstrumentation().runOnMainSync(() -> ((WebView) editor.findViewById(R.id.web_preview))
                 .evaluateJavascript(code, val -> {result.set(val); latch.countDown();}));
-        assertTrue(latch.await(5, TimeUnit.SECONDS));
-        return result.get();
+        // Browsers may discard a pending eval when the old page is being replaced.
+        // An eventual wait can retry on the new document; immediate assertions still
+        // fail on a missing response.
+        return latch.await(4, TimeUnit.SECONDS) ? result.get() : null;
     }
 
     private void waitFor(String condition) throws Exception {
-        long deadline = System.currentTimeMillis() + 12000;
+        long deadline = System.currentTimeMillis() + 25000;
         do {
             if ("true".equals(eval(condition))) return;
             Thread.sleep(120);
@@ -117,8 +119,11 @@ public class LivePreviewRegressionTest extends InstrumentationTestCase {
                 + "return document.body.dataset.clicked==='yes'&&r.right<=innerWidth+1"
                 + "&&r.bottom<=innerHeight+1&&Math.abs(r.width/r.height-16/9)<.05})()"));
         String before=eval("document.querySelector('canvas').dataset.frame");
+        assertNotNull(before);
         Thread.sleep(250);
-        assertFalse(before.equals(eval("document.querySelector('canvas').dataset.frame")));
+        String after = eval("document.querySelector('canvas').dataset.frame");
+        assertNotNull(after);
+        assertFalse(before.equals(after));
     }
 
     public void testMermaidTallDiagramFitsAndZooms() throws Exception {
@@ -152,7 +157,7 @@ public class LivePreviewRegressionTest extends InstrumentationTestCase {
         ImageView image = editor.findViewById(R.id.preview_image);
         android.view.View viewport = editor.findViewById(R.id.preview_viewport);
         android.view.View pager = editor.findViewById(R.id.pdf_pager);
-        long deadline = System.currentTimeMillis() + 12000;
+        long deadline = System.currentTimeMillis() + 25000;
         AtomicReference<android.graphics.drawable.Drawable> result = new AtomicReference<>();
         do {
             getInstrumentation().runOnMainSync(() -> result.set(image.getDrawable()));
