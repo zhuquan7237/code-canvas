@@ -39,6 +39,16 @@ public class LibraryFilterRecoveryTest extends InstrumentationTestCase {
                 search.setText("not-found");
                 search.onEditorAction(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
             });
+            // Await actual window focus, not just an idle UI thread. The framework
+            // can resume a new activity before its window can accept an injected key.
+            boolean[] focused = {false};
+            long deadline = android.os.SystemClock.uptimeMillis() + 5000;
+            do {
+                runTestOnUiThread(() -> focused[0] = main.hasWindowFocus());
+                if (focused[0]) break;
+                android.os.SystemClock.sleep(50);
+            } while (android.os.SystemClock.uptimeMillis() < deadline);
+            assertTrue("Search must receive window focus before injecting Back", focused[0]);
             getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
             getInstrumentation().waitForIdleSync();
             runTestOnUiThread(() -> {
