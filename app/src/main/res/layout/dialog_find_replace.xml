@@ -70,7 +70,8 @@
         <Button
             android:id="@+id/find_prev"
             android:layout_width="0dp"
-            android:layout_height="38dp"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/touch_min"
             android:layout_weight="1"
             android:minWidth="0dp"
             android:background="@drawable/bg_button_subtle"
@@ -81,7 +82,8 @@
         <Button
             android:id="@+id/find_next"
             android:layout_width="0dp"
-            android:layout_height="38dp"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/touch_min"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:minWidth="0dp"
@@ -93,7 +95,8 @@
         <Button
             android:id="@+id/find_replace_one"
             android:layout_width="0dp"
-            android:layout_height="38dp"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/touch_min"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:minWidth="0dp"
@@ -113,7 +116,8 @@
         <Button
             android:id="@+id/dialog_btn_negative"
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/touch_min"
             android:minWidth="72dp"
             android:background="@drawable/bg_button_subtle"
             android:text="关闭"
@@ -125,7 +129,8 @@
         <Button
             android:id="@+id/dialog_btn_positive"
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/touch_min"
             android:minWidth="72dp"
             android:background="@drawable/bg_button_primary"
             android:text="全部替换"

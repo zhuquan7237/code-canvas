@@ -74,9 +74,21 @@ public final class CanvasBottomSheet {
 
     public static Dialog show(Context context, String title, String subtitle,
                               Action[] actions, OnActionListener listener) {
+        return show(context, title, subtitle, actions, listener, false);
+    }
+
+    /** The Library's + menu uses the same dismissal and action semantics, with its own visual skin. */
+    public static Dialog showCreation(Context context, String title, String subtitle,
+                                      Action[] actions, OnActionListener listener) {
+        return show(context, title, subtitle, actions, listener, true);
+    }
+
+    private static Dialog show(Context context, String title, String subtitle,
+                               Action[] actions, OnActionListener listener, boolean creation) {
         Dialog dialog = new Dialog(context);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        View sheet = LayoutInflater.from(context).inflate(R.layout.sheet_actions, null);
+        View sheet = LayoutInflater.from(context).inflate(
+                creation ? R.layout.sheet_library_add : R.layout.sheet_actions, null);
 
         View backdrop = sheet.findViewById(R.id.sheet_backdrop);
         View card = sheet.findViewById(R.id.sheet_card);
@@ -110,7 +122,8 @@ public final class CanvasBottomSheet {
 
         LayoutInflater inflater = LayoutInflater.from(context);
         for (Action action : actions) {
-            View row = inflater.inflate(R.layout.item_sheet_action, container, false);
+            View row = inflater.inflate(creation ? R.layout.item_library_add_action : R.layout.item_sheet_action,
+                    container, false);
             ImageView icon = row.findViewById(R.id.action_icon);
             TextView label = row.findViewById(R.id.action_label);
             TextView caption = row.findViewById(R.id.action_caption);
@@ -124,6 +137,17 @@ public final class CanvasBottomSheet {
             if (action.caption != null && !action.caption.isEmpty()) {
                 caption.setVisibility(View.VISIBLE);
                 caption.setText(action.caption);
+            }
+            if (creation) {
+                row.setContentDescription(action.caption == null ? action.label
+                        : action.label + "，" + action.caption);
+                row.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+                    @Override public void onInitializeAccessibilityNodeInfo(View host,
+                            android.view.accessibility.AccessibilityNodeInfo info) {
+                        super.onInitializeAccessibilityNodeInfo(host, info);
+                        info.setClassName(android.widget.Button.class.getName());
+                    }
+                });
             }
             if (action.danger) {
                 row.setBackgroundResource(R.drawable.bg_sheet_action_danger);
@@ -153,6 +177,16 @@ public final class CanvasBottomSheet {
         dialog.setCancelable(true);
         dialog.setCanceledOnTouchOutside(true);
         dialog.show();
+        if (creation && card != null && window != null) {
+            // Keep the same approachable width on tablets / landscape, instead of a full-width slab.
+            final int max = Math.round(480f * context.getResources().getDisplayMetrics().density);
+            card.post(() -> {
+                if (card.getWidth() <= max) return;
+                android.view.ViewGroup.LayoutParams lp = card.getLayoutParams();
+                lp.width = max;
+                card.setLayoutParams(lp);
+            });
+        }
 
         if (card != null && ValueAnimator.areAnimatorsEnabled()) {
             float offset = 120f * context.getResources().getDisplayMetrics().density;

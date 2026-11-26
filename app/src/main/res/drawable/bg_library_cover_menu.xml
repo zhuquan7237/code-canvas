@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#44FFFFFF">
+    <!-- The compact mark sits within, but does not shrink, the 48dp target. -->
+    <item android:left="10dp" android:top="10dp" android:right="10dp" android:bottom="10dp">
+        <selector>
+            <item android:state_focused="true">
+                <shape>
+                    <solid android:color="#DF172026"/>
+                    <stroke android:width="2dp" android:color="@android:color/white"/>
+                    <corners android:radius="@dimen/radius_pill"/>
+                </shape>
+            </item>
+            <item>
+                <shape>
+                    <solid android:color="#BD172026"/>
+                    <corners android:radius="@dimen/radius_pill"/>
+                </shape>
+            </item>
+        </selector>
+    </item>
+</ripple>

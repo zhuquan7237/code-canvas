@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="preferences_title">设置</string>
+    <string name="preferences_back">返回</string>
+    <string name="preferences_appearance">外观</string>
+    <string name="preferences_theme">显示主题</string>
+    <string name="preferences_theme_light">浅色</string>
+    <string name="preferences_theme_dark">深色</string>
+    <string name="preferences_theme_system">跟随系统</string>
+    <string name="preferences_rendering">预览与联网</string>
+    <string name="preferences_scripts">运行网页脚本</string>
+    <string name="preferences_scripts_hint">让网页动画和交互正常运行。</string>
+    <string name="preferences_network">默认联网加载</string>
+    <string name="preferences_network_on_hint">已开启。新打开的网页可请求外部资源。</string>
+    <string name="preferences_network_off_hint">已关闭。新打开的网页默认离线。</string>
+    <string name="preferences_library">作品库与存储</string>
+    <string name="preferences_thumbnails">显示作品缩略图</string>
+    <string name="preferences_thumbnails_hint">关闭后只显示格式封面，减少后台渲染。</string>
+    <string name="preferences_clipboard">识别剪贴板代码</string>
+    <string name="preferences_clipboard_hint">打开应用时，发现像代码的内容就提示导入。</string>
+    <string name="preferences_cache">缩略图缓存</string>
+    <string name="preferences_cache_loading">正在统计…</string>
+    <string name="preferences_cache_used">已用 %1$s · 不影响原文件</string>
+    <string name="preferences_cache_none">暂无缓存 · 不影响原文件</string>
+    <string name="preferences_clear_cache">清理</string>
+    <string name="preferences_clear_cache_action">清理缩略图缓存</string>
+    <string name="preferences_about">关于应用</string>
+    <string name="preferences_check_updates">检查更新</string>
+    <string name="preferences_version_detail">版本 %1$s（%2$d） · 作品保存在本机</string>
+    <string name="preferences_app_version">代码画布 %1$s</string>
+    <string name="catalog_title">作品目录</string>
+    <string name="catalog_close">关闭目录</string>
+    <string name="catalog_any_count">全部作品 · %1$d</string>
+    <string name="catalog_type_count">%1$s · %2$d</string>
+    <string name="catalog_formats">按格式浏览</string>
+    <string name="catalog_list">作品索引</string>
+    <string name="catalog_empty_title">这里没有作品</string>
+    <string name="catalog_empty_hint">从主页新建、导入或粘贴代码。</string>
+    <string name="catalog_no_matches">没有符合条件的作品</string>
+    <string name="catalog_no_matches_hint">可以换个格式，或清除关键词再试。</string>
+    <string name="catalog_settings">设置</string>
+    <string name="catalog_settings_description">打开设置</string>
+</resources>

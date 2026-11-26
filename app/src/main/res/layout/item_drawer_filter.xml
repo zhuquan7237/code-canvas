@@ -1,23 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Drawer type filter: a pill, accent-filled when it is the active slice. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:minHeight="40dp"
-    android:orientation="horizontal"
-    android:gravity="center"
-    android:paddingHorizontal="12dp"
-    android:paddingVertical="8dp"
-    android:layout_marginEnd="6dp"
-    android:layout_marginBottom="6dp"
-    android:background="@drawable/bg_drawer_filter">
-
-    <TextView
-        android:id="@+id/filter_label"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="12sp"
-        android:textStyle="bold"
-        android:singleLine="true"
-        android:textColor="@color/drawer_filter_text" />
+    android:layout_width="wrap_content" android:layout_height="wrap_content"
+    android:minHeight="@dimen/touch_min" android:minWidth="@dimen/touch_min"
+    android:orientation="horizontal" android:gravity="center"
+    android:paddingHorizontal="@dimen/space_4" android:paddingVertical="@dimen/space_8"
+    android:background="@drawable/bg_catalog_choice"
+    android:focusable="true" android:clickable="true">
+    <TextView android:id="@+id/filter_label" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:textSize="13sp" android:textStyle="bold"
+        android:gravity="center" android:importantForAccessibility="no"
+        android:textColor="@color/catalog_choice_text" />
 </LinearLayout>

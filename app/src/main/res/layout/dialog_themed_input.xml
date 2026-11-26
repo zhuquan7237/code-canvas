@@ -58,7 +58,8 @@
         <Button
             android:id="@+id/dialog_btn_negative"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/touch_min"
             android:background="@drawable/bg_button_subtle"
             android:text="取消"
             android:textColor="@color/canvas_ink_secondary"
@@ -69,7 +70,8 @@
         <Button
             android:id="@+id/dialog_btn_positive"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/touch_min"
             android:background="@drawable/bg_button_primary"
             android:text="确定"
             android:textColor="@color/text_on_primary_button"

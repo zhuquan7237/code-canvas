@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="selection_action">用代码画布打开</string>
+    <string name="selection_file_prefix">选中文本</string>
+    <string name="selection_empty">没有收到可打开的选中文字</string>
+    <string name="selection_too_large">所选文本超过 256 KB，请分段打开</string>
+    <string name="selection_save_failed">无法保存所选文字，原文本未改动</string>
+</resources>
