@@ -3,7 +3,7 @@
     android:id="@+id/root_main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/canvas_bg">
+    android:background="@color/studio_paper">
 
     <!-- The browsing column. The drawer is a sibling that overlays it, so the
          panel can cover the top bar instead of pushing the page sideways. -->
@@ -17,7 +17,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="56dp"
+        android:minHeight="64dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="4dp"
@@ -40,7 +40,9 @@
             android:layout_weight="1"
             android:layout_marginStart="4dp"
             android:text="代码画布"
-            android:textSize="22sp"
+            android:textSize="25sp"
+            android:maxLines="2"
+            android:accessibilityHeading="true"
             android:textStyle="bold"
             android:textColor="@color/canvas_ink_primary" />
 
@@ -95,7 +97,8 @@
     <!-- Search: a pill at rest, an outline only while it has focus. -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/touch_min"
         android:layout_marginHorizontal="@dimen/screen_inset"
         android:layout_marginTop="@dimen/space_8"
         android:orientation="horizontal"
@@ -112,7 +115,8 @@
         <EditText
             android:id="@+id/edit_search"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/touch_min"
             android:layout_weight="1"
             android:layout_marginStart="10dp"
             android:background="@null"
@@ -128,8 +132,8 @@
 
         <ImageButton
             android:id="@+id/btn_search_clear"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
             android:padding="10dp"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_close"
@@ -140,8 +144,9 @@
     <!-- Section header: count on the left, update + view-mode on the right. -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="@dimen/touch_min"
-        android:layout_marginTop="4dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/touch_min"
+        android:layout_marginTop="8dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="22dp"
@@ -149,18 +154,15 @@
 
         <TextView
             android:id="@+id/txt_file_count"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
+            android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:text="我的文件"
-            android:textSize="13sp"
+            android:text="作品库"
+            android:accessibilityHeading="true"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:letterSpacing="0.02"
             android:textColor="@color/canvas_ink_tertiary" />
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -201,11 +203,11 @@
             android:id="@+id/list_documents"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:divider="@null"
-            android:dividerHeight="0dp"
+            android:divider="@color/studio_paper"
+            android:dividerHeight="4dp"
             android:listSelector="@android:color/transparent"
-            android:paddingHorizontal="8dp"
-            android:paddingTop="0dp"
+            android:paddingHorizontal="@dimen/screen_inset"
+            android:paddingTop="4dp"
             android:paddingBottom="88dp"
             android:clipToPadding="false" />
 
@@ -281,7 +283,8 @@
                 <Button
                     android:id="@+id/btn_empty_import"
                     android:layout_width="wrap_content"
-                    android:layout_height="40dp"
+                    android:minHeight="@dimen/touch_min"
+                    android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:background="?android:attr/selectableItemBackground"
                     android:paddingHorizontal="12dp"
@@ -317,7 +320,10 @@
         android:text="粘贴"
         android:textSize="15sp"
         android:textStyle="bold"
-        android:textColor="@color/text_on_primary_button"
+        android:textColor="@color/studio_on_brand"
+        android:drawableStart="@drawable/ic_paste"
+        android:drawableTint="@color/studio_on_brand"
+        android:drawablePadding="8dp"
         android:contentDescription="粘贴并预览" />
 
     <!-- Contextual action bar: overlays the top bar while selection is live, so the

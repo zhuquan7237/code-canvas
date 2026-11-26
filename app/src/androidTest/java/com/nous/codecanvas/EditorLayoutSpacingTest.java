@@ -119,10 +119,25 @@ public class EditorLayoutSpacingTest extends InstrumentationTestCase {
             for (int id : new int[]{R.id.btn_viewport_fit, R.id.btn_viewport_fit_content,
                     R.id.btn_viewport_zoom_in, R.id.btn_viewport_zoom_out}) {
                 View v = editor.findViewById(id);
-                assertAtLeast("视口按钮高度", v.getHeight(), 36f);
+                assertAtLeast("视口按钮高度", v.getHeight(), 48f);
+                assertAtLeast("视口按钮宽度", v.getWidth(), 48f);
             }
             View fit = editor.findViewById(R.id.btn_viewport_fit);
             assertAtLeast("「适应窗口」宽度（文字要放得下）", fit.getWidth(), 70f);
+        });
+    }
+
+    public void testPreviewDockDoesNotCoverArtworkOrAppearInCode() throws Throwable {
+        runTestOnUiThread(() -> {
+            View artwork = editor.findViewById(R.id.container_preview_canvas);
+            View dock = editor.findViewById(R.id.preview_dock);
+            int[] canvasPosition = new int[2], dockPosition = new int[2];
+            artwork.getLocationOnScreen(canvasPosition);
+            dock.getLocationOnScreen(dockPosition);
+            assertEquals(View.VISIBLE, dock.getVisibility());
+            assertTrue("工具栏不能遮住画布", dockPosition[1] >= canvasPosition[1] + artwork.getHeight());
+            editor.findViewById(R.id.tab_code).performClick();
+            assertEquals(View.GONE, dock.getVisibility());
         });
     }
 

@@ -11,6 +11,14 @@
       the values above exactly.
     -->
 
+    <!-- Gallery and preview chrome. Separate from document colors. -->
+    <color name="studio_brand">#FFB4A4</color>
+    <color name="studio_on_brand">#3F100B</color>
+    <color name="studio_brand_pressed">#F59784</color>
+    <color name="studio_paper">#18171D</color>
+    <color name="studio_control">#28242D</color>
+    <color name="studio_outline">#65555C</color>
+
     <!-- Surfaces -->
     <color name="canvas_bg">#0D1420</color>
     <color name="canvas_surface">#151E2C</color>

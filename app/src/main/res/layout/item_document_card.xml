@@ -20,7 +20,7 @@
         android:layout_height="match_parent"
         android:background="@drawable/bg_thumbnail"
         android:scaleType="fitCenter"
-        android:contentDescription="文件缩略图" />
+        android:importantForAccessibility="no" />
     </com.nous.codecanvas.ui.RatioFrame>
 
     <LinearLayout
@@ -42,11 +42,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="文件名"
-                android:textSize="13sp"
+                android:textSize="14sp"
                 android:textStyle="bold"
                 android:textColor="@color/canvas_ink_primary"
-                android:singleLine="true"
-                android:ellipsize="middle" />
+                android:maxLines="2"
+                android:ellipsize="end" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -75,7 +75,7 @@
                     android:layout_marginStart="6dp"
                     android:text="1 KB"
                     android:textSize="11sp"
-                    android:singleLine="true"
+                    android:maxLines="2"
                     android:ellipsize="end"
                     android:textColor="@color/canvas_ink_secondary" />
             </LinearLayout>
@@ -94,8 +94,8 @@
 
         <ImageButton
             android:id="@+id/btn_card_more"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
             android:padding="8dp"
             android:background="@drawable/bg_icon_button"
             android:src="@drawable/ic_more"

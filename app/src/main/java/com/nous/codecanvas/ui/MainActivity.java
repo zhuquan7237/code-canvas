@@ -395,6 +395,7 @@ public class MainActivity extends Activity {
     private void initViews() {
         listDocuments = findViewById(R.id.list_documents);
         gridDocuments = findViewById(R.id.grid_documents);
+        if (largeLibraryText()) gridDocuments.setNumColumns(1);
         viewEmpty = findViewById(R.id.view_empty);
         editSearch = findViewById(R.id.edit_search);
         btnQuickPaste = findViewById(R.id.btn_quick_paste_preview);
@@ -462,6 +463,11 @@ public class MainActivity extends Activity {
             onRowLongPressed(position);
             return true;
         });
+    }
+
+    /** A compact row in grid mode keeps long names and two actions readable at large font sizes. */
+    private boolean largeLibraryText() {
+        return getResources().getConfiguration().fontScale >= 1.5f;
     }
 
     private void setGrid(boolean grid) {
@@ -597,7 +603,7 @@ public class MainActivity extends Activity {
         if (drawerAdapter != null) drawerAdapter.notifyDataSetChanged();
         listDocuments.post(this::loadVisibleThumbs);
         ((TextView) findViewById(R.id.txt_file_count)).setText(
-                (typeFilter == null ? "我的文件" : filterLabel(typeFilter)) + " · " + filteredDocuments.size());
+                (typeFilter == null ? "作品库" : filterLabel(typeFilter)) + " · " + filteredDocuments.size());
         if (drawerSubtitle != null) {
             drawerSubtitle.setText(typeFilter == null
                     ? "全部作品 · " + filteredDocuments.size()
@@ -1390,7 +1396,8 @@ public class MainActivity extends Activity {
             Row row;
             if (convertView == null) {
                 convertView = LayoutInflater.from(MainActivity.this).inflate(
-                        parent == gridDocuments ? R.layout.item_document_card : R.layout.item_document_list,
+                        parent == gridDocuments && !largeLibraryText()
+                                ? R.layout.item_document_card : R.layout.item_document_list,
                         parent, false);
                 row = new Row();
                 row.title = convertView.findViewById(R.id.txt_doc_title);
