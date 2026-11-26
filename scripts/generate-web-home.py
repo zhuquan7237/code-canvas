@@ -34,7 +34,7 @@ for key, t in TEXT.items():
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{escape(t["description"], quote=True)}">
-<title>{t["brand"]}</title><link rel="stylesheet" href="{base}site.css">
+<title>{t["brand"]}</title><link rel="icon" href="{base}app/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="{base}site.css">
 </head>
 <body>
 <a class="skip" href="#main">{t["skip"]}</a>
