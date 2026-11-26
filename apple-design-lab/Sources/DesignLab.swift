@@ -203,7 +203,7 @@ private struct StudyScreen: View {
     }
 
     private func stageWidth(_ size: CGSize) -> CGFloat {
-        max(1, min(size.width - 40, min(960, size.height * 1.6)))
+        max(1, min(size.width - 40, min(960, (size.height - 76) * 1.6)))
     }
 
     private var controls: some View {
@@ -288,6 +288,7 @@ private struct Artwork: View {
             let (ground, ink, light) = study.colors
             func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: w * x, y: h * y) }
             let bounds = CGRect(origin: .zero, size: size)
+            ctx.fill(Path(bounds), with: .color(ground))
             ctx.fill(Path(bounds), with: .radialGradient(
                 Gradient(colors: [ink.opacity(0.56), ground]),
                 center: p(0.27, 0.16), startRadius: 0, endRadius: w * 0.78))
