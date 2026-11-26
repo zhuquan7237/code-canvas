@@ -8,7 +8,7 @@ struct DesignLabApp: App {
     }
 }
 
-private let coral = Color(red: 0.88, green: 0.32, blue: 0.25)
+private let coralInk = Color(red: 0.88, green: 0.32, blue: 0.25)
 
 enum Study: String, CaseIterable, Identifiable, Hashable {
     case coral, orbit, folded
@@ -36,7 +36,7 @@ enum Study: String, CaseIterable, Identifiable, Hashable {
     }
     var colors: (Color, Color, Color) {
         switch self {
-        case .coral: (Color(red: 0.10, green: 0.12, blue: 0.19), coral, Color(red: 1, green: 0.80, blue: 0.63))
+        case .coral: (Color(red: 0.10, green: 0.12, blue: 0.19), coralInk, Color(red: 1, green: 0.80, blue: 0.63))
         case .orbit: (Color(red: 0.08, green: 0.14, blue: 0.25), Color(red: 0.30, green: 0.46, blue: 0.94), .white)
         case .folded: (Color(red: 0.24, green: 0.17, blue: 0.21), Color(red: 0.77, green: 0.39, blue: 0.52), Color(red: 1, green: 0.84, blue: 0.73))
         }
