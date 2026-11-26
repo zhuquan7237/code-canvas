@@ -36,6 +36,7 @@ import com.nous.codecanvas.data.ImportBatch;
 import com.nous.codecanvas.model.CanvasDocument;
 import com.nous.codecanvas.util.AiCodeExtractor;
 import com.nous.codecanvas.util.CanvasPrefs;
+import com.nous.codecanvas.util.CanvasClipboard;
 import com.nous.codecanvas.util.ClipboardCodeOffer;
 import com.nous.codecanvas.util.FileUtils;
 import com.nous.codecanvas.util.PreviewKey;
@@ -97,11 +98,16 @@ public class MainActivity extends Activity {
 
     // --- clipboard auto-detect banner -----------------------------------------------------------
     private View bannerClipboard;
-    private TextView bannerSnippet;
-    /** Content currently offered by the banner; null while the banner is hidden. */
-    private String bannerClipContent;
-    /** Hash of the last clip the user dismissed or imported, so it is not offered twice. */
-    private int lastHandledClipHash;
+    private static final long NO_CLIP = Long.MIN_VALUE;
+    private long offeredClip = NO_CLIP;
+    private long dismissedClip = NO_CLIP;
+    private volatile int clipOfferEpoch;
+    private int pasteEpoch;
+    private boolean pasteReading;
+    private volatile boolean clipboardResumed;
+    private ClipboardManager watchedClipboard;
+    private final Runnable pendingClipOffer = this::readClipboardOffer;
+    private final ClipboardManager.OnPrimaryClipChangedListener clipChanged = this::maybeOfferClipboardBanner;
 
     // --- multi-select ----------------------------------------------------------------------------
     private final Set<String> selectedIds = new LinkedHashSet<>();
@@ -312,6 +318,10 @@ public class MainActivity extends Activity {
     protected void onPause() {
         importUiReady = false;
         if (imports != null) imports.listener = null;
+        clipboardResumed = false;
+        pasteEpoch++;
+        pasteReading = false;
+        stopClipboardOffers();
         super.onPause();
     }
 
@@ -369,8 +379,8 @@ public class MainActivity extends Activity {
             return;
         }
         loadDocuments();
-        // The visit almost always starts with code already on the clipboard; ask once, politely.
-        maybeOfferClipboardBanner();
+        clipboardResumed = true;
+        if (hasWindowFocus()) maybeOfferClipboardBanner();
     }
 
     @Override
@@ -459,7 +469,6 @@ public class MainActivity extends Activity {
         btnImport = findViewById(R.id.btn_import);
 
         bannerClipboard = findViewById(R.id.banner_clipboard);
-        bannerSnippet = findViewById(R.id.banner_snippet);
         findViewById(R.id.btn_banner_import).setOnClickListener(v -> importBannerClip());
         findViewById(R.id.btn_banner_dismiss).setOnClickListener(v -> dismissClipboardBanner(true));
 
@@ -1151,95 +1160,102 @@ public class MainActivity extends Activity {
 
     // --- clipboard auto-detect ---------------------------------------------------------------------
 
-    /**
-     * Offer the clipboard's content once per distinct clip — off the main thread.
-     *
-     * <p>{@code ClipboardManager.getPrimaryClip()} and {@code ClipData.coerceToText()} are binder
-     * calls: with a {@code content://} clip whose provider is slow or gone, they block the calling
-     * thread. Reading them in {@code onResume} on the UI thread is an ANR waiting to happen, so the
-     * read happens on a worker and only the visibility change comes back to the main thread. The
-     * check is deliberately strict — the banner appears only when the clip really is renderable
-     * markup — so the app never nags about a copied phone number.</p>
-     */
+    @Override public void onWindowFocusChanged(boolean focused) {
+        super.onWindowFocusChanged(focused);
+        if (bannerClipboard == null) return;
+        if (focused && clipboardResumed) maybeOfferClipboardBanner();
+        else stopClipboardOffers();
+    }
+
+    private void stopClipboardOffers() {
+        clipOfferEpoch++;
+        searchHandler.removeCallbacks(pendingClipOffer);
+        if (bannerClipboard != null) dismissClipboardBanner(false);
+        if (watchedClipboard != null) {
+            watchedClipboard.removePrimaryClipChangedListener(clipChanged);
+            watchedClipboard = null;
+        }
+    }
+
     private void maybeOfferClipboardBanner() {
-        if (!CanvasPrefs.clipboardAutoDetect(this)) return;
-        final java.util.concurrent.ExecutorService worker = clipboardReadExecutor;
-        worker.execute(() -> {
-            String text = null;
-            try {
-                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                if (clipboard != null && clipboard.hasPrimaryClip()) {
-                    ClipData clip = clipboard.getPrimaryClip();
-                    if (clip != null && clip.getItemCount() > 0) {
-                        CharSequence raw = clip.getItemAt(0).coerceToText(this);
-                        if (raw != null) text = raw.toString();
-                    }
-                }
-            } catch (Exception ignored) {
-                return; // an unreadable clipboard is simply not offered
-            }
-            if (text == null) return;
-            final String clipText = text;
-            if (clipText.hashCode() == lastHandledClipHash) return;
-            if (!ClipboardCodeOffer.looksLikeCode(clipText)) return;
-            final String oneLine = clipText.replace('\n', ' ').trim();
+        // Every change invalidates the UI immediately, even when the replacement is empty.
+        clipOfferEpoch++;
+        searchHandler.removeCallbacks(pendingClipOffer);
+        dismissClipboardBanner(false);
+        if (!clipboardResumed || !hasWindowFocus() || !CanvasPrefs.clipboardAutoDetect(this)) {
+            stopClipboardOffers();
+            return;
+        }
+        if (watchedClipboard == null) {
+            watchedClipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (watchedClipboard != null) watchedClipboard.addPrimaryClipChangedListener(clipChanged);
+        }
+        searchHandler.postDelayed(pendingClipOffer, 80);
+    }
+
+    private void readClipboardOffer() {
+        final int epoch = clipOfferEpoch;
+        final Context app = getApplicationContext();
+        clipboardReadExecutor.execute(() -> {
+            if (!clipboardResumed || epoch != clipOfferEpoch || !CanvasPrefs.clipboardAutoDetect(app)) return;
+            CanvasClipboard.Read clip = CanvasClipboard.read(app, true);
+            final long token = clip.status == CanvasClipboard.Status.TEXT && ClipboardCodeOffer.looksLikeCode(clip.text)
+                    ? clip.token : NO_CLIP;
             runOnUiThread(() -> {
-                if (isDestroyed() || isFinishing()) return;
-                if (clipText.hashCode() == lastHandledClipHash) return;
-                bannerClipContent = clipText;
-                bannerSnippet.setText(oneLine.length() > 60 ? oneLine.substring(0, 60) + "…" : oneLine);
+                if (epoch != clipOfferEpoch || !canUseClipboard() || !CanvasPrefs.clipboardAutoDetect(this)) return;
+                if (token == NO_CLIP || token == dismissedClip) return;
+                offeredClip = token;
+                // Detection never leaves raw clipboard text in a view or a field.
                 bannerClipboard.setVisibility(View.VISIBLE);
             });
         });
     }
 
+    private boolean canUseClipboard() {
+        return clipboardResumed && hasWindowFocus() && !isFinishing() && !isDestroyed();
+    }
+
     private void importBannerClip() {
-        String content = bannerClipContent;
+        long expected = offeredClip;
         dismissClipboardBanner(true);
-        if (content != null) offerIncomingText(content);
+        if (expected != NO_CLIP) readPaste(expected);
     }
 
     private void dismissClipboardBanner(boolean remember) {
-        if (remember && bannerClipContent != null) {
-            lastHandledClipHash = bannerClipContent.hashCode();
-        }
-        bannerClipContent = null;
+        if (remember && offeredClip != NO_CLIP) dismissedClip = offeredClip;
+        offeredClip = NO_CLIP;
         bannerClipboard.setVisibility(View.GONE);
     }
 
-    // --- quick paste --------------------------------------------------------------------------------
-
     private void performQuickPasteAndPreview() {
-        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        if (clipboard == null || !clipboard.hasPrimaryClip()) {
-            Toast.makeText(this, "剪贴板为空，请先复制代码", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        ClipData clip = clipboard.getPrimaryClip();
-        if (clip == null || clip.getItemCount() == 0) {
-            Toast.makeText(this, "剪贴板为空", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        CharSequence rawText = clip.getItemAt(0).coerceToText(this);
-        if (rawText == null || rawText.length() == 0) {
-            Toast.makeText(this, "剪贴板内容为空", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (rawText.length() > 2 * 1024 * 1024) {
-            Toast.makeText(this, "剪贴板代码过大 (超过 2MB 限制)", Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        offerIncomingText(rawText.toString());
+        readPaste(NO_CLIP);
     }
 
-    /**
-     * Turn pasted or shared text into a document. Several fenced blocks are offered one by one;
-     * they are never concatenated, and a reply that mixes prose with unmarked code asks first.
-     */
+    private void readPaste(long expected) {
+        if (!canUseClipboard() || pasteReading) return;
+        pasteReading = true;
+        final int epoch = ++pasteEpoch;
+        final Context app = getApplicationContext();
+        clipboardReadExecutor.execute(() -> {
+            CanvasClipboard.Read read = CanvasClipboard.read(app, expected != NO_CLIP);
+            runOnUiThread(() -> {
+                if (epoch != pasteEpoch) return;
+                pasteReading = false;
+                if (!canUseClipboard()) return;
+                if (expected != NO_CLIP && !CanvasPrefs.clipboardAutoDetect(this)) return;
+                if (expected != NO_CLIP && (read.status != CanvasClipboard.Status.TEXT || read.token != expected)) {
+                    Toast.makeText(this, "剪贴板已变化，请点「粘贴」读取当前内容。", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (read.status == CanvasClipboard.Status.TEXT) {
+                    dismissedClip = read.token;
+                    dismissClipboardBanner(false);
+                    offerIncomingText(read.text);
+                } else Toast.makeText(this, read.message(), Toast.LENGTH_SHORT).show();
+            });
+        });
+    }
+
     private void offerIncomingText(String rawString) {
         if (rawString == null || rawString.isEmpty()) {
             Toast.makeText(this, "剪贴板内容为空", Toast.LENGTH_SHORT).show();
@@ -1249,7 +1265,6 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "剪贴板代码过大 (超过 2MB 限制)", Toast.LENGTH_LONG).show();
             return;
         }
-        lastHandledClipHash = rawString.hashCode();
         pendingSharedText = null;
         if (rawString.trim().isEmpty()) {
             Toast.makeText(this, "没有可导入的内容", Toast.LENGTH_SHORT).show();
@@ -2012,7 +2027,13 @@ public class MainActivity extends Activity {
         return bannerClipboard != null && bannerClipboard.getVisibility() == View.VISIBLE;
     }
     /** Test hook: run the clipboard offer without waiting for a real resume. */
-    public void offerClipboardForTest() { maybeOfferClipboardBanner(); }
+    public void offerClipboardForTest() {
+        maybeOfferClipboardBanner();
+        if (clipboardResumed && hasWindowFocus() && CanvasPrefs.clipboardAutoDetect(this)) {
+            searchHandler.removeCallbacks(pendingClipOffer);
+            readClipboardOffer();
+        }
+    }
 
     /** Test hook: block until the asynchronous clipboard read has had its chance to land. */
     public void awaitClipboardReadForTest() {
@@ -2032,6 +2053,8 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        clipboardResumed = false;
+        stopClipboardOffers();
         importUiReady = false;
         importUiDestroying = true;
         if (importError != null) importError.dismiss();
@@ -2041,7 +2064,7 @@ public class MainActivity extends Activity {
         super.onDestroy();
         searchHandler.removeCallbacksAndMessages(null);
         thumbnailExecutor.shutdown();
-        clipboardReadExecutor.shutdown();
+        clipboardReadExecutor.shutdownNow();
     }
 
     public void loadDocumentsForTest() {

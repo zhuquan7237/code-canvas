@@ -283,25 +283,39 @@ public class DesignSystemRegressionTest extends InstrumentationTestCase {
     // --- clipboard auto-detect ----------------------------------------------------------------------
 
     public void testClipboardBannerAppearsForMarkupAndStaysSilentForProse() throws Throwable {
-        ui(() -> {
-            main.findViewById(R.id.btn_banner_dismiss).performClick();
-            clip("这是一段普通的聊天记录，没有任何标记语言，只是几句话而已。");
-        });
-        getInstrumentation().runOnMainSync(main::offerClipboardForTest);
-        main.awaitClipboardReadForTest();
-        ui(() -> assertFalse("非代码剪贴板不得弹出横幅", main.isClipboardBannerShowingForTest()));
+        boolean previous = com.nous.codecanvas.util.CanvasPrefs.clipboardAutoDetect(main);
+        try {
+            ui(() -> {
+                com.nous.codecanvas.util.CanvasPrefs.setClipboardAutoDetect(main, true);
+                clip("这是一段普通的聊天记录，没有任何标记语言，只是几句话而已。");
+                main.offerClipboardForTest();
+            });
+            main.awaitClipboardReadForTest();
+            ui(() -> assertFalse("非代码剪贴板不得弹出横幅", main.isClipboardBannerShowingForTest()));
 
-        ui(() -> clip("<svg xmlns='http://www.w3.org/2000/svg'><circle cx='5' cy='5' r='4'/></svg>"));
-        getInstrumentation().runOnMainSync(main::offerClipboardForTest);
-        main.awaitClipboardReadForTest();
-        ui(() -> {
-            assertTrue("可渲染的剪贴板内容必须弹出横幅", main.isClipboardBannerShowingForTest());
-            TextView snippet = main.findViewById(R.id.banner_snippet);
-            assertTrue("横幅必须显示内容摘要", snippet.getText().length() > 0);
-        });
-
-        ui(() -> main.findViewById(R.id.btn_banner_dismiss).performClick());
-        ui(() -> assertFalse("忽略后横幅必须收起", main.isClipboardBannerShowingForTest()));
+            ui(() -> {
+                clip("<svg xmlns='http://www.w3.org/2000/svg'><circle cx='5' cy='5' r='4'/></svg>");
+                main.offerClipboardForTest();
+            });
+            long end = android.os.SystemClock.uptimeMillis() + 3000;
+            while (!main.isClipboardBannerShowingForTest() && android.os.SystemClock.uptimeMillis() < end) {
+                android.os.SystemClock.sleep(120);
+                getInstrumentation().waitForIdleSync();
+            }
+            ui(() -> {
+                assertTrue("可渲染的剪贴板内容必须弹出横幅", main.isClipboardBannerShowingForTest());
+                TextView title = main.findViewById(R.id.banner_title);
+                assertEquals("剪贴板中有代码", title.getText().toString());
+                main.findViewById(R.id.btn_banner_dismiss).performClick();
+                assertFalse(main.isClipboardBannerShowingForTest());
+            });
+        } finally {
+            ui(() -> {
+                com.nous.codecanvas.util.CanvasPrefs.setClipboardAutoDetect(main, previous);
+                clip("");
+                main.offerClipboardForTest();
+            });
+        }
     }
 
     // --- one action-sheet surface --------------------------------------------------------------------

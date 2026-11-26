@@ -121,6 +121,7 @@ public class CodeCanvasActivityE2ETest extends android.test.InstrumentationTestC
             editCode.setSelection(0, editCode.length());
             btnPaste.performClick();
         });
+        editorActivity.awaitPasteReadForTest();
         instrumentation.waitForIdleSync();
         assertTrue("Editor must contain pasted content", editCode.getText().toString().contains("// Pasted by Test"));
 
@@ -133,6 +134,7 @@ public class CodeCanvasActivityE2ETest extends android.test.InstrumentationTestC
             cm.setPrimaryClip(clip);
             btnPaste.performClick();
         });
+        editorActivity.awaitPasteReadForTest();
         instrumentation.waitForIdleSync();
         assertEquals("12REPLACED67890", editCode.getText().toString());
 

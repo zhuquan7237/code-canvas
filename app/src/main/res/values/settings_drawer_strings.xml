@@ -16,8 +16,8 @@
     <string name="preferences_library">作品库与存储</string>
     <string name="preferences_thumbnails">显示作品缩略图</string>
     <string name="preferences_thumbnails_hint">关闭后只显示格式封面，减少后台渲染。</string>
-    <string name="preferences_clipboard">识别剪贴板代码</string>
-    <string name="preferences_clipboard_hint">打开应用时，发现像代码的内容就提示导入。</string>
+    <string name="preferences_clipboard">自动提示剪贴板代码</string>
+    <string name="preferences_clipboard_hint">默认关闭。开启后只在作品库前台检查文本，不展示内容。</string>
     <string name="preferences_cache">缩略图缓存</string>
     <string name="preferences_cache_loading">正在统计…</string>
     <string name="preferences_cache_used">已用 %1$s · 不影响原文件</string>
