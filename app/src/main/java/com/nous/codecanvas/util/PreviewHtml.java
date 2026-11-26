@@ -35,7 +35,8 @@ public final class PreviewHtml {
                 layout += "<style>body>svg{width:min(100%,100vw,calc(100vh * " + ratio
                         + "))!important;height:auto!important;aspect-ratio:" + ratio
                         + "!important;max-width:100%!important;max-height:none!important;"
-                        + "min-height:0!important;min-width:0!important;box-sizing:content-box!important}</style>";
+                        + "min-height:0!important;min-width:0!important;align-self:center!important;"
+                        + "justify-self:center!important;box-sizing:content-box!important}</style>";
             }
         }
         java.util.regex.Matcher tokens = HEAD_TOKENS.matcher(html);

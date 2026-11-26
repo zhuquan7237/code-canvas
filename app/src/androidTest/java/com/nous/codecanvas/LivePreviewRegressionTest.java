@@ -103,7 +103,7 @@ public class LivePreviewRegressionTest extends InstrumentationTestCase {
 
     public void testInlineArtworkFitsInsideBodyMargins() throws Exception {
         open("padded-inline.html", """
-                <!doctype html><html><head><style>body{margin:18px;padding:12px}
+                <!doctype html><html><head><style>body{margin:18px;padding:12px;display:flex;height:100vh}
                 svg{width:100vw;height:100vh}</style></head><body>
                 <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
                   <rect width="1600" height="900" fill="green"/>
