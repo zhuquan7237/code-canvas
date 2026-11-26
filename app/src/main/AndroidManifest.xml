@@ -123,6 +123,27 @@
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>
 
+            <!-- Mixed senders can use a wildcard; do not advertise as a receiver for
+                 unrelated explicitly typed batches such as video, installers or archives. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="image/png" />
+                <data android:mimeType="image/jpeg" />
+                <data android:mimeType="image/webp" />
+                <data android:mimeType="image/gif" />
+                <data android:mimeType="image/svg+xml" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="application/xhtml+xml" />
+                <data android:mimeType="application/javascript" />
+                <data android:mimeType="application/x-ipynb+json" />
+                <data android:mimeType="application/x-ipynb" />
+                <data android:mimeType="application/yaml" />
+                <data android:mimeType="application/x-yaml" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
             <!-- Chat apps frequently share an unnamed blob. Accepting */* here is what makes the
                  app appear in their share sheet at all; the importer sniffs the real type. -->
             <intent-filter>

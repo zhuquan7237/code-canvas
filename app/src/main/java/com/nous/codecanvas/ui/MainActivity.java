@@ -32,6 +32,7 @@ import android.widget.Toast;
 import com.nous.codecanvas.R;
 import com.nous.codecanvas.data.DocumentRepository;
 import com.nous.codecanvas.data.FileImporter;
+import com.nous.codecanvas.data.ImportBatch;
 import com.nous.codecanvas.model.CanvasDocument;
 import com.nous.codecanvas.util.AiCodeExtractor;
 import com.nous.codecanvas.util.CanvasPrefs;
@@ -85,6 +86,7 @@ public class MainActivity extends Activity {
     private boolean importInterrupted;
     private AlertDialog importError;
     private boolean importUiDestroying;
+    private int libraryLoadGeneration;
     /** Text shared into the app, consumed the next time the user asks to paste. */
     private String pendingSharedText;
     private View viewEmpty;
@@ -321,6 +323,8 @@ public class MainActivity extends Activity {
         if (Intent.ACTION_VIEW.equals(action) && data != null) {
             retainReadGrant(intent, data);
             importFromUri(data);
+        } else if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
+            importBatch(ImportBatch.fromShare(intent));
         } else if (Intent.ACTION_SEND.equals(action)) {
             Object attachment = intent.getParcelableExtra(Intent.EXTRA_STREAM);
             if (attachment instanceof Uri) {
@@ -633,13 +637,14 @@ public class MainActivity extends Activity {
     }
 
     private void loadDocuments() {
+        final int generation = ++libraryLoadGeneration;
         final boolean dark = isDarkTheme();
         new Thread(() -> {
             try {
                 List<CanvasDocument> docs = repository.getAllDocuments();
                 java.util.Map<String, DocumentPresentation> prepared = preparePresentations(docs, dark);
                 runOnUiThread(() -> {
-                    if (isDestroyed() || isFinishing()) return;
+                    if (isDestroyed() || isFinishing() || generation != libraryLoadGeneration) return;
                     presentations.clear();
                     presentations.putAll(prepared);
                     allDocuments.clear();
@@ -654,7 +659,12 @@ public class MainActivity extends Activity {
                     backfiller.enqueue(ThumbnailBackfiller.missingThumbnails(MainActivity.this, docs));
                 });
             } catch (Exception e) {
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "加载文档失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> {
+                    if (!isDestroyed() && !isFinishing() && generation == libraryLoadGeneration) {
+                        Toast.makeText(MainActivity.this, "加载文档失败，请返回作品库重试。",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
         }).start();
     }
@@ -1416,6 +1426,7 @@ public class MainActivity extends Activity {
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         try {
             startActivityForResult(intent, REQ_IMPORT_SAF);
             return true;
@@ -1429,15 +1440,19 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQ_IMPORT_SAF && resultCode == RESULT_OK && data != null) {
-            Uri uri = data.getData();
-            if (uri != null) {
+            ImportBatch selected = ImportBatch.fromPicker(data);
+            if (!selected.grouped && selected.files.size() == 1) {
+                Uri uri = selected.files.get(0);
+                // Keep the existing single-file linked-source workflow.
                 int granted = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION
                         | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                 if (granted != 0) {
                     try { getContentResolver().takePersistableUriPermission(uri, granted); }
-                    catch (SecurityException ignored) { /* The app's own imported copy still works. */ }
+                    catch (SecurityException | IllegalArgumentException ignored) {}
                 }
                 importFromUri(uri);
+            } else {
+                importBatch(selected);
             }
         } else if (requestCode == REQ_EXPORT_DOCUMENT) {
             CanvasDocument doc = pendingExportDocument;
@@ -1466,16 +1481,40 @@ public class MainActivity extends Activity {
 
     /** A source URI is a location. Each successful open saves a separate local copy. */
     private void importFromUri(Uri uri) {
-        if (!imports.enqueue(uri)) {
-            Toast.makeText(this, "正在导入多个文件，稍后可以重新打开这个文件。", Toast.LENGTH_LONG).show();
+        ImportSession session = imports;
+        if (!session.enqueue(() -> session.load(uri, false))) {
+            showImportQueueFull();
         }
+    }
+
+    private void importBatch(ImportBatch batch) {
+        // Unlike a single linked source, a batch only needs the temporary read permission.
+        // Capture the retained session itself, not this Activity inside the background closure.
+        ImportSession session = imports;
+        if (!session.enqueue(() -> session.loadBatch(batch))) {
+            showImportQueueFull();
+        } else if (!batch.files.isEmpty()) {
+            Toast.makeText(this, "正在导入 " + batch.files.size() + " 个文件…", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showImportQueueFull() {
+        Toast.makeText(this, "导入队列已满。待当前导入结束后，请重新分享或选择文件。", Toast.LENGTH_LONG).show();
     }
 
     private void presentImportOutcome() {
         if (!importUiReady || isFinishing() || isDestroyed() || importError != null) return;
         ImportOutcome result = imports.completed.peek();
         if (result == null) return;
-        if (result.document != null) {
+        if (result.summary) {
+            if (result.saved > 0) loadDocuments();
+            boolean hasFilters = result.saved > 0 && !selectionMode
+                    && (typeFilter != null || !editSearch.getText().toString().trim().isEmpty());
+            importError = CanvasConfirmDialog.show(this, "批量导入结果", result.message,
+                    hasFilters ? "清除筛选" : "完成", "保留筛选", false,
+                    hasFilters ? this::clearImportFilters : null);
+            bindImportDismiss(result, true, hasFilters);
+        } else if (result.document != null) {
             imports.completed.remove();
             importUiReady = false; // Only one editor opens per visit to the foreground.
             Toast.makeText(this, "已导入副本 · " + result.document.getTitle(), Toast.LENGTH_SHORT).show();
@@ -1485,16 +1524,26 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void clearImportFilters() {
+        editSearch.setText("");
+        setTypeFilter(null);
+        editSearch.clearFocus();
+    }
+
     private void showImportError(ImportOutcome failed, boolean queued) {
         importError = CanvasConfirmDialog.show(this, "未能导入文件", failed.message,
                 failed.offerPicker ? "重新选择" : "知道了", "关闭", false,
                 failed.offerPicker ? this::retryImportInPicker : null, null);
-        if (!failed.offerPicker) CanvasConfirmDialog.cancelButton(importError).setVisibility(View.GONE);
+        bindImportDismiss(failed, queued, failed.offerPicker);
+    }
+
+    private void bindImportDismiss(ImportOutcome result, boolean queued, boolean showCancel) {
+        if (!showCancel) CanvasConfirmDialog.cancelButton(importError).setVisibility(View.GONE);
         importError.setOnDismissListener(dialog -> {
             importError = null;
             // Dismissing an old Activity's window is not a user's response.
             if (importUiDestroying) return;
-            if (queued && imports.completed.peek() == failed) imports.completed.remove();
+            if (queued && imports.completed.peek() == result) imports.completed.remove();
             searchHandler.post(this::presentImportOutcome);
         });
     }
@@ -1508,19 +1557,29 @@ public class MainActivity extends Activity {
         final CanvasDocument document;
         final String message;
         final boolean offerPicker;
+        final boolean summary;
+        final int saved;
 
         ImportOutcome(CanvasDocument document, String message, boolean offerPicker) {
+            this(document, message, offerPicker, false, 0);
+        }
+
+        ImportOutcome(CanvasDocument document, String message, boolean offerPicker, boolean summary, int saved) {
             this.document = document;
             this.message = message;
             this.offerPicker = offerPicker;
+            this.summary = summary;
+            this.saved = saved;
         }
     }
 
     /** Serial file I/O, retained during recreation, with no reference to an inactive Activity. */
     private static final class ImportSession {
+        interface Job { ImportOutcome load(); }
+
         private final Context context;
         private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
-        private final java.util.ArrayDeque<Uri> queue = new java.util.ArrayDeque<>();
+        private final java.util.ArrayDeque<Job> queue = new java.util.ArrayDeque<>();
         final java.util.ArrayDeque<ImportOutcome> completed = new java.util.ArrayDeque<>();
         boolean running;
         Runnable listener;
@@ -1529,19 +1588,19 @@ public class MainActivity extends Activity {
 
         boolean hasPending() { return running || !queue.isEmpty() || !completed.isEmpty(); }
 
-        boolean enqueue(Uri uri) {
+        boolean enqueue(Job job) {
             if (queue.size() + completed.size() + (running ? 1 : 0) >= 8) return false;
-            queue.add(uri);
+            queue.add(job);
             startNext();
             return true;
         }
 
         private void startNext() {
             if (running || queue.isEmpty()) return;
-            Uri uri = queue.remove();
+            Job job = queue.remove();
             running = true;
             new Thread(() -> {
-                ImportOutcome outcome = load(uri);
+                ImportOutcome outcome = job.load();
                 main.post(() -> {
                     running = false;
                     completed.add(outcome);
@@ -1551,22 +1610,50 @@ public class MainActivity extends Activity {
             }, "CanvasImport").start();
         }
 
-        private ImportOutcome load(Uri uri) {
+        private ImportOutcome loadBatch(ImportBatch input) {
+            int saved = 0, failed = 0;
+            StringBuilder details = new StringBuilder();
+            for (int i = 0; i < input.files.size(); i++) {
+                ImportOutcome result = load(input.files.get(i), true);
+                if (result.document != null) saved++;
+                else {
+                    failed++;
+                    details.append("\n第 ").append(input.positions.get(i)).append(" 项：").append(result.message);
+                }
+            }
+            StringBuilder summary = new StringBuilder();
+            if (saved > 0) summary.append("已保存 ").append(saved).append(" 个副本到作品库。");
+            else summary.append("没有文件导入。");
+            if (failed > 0) summary.append("\n").append(failed).append(" 个文件未能导入。");
+            if (input.invalid > 0) summary.append("\n").append(input.invalid).append(" 项不是可读取的文件链接。");
+            if (input.duplicates > 0) summary.append("\n已跳过 ").append(input.duplicates).append(" 个重复项。");
+            if (input.overflow > 0) summary.append("\n每次最多导入 ").append(ImportBatch.MAX_FILES)
+                    .append(" 个文件，另有 ").append(input.overflow).append(" 项未处理，可分批再选。");
+            if (saved == 0 && failed == 0 && input.invalid == 0 && input.overflow == 0) {
+                summary.append("\n请在文件管理器或原应用中重新选择文件。");
+            }
+            return new ImportOutcome(null, summary.append(details).toString(), false, true, saved);
+        }
+
+        private ImportOutcome load(Uri uri, boolean localOnly) {
             FileImporter.Imported imported;
             try {
                 imported = FileImporter.importFrom(context, uri);
             } catch (FileImporter.UnsupportedImportException e) {
                 return new ImportOutcome(null, e.getMessage(), false);
             } catch (Exception e) {
-                return new ImportOutcome(null,
-                        "没有读到文件。它可能已被移动，或来源应用没有授予访问权限。可用系统文件选择器再选一次。", true);
+                return new ImportOutcome(null, localOnly
+                        ? "读取失败。请从系统文件选择器重选该文件。"
+                        : "没有读到文件。它可能已被移动，或来源应用没有授予访问权限。可用系统文件选择器再选一次。", true);
             }
             CanvasDocument doc = imported.document;
             try {
+                if (localOnly) doc.setSourceUri(null);
                 if (doc.isBlob()) FileImporter.writeBlob(context, doc.getId(), imported.bytes);
                 new DocumentRepository(context).saveDocument(doc);
                 return new ImportOutcome(doc, null, false);
             } catch (Exception e) {
+                if (doc.isBlob()) FileImporter.blobFile(context, doc.getId()).delete();
                 return new ImportOutcome(null, "文件已读取，但未能保存副本。请检查设备剩余空间后再试。", false);
             }
         }
