@@ -352,7 +352,8 @@ public class MainActivity extends Activity {
     private void applyHomeChrome() {
         if (btnQuickPaste == null) return;
         boolean showPaste = !selectionMode && !filteredDocuments.isEmpty() && !editSearch.hasFocus();
-        btnQuickPaste.setVisibility(showPaste ? View.VISIBLE : View.GONE);
+        boolean drawerVisible = drawerRoot != null && drawerRoot.getVisibility() == View.VISIBLE;
+        btnQuickPaste.setVisibility(showPaste && !drawerVisible ? View.VISIBLE : View.GONE);
         // Keep the selection scope stable until the user exits multi-select.
         findViewById(R.id.library_header).setVisibility(selectionMode ? View.INVISIBLE : View.VISIBLE);
         findViewById(R.id.btn_library_filter).setEnabled(!selectionMode);
@@ -901,6 +902,7 @@ public class MainActivity extends Activity {
         setHomeAccessibilityCovered(true);
         View scrim = findViewById(R.id.drawer_scrim);
         drawerRoot.setVisibility(View.VISIBLE);
+        applyHomeChrome();
         if (scrim != null) {
             scrim.animate().cancel();
             scrim.setAlpha(0f);
@@ -930,6 +932,7 @@ public class MainActivity extends Activity {
                 .withEndAction(() -> {
                     drawerRoot.setVisibility(View.GONE);
                     setHomeAccessibilityCovered(false);
+                    applyHomeChrome();
                     findViewById(R.id.btn_drawer).requestFocus();
                 })
                 .start();

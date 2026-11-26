@@ -125,6 +125,7 @@ public class DesignSystemRegressionTest extends InstrumentationTestCase {
             View panel = main.findViewById(R.id.drawer_panel);
             assertEquals("抽屉必须已滑到位", 0f, panel.getTranslationX(), 0.5f);
             View paste = main.findViewById(R.id.btn_quick_paste_preview);
+            assertEquals("The catalog hides Quick Paste", View.GONE, paste.getVisibility());
             assertTrue("粘贴入口不能浮到目录遮罩上面", root.getZ() > paste.getZ());
             ViewGroup parent = (ViewGroup) root.getParent();
             for (int child = 0; child < parent.getChildCount(); child++) {
@@ -180,6 +181,8 @@ public class DesignSystemRegressionTest extends InstrumentationTestCase {
         Thread.sleep(300);
         ui(() -> assertEquals("关闭后抽屉必须隐藏", View.GONE,
                 main.findViewById(R.id.drawer_root).getVisibility()));
+        ui(() -> assertEquals("Closing the catalog restores Quick Paste", View.VISIBLE,
+                main.findViewById(R.id.btn_quick_paste_preview).getVisibility()));
     }
 
     // --- multi-select ------------------------------------------------------------------------------
