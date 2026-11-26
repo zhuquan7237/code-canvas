@@ -20,7 +20,7 @@ xcrun simctl install "$SIM_ID" "$derived/Build/Products/Debug-iphonesimulator/De
 capture() {
   xcrun simctl terminate "$SIM_ID" "$bundle" 2>/dev/null || true
   SIMCTL_CHILD_DESIGN_LAB_OPEN_STUDY="$2" xcrun simctl launch "$SIM_ID" "$bundle"
-  sleep 2
+  sleep 4
   xcrun simctl io "$SIM_ID" screenshot "$output/$1.png"
 }
 xcrun simctl ui "$SIM_ID" appearance light
@@ -33,3 +33,4 @@ xcrun simctl ui "$SIM_ID" content_size accessibility-extra-extra-extra-large
 capture 04-library-large-text 0
 capture 05-study-large-text 1
 xcrun simctl ui "$SIM_ID" content_size large
+xcrun simctl terminate "$SIM_ID" "$bundle"

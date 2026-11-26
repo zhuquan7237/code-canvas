@@ -3,8 +3,14 @@ import XCTest
 final class DesignLabUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
-    func testInspectAndFitArtwork() {
+    private func makeLibraryApp() -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchEnvironment["DESIGN_LAB_OPEN_STUDY"] = "0"
+        return app
+    }
+
+    func testInspectAndFitArtwork() {
+        let app = makeLibraryApp()
         app.launch()
         let coral = app.buttons["Coral study"]
         XCTAssertTrue(coral.waitForExistence(timeout: 12))
@@ -36,7 +42,7 @@ final class DesignLabUITests: XCTestCase {
     }
 
     func testAboutDescribesLocalOnlyReference() {
-        let app = XCUIApplication()
+        let app = makeLibraryApp()
         app.launch()
         app.buttons["About this design lab"].tap()
         XCTAssertTrue(app.staticTexts["A design reference, not a file editor."].waitForExistence(timeout: 8))
@@ -46,7 +52,7 @@ final class DesignLabUITests: XCTestCase {
 
     func testLandscapeKeepsCanvasControlsReachable() {
         let device = XCUIDevice.shared
-        let app = XCUIApplication()
+        let app = makeLibraryApp()
         device.orientation = .portrait
         defer { device.orientation = .portrait }
         app.launch()
@@ -59,14 +65,17 @@ final class DesignLabUITests: XCTestCase {
         XCTAssertEqual(fit.value as? String, "125%")
         fit.tap()
         XCTAssertEqual(fit.value as? String, "100%")
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        let window = app.windows.firstMatch
+        let landscape = NSPredicate { _, _ in window.frame.width > window.frame.height }
+        wait(for: [XCTNSPredicateExpectation(predicate: landscape, object: nil)], timeout: 12)
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = "Landscape canvas"
         attachment.lifetime = .keepAlways
         add(attachment)
     }
 
     func testSearchFiltersToNamedStudy() {
-        let app = XCUIApplication()
+        let app = makeLibraryApp()
         app.launch()
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 8))

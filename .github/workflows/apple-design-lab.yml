@@ -11,7 +11,7 @@ concurrency:
 jobs:
   simulator:
     runs-on: xcode-27
-    timeout-minutes: 22
+    timeout-minutes: 32
     strategy:
       fail-fast: false
       matrix:
@@ -35,16 +35,16 @@ jobs:
         run: |
           xcodebuild build -project apple-design-lab/DesignLab.xcodeproj -scheme DesignLab \
             -destination "generic/platform=iOS Simulator" -derivedDataPath "$RUNNER_TEMP/lab-build"
-      - name: Boot simulator and capture native layouts
-        timeout-minutes: 9
-        run: bash apple-design-lab/capture.sh
       - name: Test native interactions
-        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
-        timeout-minutes: 10
+        timeout-minutes: 16
         run: |
           xcodebuild test -project apple-design-lab/DesignLab.xcodeproj -scheme DesignLab \
             -destination "platform=iOS Simulator,id=$SIM_ID" -derivedDataPath "$RUNNER_TEMP/lab-build" \
             -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/lab-ui.xcresult"
+      - name: Capture native layouts after tests
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
+        timeout-minutes: 12
+        run: bash apple-design-lab/capture.sh
       - name: Extract landscape test screenshot
         if: always()
         run: |

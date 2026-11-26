@@ -69,15 +69,18 @@ struct LibraryScreen: View {
                             .font(.caption.weight(.semibold))
                             .tracking(1.5)
                             .foregroundStyle(.secondary)
-                        Text("A closer look").font(.title2.weight(.semibold)).accessibilityAddTraits(.isHeader)
-                        Text("Explore three local studies in light, color, and space.")
-                            .font(.body).foregroundStyle(.secondary)
+                        Text(typeSize.isAccessibilitySize ? "Local studies" : "A closer look")
+                            .font(.title2.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                        if !typeSize.isAccessibilitySize {
+                            Text("Explore three local studies in light, color, and space.")
+                                .font(.body).foregroundStyle(.secondary)
+                        }
                     }
                     if studies.isEmpty {
                         ContentUnavailableView.search(text: query)
                     } else {
                         LazyVGrid(
-                            columns: [GridItem(.adaptive(minimum: typeSize.isAccessibilitySize ? 290 : 220), spacing: 16)],
+                            columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.adaptive(minimum: 270), spacing: 16)],
                             alignment: .leading, spacing: 20
                         ) {
                             ForEach(studies) { study in
@@ -89,7 +92,7 @@ struct LibraryScreen: View {
                         }
                     }
                 }
-                .frame(maxWidth: 1060, alignment: .leading)
+                .frame(maxWidth: typeSize.isAccessibilitySize ? 720 : 1060, alignment: .leading)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
                 .frame(maxWidth: .infinity)
@@ -134,26 +137,53 @@ struct LibraryScreen: View {
 
 private struct StudyCard: View {
     let study: Study
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Artwork(study: study)
-                .aspectRatio(16.0 / 10.0, contentMode: .fit)
-                .accessibilityHidden(true)
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(study.title).font(.headline)
-                    Text(study.subtitle).font(.subheadline).foregroundStyle(.secondary)
+        Group {
+            if typeSize.isAccessibilitySize {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        Artwork(study: study)
+                            .frame(width: 72, height: 45)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .accessibilityHidden(true)
+                        descriptionRow
+                    }
+                    .padding(14)
+                    labelText.padding(14)
                 }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right").font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary).accessibilityHidden(true)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    Artwork(study: study)
+                        .aspectRatio(16.0 / 10.0, contentMode: .fit)
+                        .accessibilityHidden(true)
+                    descriptionRow.padding(14)
+                }
             }
-            .padding(14)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .background(Color(uiColor: .secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .contentShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var descriptionRow: some View {
+        HStack(alignment: .top) {
+            labelText
+            Spacer(minLength: 4)
+            Image(systemName: "chevron.right").font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary).accessibilityHidden(true)
+        }
+    }
+
+    private var labelText: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(study.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+            Text(study.subtitle).font(.subheadline).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
