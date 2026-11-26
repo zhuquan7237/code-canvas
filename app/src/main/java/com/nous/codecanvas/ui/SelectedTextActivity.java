@@ -151,13 +151,13 @@ public final class SelectedTextActivity extends Activity {
                     ? R.string.selection_temporary_excerpt : R.string.selection_temporary);
         if (!scratch.saved || scratch.owner != this) return;
 
-        if (scratch.source.length() <= EditorActivity.MAX_EDITABLE_CHARS) {
+        if (scratch.source.length() <= MAX_DISPLAY_CHARS) {
             startActivity(new Intent(this, EditorActivity.class)
                     .putExtra(EditorActivity.EXTRA_DOC_ID, scratch.id)
                     .putExtra(EditorActivity.EXTRA_START_PREVIEW, false)
                     .putExtra(EditorActivity.EXTRA_SELECTED_TEXT, true));
         } else {
-            // The regular editor would skip Code and render oversized markup automatically.
+            // Do not push a long selection into a more expensive editor automatically.
             Toast.makeText(this, R.string.selection_saved_large, Toast.LENGTH_LONG).show();
         }
         finish();

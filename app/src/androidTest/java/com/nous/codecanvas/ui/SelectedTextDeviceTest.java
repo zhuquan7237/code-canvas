@@ -9,6 +9,7 @@ import android.test.InstrumentationTestCase;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
+import android.widget.EditText;
 
 import com.nous.codecanvas.data.DocumentRepository;
 import com.nous.codecanvas.model.CanvasDocument;
@@ -92,13 +93,26 @@ public final class SelectedTextDeviceTest extends InstrumentationTestCase {
             assertEquals(1, copies().size());
             assertEquals(copies().get(0).getId(), editor.getIntent().getStringExtra(EditorActivity.EXTRA_DOC_ID));
             assertTrue(copies().get(0).getTitle().endsWith(".html"));
+            ui(() -> {
+                EditText code = editor.findViewById(R.id.edit_code);
+                assertTrue("Actual Code view should be visible", code.isShown());
+                assertEquals(SOURCE, code.getText().toString());
+            });
         } finally {
             getInstrumentation().removeMonitor(editorMonitor);
         }
     }
 
-    public void testOversizedEditableSelectionSavesWithoutOpeningPreview() throws Exception {
-        fixture = "<html><body>" + new String(new char[201000]).replace('\0','a') + "</body></html>";
+    public void testSelectionBelowEditorLimitStillDoesNotAutoOpen() throws Exception {
+        verifyLongSelection(16000);
+    }
+
+    public void testVeryLongSelectionSavesWithoutOpeningPreview() throws Exception {
+        verifyLongSelection(201000);
+    }
+
+    private void verifyLongSelection(int length) throws Exception {
+        fixture = "<html><body>" + new String(new char[length]).replace('\0','a') + "</body></html>";
         Instrumentation.ActivityMonitor editorMonitor = monitor(EditorActivity.class);
         try {
             Activity scratch = start(fixture, "text/plain");
