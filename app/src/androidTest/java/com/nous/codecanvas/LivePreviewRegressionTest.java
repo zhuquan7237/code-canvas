@@ -123,7 +123,7 @@ public class LivePreviewRegressionTest extends InstrumentationTestCase {
                 + "&&['btn-boost','btn-audio'].every(id=>{const r=document.getElementById(id).getBoundingClientRect();"
                 + "return r.left>=-1&&r.right<=innerWidth+1&&r.top>=-1&&r.bottom<=innerHeight+1})})()");
         assertEquals("true", eval("(()=>{document.querySelector('#btn-pause').dispatchEvent("
-                + "new MouseEvent('click',{bubbles:true}));"
+                + "new PointerEvent('pointerdown',{bubbles:true,cancelable:true,pointerType:'touch',isPrimary:true}));"
                 + "return document.querySelector('#paused-badge').getAttribute('opacity')==='1'})()"));
         assertEquals(original, new DocumentRepository(context()).findById(doc.getId()).getContent());
     }
