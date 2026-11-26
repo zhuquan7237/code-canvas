@@ -38,7 +38,6 @@ import com.nous.codecanvas.util.ClipboardCodeOffer;
 import com.nous.codecanvas.util.FileUtils;
 import com.nous.codecanvas.util.PreviewKey;
 import com.nous.codecanvas.util.RenderKind;
-import com.nous.codecanvas.util.RenderKindDetector;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -312,7 +311,8 @@ public class MainActivity extends Activity {
                 }
                 return;
             }
-            String shared = intent.getStringExtra(Intent.EXTRA_TEXT);
+            CharSequence sharedText = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
+            String shared = sharedText == null ? null : sharedText.toString();
             if (shared != null && !shared.trim().isEmpty()) {
                 pendingSharedText = shared;
                 // Same chooser as a paste: several fenced blocks must be picked, not silently
@@ -1158,15 +1158,7 @@ public class MainActivity extends Activity {
     private void importBannerClip() {
         String content = bannerClipContent;
         dismissClipboardBanner(true);
-        if (content == null) return;
-        List<AiCodeExtractor.CodeBlock> blocks = AiCodeExtractor.extract(content);
-        if (blocks.size() == 1) {
-            createAndLaunchQuickPaste(blocks.get(0).code, blocks.get(0).language);
-        } else if (blocks.size() > 1) {
-            showMultiBlockSheet(blocks, content);
-        } else {
-            createAndLaunchQuickPaste(content, "");
-        }
+        if (content != null) offerIncomingText(content);
     }
 
     private void dismissClipboardBanner(boolean remember) {
@@ -1221,62 +1213,41 @@ public class MainActivity extends Activity {
         }
         lastHandledClipHash = rawString.hashCode();
         pendingSharedText = null;
-        List<AiCodeExtractor.CodeBlock> blocks = AiCodeExtractor.extract(rawString);
-
-        if (blocks.size() > 1) {
-            showMultiBlockSheet(blocks, rawString);
-        } else {
-            String region = blocks.isEmpty() ? AiCodeExtractor.markupRegion(rawString) : null;
-            if (region != null) {
-                final String markup = region;
-                CanvasBottomSheet.Action[] actions = new CanvasBottomSheet.Action[]{
-                        new CanvasBottomSheet.Action(0, R.drawable.ic_paste, "只保存识别到的代码（推荐）",
-                                "按第一个尖括号到最后一行截取", false),
-                        new CanvasBottomSheet.Action(1, R.drawable.ic_copy, "保存全文",
-                                rawString.length() + " 字符", false),
-                };
-                activeSheet = CanvasBottomSheet.show(this,
-                        "这段内容里既有说明文字也有代码",
-                        "没有找到代码围栏，截取规则选错了可以直接重来",
-                        actions,
-                        id -> createAndLaunchQuickPaste(id == 0 ? markup : rawString, ""));
-                return;
-            }
-            String code = blocks.isEmpty() ? rawString : blocks.get(0).code;
-            String lang = blocks.isEmpty() ? "" : blocks.get(0).language;
-            createAndLaunchQuickPaste(code, lang);
+        if (rawString.trim().isEmpty()) {
+            Toast.makeText(this, "没有可导入的内容", Toast.LENGTH_SHORT).show();
+            return;
         }
+        List<AiCodeExtractor.CodeBlock> blocks = AiCodeExtractor.extractFenced(rawString);
+        if (blocks.size() > 1 || (blocks.size() == 1 && blocks.get(0).hasSurroundingText(rawString))) {
+            showMultiBlockSheet(blocks, rawString);
+            return;
+        }
+        if (blocks.size() == 1) {
+            createAndLaunchQuickPaste(blocks.get(0).code, blocks.get(0).language);
+            return;
+        }
+        String markup = AiCodeExtractor.markupRegion(rawString);
+        if (markup != null) {
+            CanvasBottomSheet.Action[] actions = {
+                    new CanvasBottomSheet.Action(0, R.drawable.ic_paste, "只打开识别到的代码",
+                            "按标记范围提取，说明文字不导入", false),
+                    new CanvasBottomSheet.Action(1, R.drawable.ic_copy, "保留完整原文",
+                            "说明文字和代码都保留", false),
+            };
+            activeSheet = CanvasBottomSheet.show(this, "说明文字与代码", "选择要导入的内容",
+                    actions, id -> createAndLaunchQuickPaste(id == 0 ? markup : rawString, id == 0 ? "" : "plaintext"));
+            return;
+        }
+        createAndLaunchQuickPaste(rawString, "");
     }
 
     /** Multi-block pick: one sheet, one row per block, full text as the last row. */
     private void showMultiBlockSheet(List<AiCodeExtractor.CodeBlock> blocks, String rawString) {
-        CanvasBottomSheet.Action[] actions = new CanvasBottomSheet.Action[blocks.size() + 1];
-        for (int i = 0; i < blocks.size(); i++) {
-            AiCodeExtractor.CodeBlock b = blocks.get(i);
-            String label = b.language.isEmpty()
-                    ? "代码块 " + (i + 1)
-                    : b.language.toUpperCase(Locale.ROOT) + " 块 " + (i + 1);
-            String snippet = b.code.length() > 34 ? b.code.substring(0, 34).replace("\n", " ") + "…"
-                    : b.code.replace("\n", " ");
-            actions[i] = new CanvasBottomSheet.Action(i, R.drawable.ic_paste, label, snippet, false);
-        }
-        actions[blocks.size()] = new CanvasBottomSheet.Action(blocks.size(), R.drawable.ic_copy,
-                "完整原始剪贴板文本", rawString.length() + " 字符", false);
-        activeSheet = CanvasBottomSheet.show(this,
-                "检测到 " + blocks.size() + " 段代码块",
-                "选择一段创建画布",
-                actions,
-                id -> {
-                    if (id < blocks.size()) {
-                        createAndLaunchQuickPaste(blocks.get(id).code, blocks.get(id).language);
-                    } else {
-                        createAndLaunchQuickPaste(rawString, "");
-                    }
-                });
+        activeSheet = CodeBlockSheet.show(this, blocks, rawString, this::createAndLaunchQuickPaste);
     }
 
     private void createAndLaunchQuickPaste(String code, String lang) {
-        String inferredExt = inferExtension(code, lang);
+        String inferredExt = com.nous.codecanvas.util.PasteFileNaming.extension(code, lang);
         SimpleDateFormat sdf = new SimpleDateFormat("MMdd_HHmm", Locale.getDefault());
         String defaultTitle = "快速画布_" + sdf.format(new Date()) + inferredExt;
 
@@ -1286,6 +1257,8 @@ public class MainActivity extends Activity {
                 code,
                 System.currentTimeMillis()
         );
+
+        newDoc.setLineEnding(com.nous.codecanvas.util.TextCodec.PRESERVE_LINE_ENDINGS);
 
         new Thread(() -> {
             try {
@@ -1298,22 +1271,6 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "创建画布失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
         }).start();
-    }
-
-    private String inferExtension(String code, String lang) {
-        String l = lang.trim().toLowerCase(Locale.ROOT);
-        if (l.contains("html") || l.contains("htm")) return ".html";
-        if (l.contains("svg")) return ".svg";
-        if (l.contains("xml")) return ".xml";
-        if (l.contains("json")) return ".json";
-        if (l.contains("js") || l.contains("javascript")) return ".js";
-        if (l.contains("css")) return ".css";
-
-        RenderKind kind = RenderKindDetector.detect("", code);
-        if (kind == RenderKind.SVG) return ".svg";
-        if (kind == RenderKind.HTML) return ".html";
-        if (kind == RenderKind.XML) return ".xml";
-        return ".txt";
     }
 
     private void showNewDocumentDialog() {

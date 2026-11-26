@@ -96,6 +96,8 @@ public final class CanvasBottomSheet {
         TextView txtTitle = sheet.findViewById(R.id.sheet_title);
         TextView txtSubtitle = sheet.findViewById(R.id.sheet_subtitle);
         LinearLayout container = sheet.findViewById(R.id.sheet_actions_container);
+        MaxHeightScrollView scroll = sheet.findViewById(R.id.sheet_actions_scroll);
+        if (scroll != null) scroll.setMaxHeight(Math.round(context.getResources().getDisplayMetrics().heightPixels * 0.60f));
 
         if (backdrop != null) {
             backdrop.setOnClickListener(v -> dialog.dismiss());

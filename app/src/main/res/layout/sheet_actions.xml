@@ -50,12 +50,18 @@
             android:singleLine="true"
             android:ellipsize="end" />
 
-        <LinearLayout
-            android:id="@+id/sheet_actions_container"
+        <com.nous.codecanvas.ui.MaxHeightScrollView
+            android:id="@+id/sheet_actions_scroll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:layout_marginTop="12dp"
-            android:paddingHorizontal="12dp" />
+            android:overScrollMode="ifContentScrolls">
+            <LinearLayout
+                android:id="@+id/sheet_actions_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="12dp" />
+        </com.nous.codecanvas.ui.MaxHeightScrollView>
     </LinearLayout>
 </FrameLayout>

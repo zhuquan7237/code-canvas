@@ -167,8 +167,11 @@ public final class TextCodec {
      * Rewrite the text so it uses {@code lineEnding} throughout, without touching a lone
      * {@code \r} that is part of the content (only CRLF and lone CR/ LF pairs are normalised).
      */
+    public static final String PRESERVE_LINE_ENDINGS = "preserve";
+
     public static String normalizeLineEndings(String text, String lineEnding) {
         if (text == null) return "";
+        if (PRESERVE_LINE_ENDINGS.equals(lineEnding)) return text;
         String target = lineEnding == null || lineEnding.isEmpty() ? "\n" : lineEnding;
         String unified = text.replace("\r\n", "\n").replace('\r', '\n');
         if ("\n".equals(target)) return unified;
