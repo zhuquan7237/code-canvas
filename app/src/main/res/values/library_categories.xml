@@ -12,4 +12,5 @@
     <string name="catalog_clear_filters">清除筛选</string>
     <string name="catalog_search_count">搜索结果 · %1$d</string>
     <string name="catalog_count">作品 · %1$d</string>
+    <string name="catalog_picker_title">按格式筛选</string>
 </resources>

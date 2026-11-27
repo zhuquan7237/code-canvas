@@ -32,6 +32,7 @@ public final class LibraryFilterDeviceTest extends InstrumentationTestCase {
 
     @Override protected void setUp() throws Exception {
         super.setUp();
+        assertNotNull(getInstrumentation().getUiAutomation());
         context = getInstrumentation().getTargetContext();
         repository = new DocumentRepository(context);
         csv = save(".csv", "name,value\nitem,42\n", DocumentKind.CSV);
@@ -75,6 +76,8 @@ public final class LibraryFilterDeviceTest extends InstrumentationTestCase {
         // All is category-only: the retained search remains visible and active.
         choose(R.id.btn_drawer_filter, R.string.library_category_all);
         awaitFixtures(R.id.drawer_list);
+        ui(() -> assertTrue(home.findViewById(R.id.drawer_active_query).isShown()));
+        choose(R.id.btn_drawer_filter, R.string.library_category_data);
         ui(() -> assertTrue(home.findViewById(R.id.drawer_active_query).isShown()));
         ui(() -> home.findViewById(R.id.btn_drawer_reset).performClick());
         awaitFixtures(R.id.drawer_list, csv, json, notebook, legacy);

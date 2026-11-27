@@ -614,23 +614,21 @@ public class MainActivity extends Activity {
         setTypeFilter(LibraryCategory.ALL);
     }
 
-    /** Android's anchored format menu adds no permanent row on a narrow screen. */
+    /** One shared checked list opens from either surface without permanent filter chips. */
     private void showLibraryFormatMenu(View anchor) {
         if (selectionMode) return;
         finishLibrarySearch();
-        android.widget.PopupMenu popup = new android.widget.PopupMenu(this, anchor);
         LibraryCategory[] options = LibraryCategory.values();
-        for (int i = 0; i < options.length; i++) {
-            popup.getMenu().add(1, i + 1, i, filterLabel(options[i]))
-                    .setCheckable(true)
-                    .setChecked(typeFilter == options[i]);
-        }
-        popup.getMenu().setGroupCheckable(1, true, true);
-        popup.setOnMenuItemClickListener(item -> {
-            setTypeFilter(options[item.getItemId() - 1]);
-            return true;
-        });
-        popup.show();
+        CharSequence[] labels = new CharSequence[options.length];
+        for (int i = 0; i < options.length; i++) labels[i] = filterLabel(options[i]);
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.catalog_picker_title)
+                .setSingleChoiceItems(labels, typeFilter.ordinal(), (dialog, which) -> {
+                    dialog.dismiss();
+                    setTypeFilter(options[which]);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void setTypeFilter(LibraryCategory filter) {

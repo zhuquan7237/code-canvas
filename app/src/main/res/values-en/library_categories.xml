@@ -12,4 +12,5 @@
     <string name="catalog_clear_filters">Clear filters</string>
     <string name="catalog_search_count">Search results · %1$d</string>
     <string name="catalog_count">Items · %1$d</string>
+    <string name="catalog_picker_title">Filter by format</string>
 </resources>
