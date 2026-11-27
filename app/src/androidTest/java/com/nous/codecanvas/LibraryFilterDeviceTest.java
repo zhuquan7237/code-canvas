@@ -14,6 +14,7 @@ import android.widget.TextView;
 
 import com.nous.codecanvas.data.DocumentKind;
 import com.nous.codecanvas.data.DocumentRepository;
+import com.nous.codecanvas.data.FileImporter;
 import com.nous.codecanvas.model.CanvasDocument;
 import com.nous.codecanvas.ui.MainActivity;
 
@@ -48,7 +49,11 @@ public final class LibraryFilterDeviceTest extends InstrumentationTestCase {
             if (home != null && !home.isDestroyed()) home.finishAndRemoveTask();
         });
         for (CanvasDocument fixture : Arrays.asList(csv, json, notebook, legacy)) {
-            if (fixture != null) repository.deleteDocument(fixture.getId());
+            if (fixture != null) {
+                repository.deleteDocument(fixture.getId());
+                if (fixture.isBlob()) java.nio.file.Files.deleteIfExists(
+                        FileImporter.blobFile(context, fixture.getId()).toPath());
+            }
         }
         getInstrumentation().waitForIdleSync();
         super.tearDown();
@@ -113,6 +118,11 @@ public final class LibraryFilterDeviceTest extends InstrumentationTestCase {
         CanvasDocument doc = new CanvasDocument(UUID.randomUUID().toString(), MARKER + suffix,
                 body, System.currentTimeMillis());
         if (kind != null) doc.setKindName(kind.name());
+        if (kind == DocumentKind.NOTEBOOK) {
+            doc.setBlob(true);
+            doc.setContent("");
+            FileImporter.writeBlob(context, doc.getId(), body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
         repository.saveDocument(doc);
         return doc;
     }

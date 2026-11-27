@@ -1478,7 +1478,7 @@ public class MainActivity extends Activity {
                     && (typeFilter != LibraryCategory.ALL || !editSearch.getText().toString().trim().isEmpty());
             importError = CanvasConfirmDialog.show(this, "批量导入结果", result.message,
                     hasFilters ? "清除筛选" : "完成", "保留筛选", false,
-                    hasFilters ? this::clearImportFilters : null);
+                    hasFilters ? this::resetLibrarySearch : null);
             bindImportDismiss(result, true, hasFilters);
         } else if (result.document != null) {
             imports.completed.remove();
@@ -1490,11 +1490,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void clearImportFilters() {
-        editSearch.setText("");
-        setTypeFilter(null);
-        editSearch.clearFocus();
-    }
 
     private void showImportError(ImportOutcome failed, boolean queued) {
         importError = CanvasConfirmDialog.show(this, "未能导入文件", failed.message,
