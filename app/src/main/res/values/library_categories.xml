@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_category_all">全部</string>
+    <string name="library_category_data">数据与表格</string>
+    <string name="library_category_notebooks">笔记本</string>
+    <string name="library_category_visual">网页与图形</string>
+    <string name="library_category_documents">阅读文档</string>
+    <string name="library_category_source">代码与文本</string>
+    <string name="library_category_other">其他</string>
+    <string name="catalog_filter_button">格式：%1$s</string>
+    <string name="catalog_active_query">搜索：%1$s</string>
+    <string name="catalog_clear_filters">清除筛选</string>
+    <string name="catalog_search_count">搜索结果 · %1$d</string>
+    <string name="catalog_count">作品 · %1$d</string>
+    <string name="catalog_picker_title">按格式筛选</string>
+</resources>

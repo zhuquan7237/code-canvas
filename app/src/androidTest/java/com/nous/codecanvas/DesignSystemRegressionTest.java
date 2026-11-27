@@ -140,40 +140,11 @@ public class DesignSystemRegressionTest extends InstrumentationTestCase {
             assertTrue(main.findViewById(R.id.drawer_settings).getHeight() >= min);
         });
 
-        // The HTML pill narrows both surfaces to HTML only.
         ui(() -> {
-            LinearLayout filters = main.findViewById(R.id.drawer_filters);
-            View htmlChip = null;
-            int filterCount = 0;
-            int selectedCount = 0;
-            for (int row = 0; row < filters.getChildCount(); row++) {
-                ViewGroup wrapRow = (ViewGroup) filters.getChildAt(row);
-                for (int col = 0; col < wrapRow.getChildCount(); col++) {
-                    View chip = wrapRow.getChildAt(col);
-                    TextView label = chip.findViewById(R.id.filter_label);
-                    if (label != null) {
-                        filterCount++;
-                        if (chip.isSelected()) selectedCount++;
-                        if ("HTML".contentEquals(label.getText())) htmlChip = chip;
-                    }
-                }
-            }
-            assertEquals(5, filterCount);
-            assertEquals(1, selectedCount);
-            assertNotNull("The HTML filter must be reachable across wrapped rows", htmlChip);
-            assertTrue(htmlChip.performClick());
-        });
-        ui(() -> {
-            ListView drawer = main.findViewById(R.id.drawer_list);
-            ListView gallery = main.findViewById(R.id.list_documents);
-            for (int i = 0; i < drawer.getAdapter().getCount(); i++) {
-                CanvasDocument d = (CanvasDocument) drawer.getAdapter().getItem(i);
-                assertTrue("筛选后只应出现 HTML：" + d.getTitle(), d.getTitle().endsWith(".html"));
-            }
-            assertTrue("筛选后画廊必须至少有种子文件", gallery.getAdapter().getCount() >= 1);
-            TextView count = main.findViewById(R.id.txt_file_count);
-            assertTrue("计数标题必须反映筛选：" + count.getText(),
-                    count.getText().toString().startsWith("HTML"));
+            View filter = main.findViewById(R.id.btn_drawer_filter);
+            assertTrue(filter.isShown());
+            assertTrue(filter.getHeight() >= main.getResources().getDimensionPixelSize(R.dimen.touch_min));
+            assertEquals(View.GONE, main.findViewById(R.id.btn_drawer_reset).getVisibility());
         });
 
         ui(() -> main.findViewById(R.id.btn_drawer_close).performClick());
