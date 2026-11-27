@@ -11,7 +11,7 @@
 | 你想做什么 | 推荐版本 |
 | --- | --- |
 | 在 Windows、Mac、iPhone、iPad 或 Android 上直接试用 | [打开 PWA](https://canvas.zhuquan.xyz/app/)。支持 HTML / SVG 的隔离预览、文本编辑、本地草稿与文件导出。首次成功加载缓存后，在支持的浏览器中可离线打开。 |
-| 在 Android 上打开更多格式、通过系统分享导入或导出 | [下载安卓 APK](https://github.com/zhuquan7237/code-canvas/releases/latest)，Android 8.0 及以上。支持 HTML、SVG、Markdown、Mermaid、JSON/JSONL、XML、YAML、CSV、常用文本代码、图片/动图、PDF，功能因格式而异。 |
+| 在 Android 上打开更多格式、通过系统分享导入或导出 | [下载安卓 APK](https://github.com/zhuquan7237/code-canvas/releases/latest)，Android 8.0 及以上。支持 HTML、SVG、Markdown、Mermaid、JSON/JSONL、XML、YAML、CSV、常用文本代码、图片/动图、PDF，也支持离线只读查看 Jupyter Notebook（.ipynb）和本地文本对比。功能因格式而异。 |
 | 查看原生 Apple UI 设计 | [SwiftUI 设计样机](https://github.com/zhuquan7237/code-canvas/releases/tag/v0.6.6)。是 Xcode 源码，不是可安装的 iOS 正式版。 |
 | 使用已有 Windows 原生工具 | [Windows 原生版 v0.5.0](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe)。不是网页版；它的版本与功能范围独立。 |
 

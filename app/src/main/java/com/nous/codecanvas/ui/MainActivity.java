@@ -1321,6 +1321,9 @@ public class MainActivity extends Activity {
             actions.add(new CanvasBottomSheet.Action(2, R.drawable.ic_copy, "复制全部代码"));
         actions.add(new CanvasBottomSheet.Action(3, R.drawable.ic_export, "导出到文件"));
         actions.add(new CanvasBottomSheet.Action(4, R.drawable.ic_share, doc.isBlob() ? "分享文件" : "分享源码"));
+        if (CompareTextActivity.accepts(doc)) {
+            actions.add(new CanvasBottomSheet.Action(6, R.drawable.ic_compare, getString(R.string.compare_action)));
+        }
         actions.add(new CanvasBottomSheet.Action(5, R.drawable.ic_delete, "删除", "无法撤销", true));
         DocumentPresentation presentation = presentations.get(doc.getId());
         String metadata = presentation == null ? null : ListMeta.rowDetail(presentation.sizeText,
@@ -1337,6 +1340,8 @@ public class MainActivity extends Activity {
                         case 3: exportDocument(doc); break;
                         case 4: shareDocument(doc); break;
                         case 5: confirmDeleteDocument(doc); break;
+                        case 6: startActivity(new Intent(this, CompareTextActivity.class)
+                                .putExtra(CompareTextActivity.EXTRA_LEFT, doc.getId())); break;
                     }
                 });
     }

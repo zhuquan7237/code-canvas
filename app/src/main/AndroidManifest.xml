@@ -167,6 +167,7 @@
         </activity>
 
 
+        <activity android:name=".ui.CompareTextActivity" android:exported="false" />
         <activity
             android:name=".ui.EditorActivity"
             android:exported="false"
