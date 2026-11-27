@@ -835,7 +835,7 @@ public class MainActivity extends Activity {
         activeQuery.setVisibility(hasQuery ? View.VISIBLE : View.GONE);
         if (hasQuery) {
             activeQuery.setText(getString(R.string.catalog_active_query,
-                    android.text.BidiFormatter.getInstance().unicodeWrap(query)));
+                    android.text.BidiFormatter.getInstance().unicodeWrap(catalogQueryExcerpt(query))));
         } else {
             activeQuery.setText(null);
         }
@@ -850,6 +850,15 @@ public class MainActivity extends Activity {
                 ? R.string.catalog_empty_title : R.string.catalog_no_matches);
         ((TextView) findViewById(R.id.drawer_empty_hint)).setText(libraryEmpty
                 ? R.string.catalog_empty_hint : R.string.catalog_no_matches_hint);
+    }
+
+    /** Do not make a second long native text layout just to disclose the search. */
+    private static String catalogQueryExcerpt(String query) {
+        int limit = 160;
+        if (query.length() <= limit) return query;
+        if (Character.isHighSurrogate(query.charAt(limit - 1))
+                && Character.isLowSurrogate(query.charAt(limit))) limit--;
+        return query.substring(0, limit) + "…";
     }
 
     private void updateDrawerLayout() {
