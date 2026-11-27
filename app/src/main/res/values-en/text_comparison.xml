@@ -6,7 +6,7 @@
     <string name="compare_pick_title">Choose file to compare</string>
     <string name="compare_pick_hint">Choose another saved text file. Neither original is changed.</string>
     <string name="compare_no_candidates">There is no other text file in the library to compare.</string>
-    <string name="compare_file_detail">%1$s · %2$d chars · %3$s</string>
+    <string name="compare_file_detail">%1$s · %2$d chars</string>
     <string name="compare_base">Original: %1$s</string>
     <string name="compare_revision">Comparison: %1$s</string>
     <string name="compare_loading">Reading and comparing text…</string>

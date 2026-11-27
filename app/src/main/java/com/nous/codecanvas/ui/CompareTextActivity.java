@@ -160,11 +160,12 @@ public final class CompareTextActivity extends Activity {
         String title = doc.title.replace('\r',' ').replace('\n',' ');
         if (title.length() > 120) title = title.substring(0, title.offsetByCodePoints(0,
                 Math.min(120, title.codePointCount(0, title.length())))) + "…";
-        return BidiFormatter.getInstance().unicodeWrap(title) + "\n"
+        String shortId = id.substring(Math.max(0, id.length()-8));
+        // The identifier goes first so narrow screens cannot obscure same-name distinctions.
+        return "[" + shortId + "] " + BidiFormatter.getInstance().unicodeWrap(title) + "\n"
                 + getString(R.string.compare_file_detail,
                    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM)
-                        .format(new Date(doc.updated)),
-                   doc.length, id.substring(Math.max(0, id.length()-8)));
+                        .format(new Date(doc.updated)), doc.length);
     }
 
     private void bindNames() {

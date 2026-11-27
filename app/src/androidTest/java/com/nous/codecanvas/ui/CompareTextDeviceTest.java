@@ -121,7 +121,7 @@ public final class CompareTextDeviceTest extends InstrumentationTestCase {
             AccessibilityNodeInfo root=getInstrumentation().getUiAutomation().getRootInActiveWindow();
             if(root!=null) for(AccessibilityNodeInfo node:root.findAccessibilityNodeInfosByText(suffix(doc))){
                 if(node.getText()!=null && node.getText().toString().contains(doc.getTitle())
-                        && node.getText().toString().endsWith(suffix(doc))) return node;
+                        && node.getText().toString().startsWith("["+suffix(doc)+"]")) return node;
             }
             if(wait)SystemClock.sleep(120);
         }

@@ -6,7 +6,7 @@
     <string name="compare_pick_title">选择对比文件</string>
     <string name="compare_pick_hint">选择作品库里的另一份文本。两份原文件都不会改动。</string>
     <string name="compare_no_candidates">作品库里没有另一份可比较的文本。</string>
-    <string name="compare_file_detail">%1$s · %2$d 字符 · %3$s</string>
+    <string name="compare_file_detail">%1$s · %2$d 字符</string>
     <string name="compare_base">原稿：%1$s</string>
     <string name="compare_revision">对照稿：%1$s</string>
     <string name="compare_loading">正在读取并对比文本…</string>
