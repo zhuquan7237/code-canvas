@@ -77,7 +77,7 @@ public final class TextComparison {
     }
 
     private static String normalized(String input) throws LimitExceeded {
-        if (input.length() > MAX_CHARS) throw new LimitExceeded();
+        if (exceedsCharacters(input, MAX_CHARS)) throw new LimitExceeded();
         return input.replace("\r\n", "\n").replace('\r', '\n');
     }
 
@@ -85,8 +85,17 @@ public final class TextComparison {
         if (input.isEmpty()) return new String[0];
         String[] rows = (finalNewline ? input.substring(0, input.length()-1) : input).split("\n", -1);
         if (rows.length > MAX_LINES) throw new LimitExceeded();
-        for (String row : rows) if (row.length()>MAX_LINE_CHARS) throw new LimitExceeded();
+        for (String row : rows) if (exceedsCharacters(row, MAX_LINE_CHARS)) throw new LimitExceeded();
         return rows;
+    }
+
+    public static int characterCount(String text) {
+        return text.codePointCount(0, text.length());
+    }
+
+    private static boolean exceedsCharacters(String value, int limit) {
+        // A code point costs no more than two UTF-16 units; bound work before counting.
+        return value.length() > limit && (value.length() > limit * 2 || characterCount(value) > limit);
     }
 
     /** A visual marker only; neither source string is changed. */

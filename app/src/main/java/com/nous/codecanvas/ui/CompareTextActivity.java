@@ -43,7 +43,7 @@ public final class CompareTextActivity extends Activity {
         Entry(CanvasDocument doc) {
             id = doc.getId();
             title = doc.getTitle();
-            length = doc.getContent().length();
+            length = TextComparison.characterCount(doc.getContent());
             updated = doc.getUpdatedAt();
         }
     }

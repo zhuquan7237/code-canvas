@@ -30,6 +30,18 @@ public class TextComparisonTest {
         assertEquals(2,r.removed); assertEquals(2,r.added);
         assertEquals(2,r.changes.get(0).number); assertEquals(4,r.changes.get(3).number);
     }
+    @Test public void supplementarySymbolsWithinTheCharacterLimitAreAccepted() throws Exception {
+        String emoji = String.join("", java.util.Collections.nCopies(TextComparison.MAX_LINE_CHARS, "🙂"));
+        assertEquals(TextComparison.MAX_LINE_CHARS, TextComparison.characterCount(emoji));
+        assertEquals(1, TextComparison.compare("", emoji).added);
+    }
+
+    @Test(expected=TextComparison.LimitExceeded.class)
+    public void supplementarySymbolsAboveTheCharacterLimitAreRejected() throws Exception {
+        String emoji = String.join("", java.util.Collections.nCopies(TextComparison.MAX_LINE_CHARS+1, "🙂"));
+        TextComparison.compare("", emoji);
+    }
+
     @Test(expected=TextComparison.LimitExceeded.class)
     public void exceptionallyLongSingleLineIsNotLaidOut() throws Exception {
         TextComparison.compare(new String(new char[TextComparison.MAX_LINE_CHARS+1]), "");
