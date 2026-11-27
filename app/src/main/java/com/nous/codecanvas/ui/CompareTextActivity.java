@@ -30,7 +30,7 @@ import java.util.concurrent.Executors;
 public final class CompareTextActivity extends Activity {
     static final String EXTRA_LEFT = "compare_left";
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
-    private TextView left, right, status, eof;
+    private TextView left, right, status, eof, policy;
     private View choose, swap;
     private ListView list;
     private List<Entry> snapshot;
@@ -65,13 +65,17 @@ public final class CompareTextActivity extends Activity {
         findViewById(R.id.root_compare).setOnApplyWindowInsetsListener((v, insets) -> {
             SystemBarInsets.apply(v, insets); return insets;
         });
-        left = findViewById(R.id.compare_left);
-        right = findViewById(R.id.compare_right);
-        status = findViewById(R.id.compare_status);
-        eof = findViewById(R.id.compare_eof);
-        choose = findViewById(R.id.btn_compare_choose);
-        swap = findViewById(R.id.btn_compare_swap);
         list = findViewById(R.id.compare_list);
+        View header = getLayoutInflater().inflate(R.layout.header_compare_text, list, false);
+        left = header.findViewById(R.id.compare_left);
+        right = header.findViewById(R.id.compare_right);
+        status = header.findViewById(R.id.compare_status);
+        eof = header.findViewById(R.id.compare_eof);
+        policy = header.findViewById(R.id.compare_policy);
+        choose = header.findViewById(R.id.btn_compare_choose);
+        swap = header.findViewById(R.id.btn_compare_swap);
+        list.addHeaderView(header, null, false);
+        bindRows(java.util.Collections.emptyList());
         findViewById(R.id.btn_compare_close).setOnClickListener(v -> finish());
         choose.setOnClickListener(v -> pick());
         swap.setOnClickListener(v -> {
@@ -184,8 +188,10 @@ public final class CompareTextActivity extends Activity {
         bindNames();
         status.setText(R.string.compare_loading);
         eof.setVisibility(View.GONE);
-        findViewById(R.id.compare_policy).setVisibility(View.GONE);
-        list.setAdapter(null);
+        policy.setVisibility(View.GONE);
+        choose.setEnabled(false);
+        swap.setEnabled(false);
+        bindRows(java.util.Collections.emptyList());
         worker.execute(() -> {
             try {
                 CanvasDocument leftDoc = null, rightDoc = null;
@@ -201,6 +207,7 @@ public final class CompareTextActivity extends Activity {
                             else { snapshot.removeIf(entry -> entry.id.equals(b)); }
                             after = null;
                             swap.setEnabled(false);
+                            choose.setEnabled(!leftMissing);
                             right.setVisibility(View.GONE);
                             status.setText(leftMissing ? R.string.compare_missing : R.string.compare_missing_other);
                         }
@@ -216,11 +223,19 @@ public final class CompareTextActivity extends Activity {
                 });
             } catch (TextComparison.LimitExceeded limit) {
                 runOnUiThread(() -> {
-                    if (alive() && run == generation) status.setText(R.string.compare_limit);
+                    if (alive() && run == generation) {
+                        choose.setEnabled(true);
+                        swap.setEnabled(true);
+                        status.setText(R.string.compare_limit);
+                    }
                 });
             } catch (Exception unavailable) {
                 runOnUiThread(() -> {
-                    if (alive() && run == generation) status.setText(R.string.compare_load_failed);
+                    if (alive() && run == generation) {
+                        choose.setEnabled(true);
+                        swap.setEnabled(true);
+                        status.setText(R.string.compare_load_failed);
+                    }
                 });
             }
         });
@@ -230,21 +245,25 @@ public final class CompareTextActivity extends Activity {
         status.setText(result.same() ? getString(R.string.compare_identical)
                 : result.changes.isEmpty() ? getString(R.string.compare_eof_only)
                 : getString(R.string.compare_counts, result.added, result.removed));
-        findViewById(R.id.compare_policy).setVisibility(result.changes.isEmpty() ? View.GONE : View.VISIBLE);
+        policy.setVisibility(result.changes.isEmpty() ? View.GONE : View.VISIBLE);
         boolean changedEof = result.leftEndsWithNewline != result.rightEndsWithNewline;
         eof.setVisibility(changedEof ? View.VISIBLE : View.GONE);
         if (changedEof) eof.setText(result.rightEndsWithNewline
                 ? R.string.compare_eof_added : R.string.compare_eof_removed);
+        bindRows(result.changes);
+    }
+
+    private void bindRows(List<TextComparison.Row> rows) {
         list.setAdapter(new ArrayAdapter<TextComparison.Row>(this, android.R.layout.simple_list_item_1,
-                result.changes) {
+                rows) {
             @Override public View getView(int position, View recycled, ViewGroup parent) {
                 TextView row;
                 if (recycled instanceof TextView) row = (TextView) recycled;
                 else {
                     row = new TextView(CompareTextActivity.this);
                     float density = getResources().getDisplayMetrics().density;
-                    row.setPadding(Math.round(12*density), Math.round(8*density),
-                            Math.round(12*density), Math.round(8*density));
+                    row.setPadding(Math.round(16*density), Math.round(8*density),
+                            Math.round(16*density), Math.round(8*density));
                     row.setTypeface(android.graphics.Typeface.MONOSPACE);
                     row.setTextSize(14);
                     row.setSaveEnabled(false);

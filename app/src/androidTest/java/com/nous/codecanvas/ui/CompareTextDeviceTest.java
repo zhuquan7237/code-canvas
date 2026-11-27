@@ -59,8 +59,8 @@ public final class CompareTextDeviceTest extends InstrumentationTestCase {
             assertTrue(text(R.id.compare_right).contains(suffix(b)));
             assertEquals(activity.getString(R.string.compare_eof_removed),text(R.id.compare_eof));
             ListView lines = activity.findViewById(R.id.compare_list);
-            assertEquals(3, lines.getAdapter().getCount());
-            TextComparison.Row removed=(TextComparison.Row)lines.getAdapter().getItem(0);
+            assertEquals(4, lines.getAdapter().getCount()); // includes the scrollable header
+            TextComparison.Row removed=(TextComparison.Row)lines.getAdapter().getItem(1);
             assertEquals("same  ", removed.text);
             assertFalse(removed.added);
             activity.findViewById(R.id.btn_compare_swap).performClick();
@@ -92,6 +92,24 @@ public final class CompareTextDeviceTest extends InstrumentationTestCase {
         launch(a); select(longLine); awaitText(R.id.compare_status,R.string.compare_limit);
         ui(() -> activity.findViewById(R.id.btn_compare_choose).performClick());
         select(other); awaitCount(1,1);
+    }
+
+    public void testTargetDeletedAfterPickingListReadCanBeReplaced() throws Exception {
+        CanvasDocument a=save("qa080-base.txt","line\n",false);
+        CanvasDocument b=save("qa080-disappears.txt","lost\n",false);
+        CanvasDocument c=save("qa080-available.txt","next\n",false);
+        launch(a);
+        assertNotNull(awaitPicker(b,true));
+        repository.deleteDocument(b.getId());
+        select(b);
+        awaitText(R.id.compare_status,R.string.compare_missing_other);
+        ui(() -> {
+            assertTrue(activity.findViewById(R.id.btn_compare_choose).isEnabled());
+            assertFalse(activity.findViewById(R.id.btn_compare_swap).isEnabled());
+            activity.findViewById(R.id.btn_compare_choose).performClick();
+        });
+        select(c);
+        awaitCount(1,1);
     }
 
     private CanvasDocument save(String title,String source,boolean blob) throws Exception {
