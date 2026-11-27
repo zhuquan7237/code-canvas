@@ -304,9 +304,9 @@ public class DesignSystemRegressionTest extends InstrumentationTestCase {
             Dialog sheet = main.getActiveSheetForTest();
             assertNotNull("⋮ 必须打开统一动作面板", sheet);
             assertTrue(sheet.isShowing());
-            // Six real rows out of the sheet's own container - not a replica menu.
-            assertEquals(6, CanvasBottomSheet.actionCount(sheet));
-            View danger = CanvasBottomSheet.actionRowAt(sheet, 5);
+            // Seven real rows out of the sheet's own container - not a replica menu.
+            assertEquals(7, CanvasBottomSheet.actionCount(sheet));
+            View danger = CanvasBottomSheet.actionRowAt(sheet, 6);
             assertNotNull(danger);
             TextView label = danger.findViewById(R.id.action_label);
             assertEquals("删除", label.getText().toString());

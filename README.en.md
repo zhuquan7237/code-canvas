@@ -11,7 +11,7 @@ Turn code from an AI chat or a local file into **something you can preview, edit
 | I want to… | Use this |
 | --- | --- |
 | Try it directly on Windows, Mac, iPhone, iPad, or Android | [Open the PWA](https://canvas.zhuquan.xyz/app/?lang=en). It supports isolated HTML and SVG previews, text editing, local drafts, and export. After the app loads and caches successfully, compatible browsers can open it offline. |
-| Open more formats or work with native Android file sharing | [Download the APK](https://github.com/zhuquan7237/code-canvas/releases/latest) for Android 8.0 or later. It supports HTML, SVG, Markdown, Mermaid, JSON/JSONL, XML, YAML, CSV, common code and text formats, images and animations, and PDF. Available operations depend on the format. |
+| Open more formats or work with native Android file sharing | [Download the APK](https://github.com/zhuquan7237/code-canvas/releases/latest) for Android 8.0 or later. It supports HTML, SVG, Markdown, Mermaid, JSON/JSONL, XML, YAML, CSV, common code and text formats, images and animations, and PDF, plus offline read-only Jupyter Notebook (.ipynb) preview and local text comparison. Available operations depend on the format. |
 | Explore the native Apple design | [SwiftUI design prototype](https://github.com/zhuquan7237/code-canvas/releases/tag/v0.6.6). It is Xcode source, not an installable production iOS app. |
 | Use the existing native Windows utility | [Windows native v0.5.0](https://relay.zhuquan.xyz/dl/CodeCanvas-Setup-0.5.0.exe). It is separate from the PWA and has its own feature set and version. |
 

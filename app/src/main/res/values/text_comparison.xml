@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="compare_action">对比另一份文本</string>
+    <string name="compare_title">文本对比</string>
+    <string name="compare_swap">交换方向</string>
+    <string name="compare_pick_title">选择对比文件</string>
+    <string name="compare_pick_hint">选择作品库里的另一份文本。两份原文件都不会改动。</string>
+    <string name="compare_no_candidates">作品库里没有另一份可比较的文本。</string>
+    <string name="compare_file_detail">%1$s · %2$d 字符 · %3$s</string>
+    <string name="compare_base">原稿：%1$s</string>
+    <string name="compare_revision">对照稿：%1$s</string>
+    <string name="compare_loading">正在读取并对比文本…</string>
+    <string name="compare_load_failed">无法读取作品库。原文件未改动。</string>
+    <string name="compare_missing">找不到原稿。请返回作品库重新选择。</string>
+    <string name="compare_missing_other">对照稿已不在作品库。请选择另一份。</string>
+    <string name="compare_limit">文本太长：每份最多 65,536 字符、1,000 行，每行最多 1,024 字符。</string>
+    <string name="compare_identical">文本内容相同（忽略换行格式）</string>
+    <string name="compare_counts">新增 %1$d 行 · 删除 %2$d 行</string>
+    <string name="compare_eof_added">对照稿新增了文件末尾的换行符。</string>
+    <string name="compare_eof_removed">对照稿没有原稿末尾的换行符。</string>
+    <string name="compare_added_line">新增第 %1$d 行：%2$s</string>
+    <string name="compare_removed_line">删除第 %1$d 行：%2$s</string>
+    <string name="compare_eof_only">只有文件末尾的换行发生了变化</string>
+    <string name="compare_policy">忽略换行格式 · 行末空格 ␠ · 行末制表符 ⇥</string>
+</resources>
