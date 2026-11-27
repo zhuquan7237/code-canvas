@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_category_all">All</string>
+    <string name="library_category_data">Data &amp; tables</string>
+    <string name="library_category_notebooks">Notebooks</string>
+    <string name="library_category_visual">Web &amp; graphics</string>
+    <string name="library_category_documents">Documents</string>
+    <string name="library_category_source">Code &amp; text</string>
+    <string name="library_category_other">Other</string>
+    <string name="catalog_filter_button">Format: %1$s</string>
+    <string name="catalog_active_query">Search: %1$s</string>
+    <string name="catalog_clear_filters">Clear filters</string>
+    <string name="catalog_search_count">Search results · %1$d</string>
+    <string name="catalog_count">Items · %1$d</string>
+</resources>

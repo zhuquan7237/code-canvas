@@ -40,6 +40,7 @@ import com.nous.codecanvas.util.CanvasClipboard;
 import com.nous.codecanvas.util.ClipboardCodeOffer;
 import com.nous.codecanvas.util.FileUtils;
 import com.nous.codecanvas.util.PreviewKey;
+import com.nous.codecanvas.data.LibraryCategory;
 import com.nous.codecanvas.util.RenderKind;
 
 import java.io.ByteArrayOutputStream;
@@ -120,13 +121,10 @@ public class MainActivity extends Activity {
     private View drawerPanel;
     private ListView drawerList;
     private TextView drawerSubtitle;
-    private LinearLayout drawerFilters;
     private DrawerAdapter drawerAdapter;
     private int drawerWidth;
-    private boolean drawerCompact;
     private final java.util.Map<View, Integer> drawerCoveredAccessibility = new java.util.HashMap<>();
-    /** null = 全部, otherwise a RenderKind name. */
-    private String typeFilter;
+    private LibraryCategory typeFilter = LibraryCategory.ALL;
 
     private final List<CanvasDocument> allDocuments = new ArrayList<>();
     private final List<CanvasDocument> filteredDocuments = new ArrayList<>();
@@ -267,7 +265,7 @@ public class MainActivity extends Activity {
         imports = retained instanceof ImportSession
                 ? (ImportSession) retained : new ImportSession(getApplicationContext());
         if (savedInstanceState != null) {
-            typeFilter = savedInstanceState.getString("type_filter");
+            typeFilter = LibraryCategory.restore(savedInstanceState.getString("type_filter"));
             importInterrupted = retained == null && savedInstanceState.getBoolean("import_pending");
         }
         try {
@@ -286,7 +284,7 @@ public class MainActivity extends Activity {
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putBoolean("import_pending", imports != null && imports.hasPending());
-        if (typeFilter != null) outState.putString("type_filter", typeFilter);
+        outState.putString("type_filter", typeFilter.savedKey());
     }
 
     @Override
@@ -605,13 +603,15 @@ public class MainActivity extends Activity {
     private void finishLibrarySearch() {
         InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
         if (imm != null) imm.hideSoftInputFromWindow(editSearch.getWindowToken(), 0);
-        findViewById(R.id.root_main).requestFocus();
+        if (drawerRoot == null || drawerRoot.getVisibility() != View.VISIBLE) {
+            findViewById(R.id.root_main).requestFocus();
+        }
     }
 
     private void resetLibrarySearch() {
         finishLibrarySearch();
         editSearch.setText("");
-        setTypeFilter(null);
+        setTypeFilter(LibraryCategory.ALL);
     }
 
     /** Android's anchored format menu adds no permanent row on a narrow screen. */
@@ -619,24 +619,23 @@ public class MainActivity extends Activity {
         if (selectionMode) return;
         finishLibrarySearch();
         android.widget.PopupMenu popup = new android.widget.PopupMenu(this, anchor);
-        for (int i = 0; i < LIBRARY_FILTERS.length; i++) {
-            String[] option = LIBRARY_FILTERS[i];
-            popup.getMenu().add(1, i + 1, i, option[0])
+        LibraryCategory[] options = LibraryCategory.values();
+        for (int i = 0; i < options.length; i++) {
+            popup.getMenu().add(1, i + 1, i, filterLabel(options[i]))
                     .setCheckable(true)
-                    .setChecked(java.util.Objects.equals(typeFilter, option[1]));
+                    .setChecked(typeFilter == options[i]);
         }
         popup.getMenu().setGroupCheckable(1, true, true);
         popup.setOnMenuItemClickListener(item -> {
-            setTypeFilter(LIBRARY_FILTERS[item.getItemId() - 1][1]);
+            setTypeFilter(options[item.getItemId() - 1]);
             return true;
         });
         popup.show();
     }
 
-    private void setTypeFilter(String filter) {
+    private void setTypeFilter(LibraryCategory filter) {
         if (selectionMode) return;
         typeFilter = filter;
-        updateDrawerFilterSelection();
         applyFilters();
     }
 
@@ -688,18 +687,22 @@ public class MainActivity extends Activity {
      * drawer and the gallery can never disagree.
      */
     private void applyFilters() {
+        if (searchRunnable != null) {
+            searchHandler.removeCallbacks(searchRunnable);
+            searchRunnable = null;
+        }
         String query = editSearch != null ? editSearch.getText().toString() : "";
         String q = query != null ? query.trim().toLowerCase(Locale.ROOT) : "";
         filteredDocuments.clear();
         for (CanvasDocument doc : allDocuments) {
             DocumentPresentation presentation = presentations.get(doc.getId());
-            if (typeFilter != null) {
+            if (typeFilter != LibraryCategory.ALL) {
                 // Reuse the kind computed at load time: re-detecting re-parsed the head of every
                 // document on every filter change.
                 com.nous.codecanvas.data.DocumentKind kind = presentation != null
                         ? presentation.kind
                         : doc.kind();
-                if (!matchesTypeFilter(kind)) continue;
+                if (!typeFilter.matches(kind)) continue;
             }
             if (!q.isEmpty()) {
                 if (!doc.getTitle().toLowerCase(Locale.ROOT).contains(q)) {
@@ -716,7 +719,7 @@ public class MainActivity extends Activity {
         if (drawerAdapter != null) drawerAdapter.notifyDataSetChanged();
         listDocuments.post(this::loadVisibleThumbs);
         ((TextView) findViewById(R.id.txt_file_count)).setText(
-                (typeFilter == null ? "作品库" : filterLabel(typeFilter)) + " · " + filteredDocuments.size());
+                (typeFilter == LibraryCategory.ALL ? "作品库" : filterLabel(typeFilter)) + " · " + filteredDocuments.size());
         updateDrawerIndex();
         boolean noMatch = filteredDocuments.isEmpty();
         viewEmpty.setVisibility(noMatch ? View.VISIBLE : View.GONE);
@@ -729,8 +732,8 @@ public class MainActivity extends Activity {
         View localNote = findViewById(R.id.txt_empty_local_note);
         View format = findViewById(R.id.btn_library_filter);
         boolean libraryEmpty = allDocuments.isEmpty();
-        format.setSelected(typeFilter != null);
-        format.setContentDescription(typeFilter == null
+        format.setSelected(typeFilter != LibraryCategory.ALL);
+        format.setContentDescription(typeFilter == LibraryCategory.ALL
                 ? getString(R.string.library_filter_all_description)
                 : getString(R.string.library_filter_active_description, filterLabel(typeFilter)));
         localNote.setVisibility(libraryEmpty ? View.VISIBLE : View.GONE);
@@ -749,33 +752,16 @@ public class MainActivity extends Activity {
         applyHomeChrome();
     }
 
-    /** "其它" is everything that is not HTML, SVG or XML. There is no DocumentKind named RAW. */
-    private static final String FILTER_OTHER = "OTHER";
-    /** Shared labels and keys for the drawer and the fast format picker. */
-    private static final String[][] LIBRARY_FILTERS = {
-            {"全部", null},
-            {"HTML", RenderKind.HTML.name()},
-            {"SVG", RenderKind.SVG.name()},
-            {"XML", RenderKind.XML.name()},
-            {"其它", FILTER_OTHER},
-    };
-
-    private boolean matchesTypeFilter(com.nous.codecanvas.data.DocumentKind kind) {
-        if (typeFilter == null) return true;
-        if (FILTER_OTHER.equals(typeFilter)) {
-            return kind != com.nous.codecanvas.data.DocumentKind.HTML
-                    && kind != com.nous.codecanvas.data.DocumentKind.SVG
-                    && kind != com.nous.codecanvas.data.DocumentKind.XML;
+    private String filterLabel(LibraryCategory category) {
+        switch (category) {
+            case DATA: return getString(R.string.library_category_data);
+            case NOTEBOOK: return getString(R.string.library_category_notebooks);
+            case VISUAL: return getString(R.string.library_category_visual);
+            case DOCUMENT: return getString(R.string.library_category_documents);
+            case SOURCE: return getString(R.string.library_category_source);
+            case OTHER: return getString(R.string.library_category_other);
+            default: return getString(R.string.library_category_all);
         }
-        return kind.name().equals(typeFilter);
-    }
-
-    private static String filterLabel(String kind) {
-        if (RenderKind.HTML.name().equals(kind)) return "HTML 画布";
-        if (RenderKind.SVG.name().equals(kind)) return "SVG 矢量图";
-        if (RenderKind.XML.name().equals(kind)) return "XML 文档";
-        if (FILTER_OTHER.equals(kind)) return "其它";
-        return "我的文件";
     }
 
     // --- catalog drawer ---------------------------------------------------------------------------
@@ -785,7 +771,11 @@ public class MainActivity extends Activity {
         drawerPanel = findViewById(R.id.drawer_panel);
         drawerList = findViewById(R.id.drawer_list);
         drawerSubtitle = findViewById(R.id.drawer_subtitle);
-        drawerFilters = findViewById(R.id.drawer_filters);
+        findViewById(R.id.btn_drawer_filter).setOnClickListener(this::showLibraryFormatMenu);
+        findViewById(R.id.btn_drawer_reset).setOnClickListener(v -> {
+            resetLibrarySearch();
+            findViewById(R.id.btn_drawer_filter).requestFocus();
+        });
 
         drawerAdapter = new DrawerAdapter();
         drawerList.setAdapter(drawerAdapter);
@@ -838,9 +828,25 @@ public class MainActivity extends Activity {
 
     private void updateDrawerIndex() {
         if (drawerSubtitle == null) return;
-        drawerSubtitle.setText(typeFilter == null
-                ? getString(R.string.catalog_any_count, filteredDocuments.size())
-                : getString(R.string.catalog_type_count, filterLabel(typeFilter), filteredDocuments.size()));
+        String query = editSearch == null ? "" : editSearch.getText().toString().trim();
+        boolean hasQuery = !query.isEmpty();
+        drawerSubtitle.setText(hasQuery
+                ? getString(R.string.catalog_search_count, filteredDocuments.size())
+                : getString(R.string.catalog_count, filteredDocuments.size()));
+        TextView activeQuery = findViewById(R.id.drawer_active_query);
+        activeQuery.setVisibility(hasQuery ? View.VISIBLE : View.GONE);
+        if (hasQuery) {
+            activeQuery.setText(getString(R.string.catalog_active_query,
+                    android.text.BidiFormatter.getInstance().unicodeWrap(query)));
+        } else {
+            activeQuery.setText(null);
+        }
+        TextView filter = findViewById(R.id.btn_drawer_filter);
+        filter.setText(getString(R.string.catalog_filter_button, filterLabel(typeFilter)));
+        filter.setEnabled(!selectionMode);
+        findViewById(R.id.btn_drawer_reset).setVisibility(
+                !selectionMode && (hasQuery || typeFilter != LibraryCategory.ALL)
+                        ? View.VISIBLE : View.GONE);
         boolean libraryEmpty = allDocuments.isEmpty();
         ((TextView) findViewById(R.id.drawer_empty_title)).setText(libraryEmpty
                 ? R.string.catalog_empty_title : R.string.catalog_no_matches);
@@ -856,66 +862,12 @@ public class MainActivity extends Activity {
         if (height <= 0) height = getResources().getDisplayMetrics().heightPixels;
         int width = Math.max(1, Math.min(dp(368), available - dp(36)));
         boolean compact = height < dp(400);
-        if (drawerWidth == width && drawerCompact == compact && drawerFilters.getChildCount() > 0) return;
-        drawerWidth = width;
-        drawerCompact = compact;
-        drawerPanel.getLayoutParams().width = drawerWidth;
-        drawerPanel.requestLayout();
-        findViewById(R.id.drawer_format_heading).setVisibility(compact ? View.GONE : View.VISIBLE);
+        if (drawerWidth != width) {
+            drawerWidth = width;
+            drawerPanel.getLayoutParams().width = drawerWidth;
+            drawerPanel.requestLayout();
+        }
         findViewById(R.id.drawer_list_heading).setVisibility(compact ? View.GONE : View.VISIBLE);
-        buildDrawerFilters();
-    }
-
-    /**
-     * Use balanced rows so there is no lonely, clipped “其它”. On short screens a single
-     * scrollable row gives the actual file index back its height.
-     */
-    private void buildDrawerFilters() {
-        drawerFilters.removeAllViews();
-        LayoutInflater inflater = LayoutInflater.from(this);
-        LinearLayout row = newDrawerFilterRow();
-        for (int i = 0; i < LIBRARY_FILTERS.length; i++) {
-            if (!drawerCompact && i == 3) {
-                row = newDrawerFilterRow();
-                row.setPadding(0, dp(4), 0, 0);
-            }
-            String[] option = LIBRARY_FILTERS[i];
-            View chip = inflater.inflate(R.layout.item_drawer_filter, row, false);
-            ((TextView) chip.findViewById(R.id.filter_label)).setText(option[0]);
-            chip.setContentDescription(option[0]);
-            chip.setTag(option[1]);
-            chip.setOnClickListener(v -> setTypeFilter(option[1]));
-            LinearLayout.LayoutParams params = drawerCompact
-                    ? new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT)
-                    : new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-            if (row.getChildCount() > 0) params.setMarginStart(dp(8));
-            row.addView(chip, params);
-        }
-        updateDrawerFilterSelection();
-    }
-
-    private LinearLayout newDrawerFilterRow() {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        drawerFilters.addView(row, new LinearLayout.LayoutParams(
-                drawerCompact ? LinearLayout.LayoutParams.WRAP_CONTENT : LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-        return row;
-    }
-
-    private void updateDrawerFilterSelection() {
-        if (drawerFilters == null) return;
-        for (int r = 0; r < drawerFilters.getChildCount(); r++) {
-            ViewGroup row = (ViewGroup) drawerFilters.getChildAt(r);
-            for (int i = 0; i < row.getChildCount(); i++) {
-                View chip = row.getChildAt(i);
-                boolean active = java.util.Objects.equals(typeFilter, chip.getTag());
-                chip.setSelected(active);
-                chip.findViewById(R.id.filter_label).setSelected(active);
-            }
-        }
     }
 
     private void setHomeAccessibilityCovered(boolean covered) {
@@ -943,9 +895,8 @@ public class MainActivity extends Activity {
     private void openDrawer() {
         finishLibrarySearch();
         updateDrawerLayout();
-        updateDrawerFilterSelection();
-        updateDrawerIndex();
-        drawerAdapter.notifyDataSetChanged();
+        if (searchRunnable != null) applyFilters();
+        else updateDrawerIndex();
         setHomeAccessibilityCovered(true);
         View scrim = findViewById(R.id.drawer_scrim);
         drawerRoot.setVisibility(View.VISIBLE);
@@ -1524,7 +1475,7 @@ public class MainActivity extends Activity {
         if (result.summary) {
             if (result.saved > 0) loadDocuments();
             boolean hasFilters = result.saved > 0 && !selectionMode
-                    && (typeFilter != null || !editSearch.getText().toString().trim().isEmpty());
+                    && (typeFilter != LibraryCategory.ALL || !editSearch.getText().toString().trim().isEmpty());
             importError = CanvasConfirmDialog.show(this, "批量导入结果", result.message,
                     hasFilters ? "清除筛选" : "完成", "保留筛选", false,
                     hasFilters ? this::clearImportFilters : null);

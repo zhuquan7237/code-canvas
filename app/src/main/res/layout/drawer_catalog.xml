@@ -37,18 +37,31 @@
                 android:contentDescription="@string/catalog_close" />
         </LinearLayout>
 
-        <TextView android:id="@+id/drawer_format_heading"
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginHorizontal="@dimen/space_16">
+            <Button android:id="@+id/btn_drawer_filter" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:minHeight="@dimen/touch_min" android:paddingHorizontal="@dimen/space_8"
+                android:background="@drawable/bg_catalog_footer" android:backgroundTint="@null"
+                android:gravity="center_vertical|start" android:textAllCaps="false"
+                android:textSize="14sp" android:textColor="@color/studio_on_tonal"
+                android:text="@string/catalog_formats" />
+            <Button android:id="@+id/btn_drawer_reset" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:layout_marginStart="@dimen/space_4"
+                android:minHeight="@dimen/touch_min" android:paddingHorizontal="@dimen/space_8"
+                android:background="@drawable/bg_button_subtle" android:backgroundTint="@null"
+                android:textAllCaps="false" android:textSize="13sp"
+                android:textColor="@color/canvas_primary"
+                android:text="@string/catalog_clear_filters" android:visibility="gone" />
+        </LinearLayout>
+
+        <TextView android:id="@+id/drawer_active_query"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginHorizontal="@dimen/space_16" android:text="@string/catalog_formats"
-            android:textSize="13sp" android:textStyle="bold" android:textColor="@color/studio_brand"
-            android:accessibilityHeading="true" />
-        <HorizontalScrollView android:id="@+id/drawer_filter_scroll"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_4" android:fillViewport="true">
-            <LinearLayout android:id="@+id/drawer_filters" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:paddingHorizontal="@dimen/space_16"
-                android:orientation="vertical" />
-        </HorizontalScrollView>
+            android:layout_marginHorizontal="@dimen/space_16"
+            android:layout_marginTop="@dimen/space_4"
+            android:maxLines="1" android:ellipsize="end" android:visibility="gone"
+            android:textSize="13sp" android:textColor="@color/canvas_ink_secondary" />
 
         <TextView android:id="@+id/drawer_list_heading"
             android:layout_width="match_parent" android:layout_height="wrap_content"
